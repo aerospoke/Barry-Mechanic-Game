@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" uid="uid://cs7gbftjvaw28" path="res://MovementScript.gd" id="1_0e48y"]
 [ext_resource type="PackedScene" uid="uid://5yvi2jkkd8wq" path="res://mapa.tscn" id="1_0hol4"]
-[ext_resource type="PackedScene" uid="uid://bop55fohwufpb" path="res://controlMobile.tscn" id="1_epypp"]
 [ext_resource type="Texture2D" uid="uid://wesffcww6nx3" path="res://mecanicomovementPrincipal.png" id="2_0e48y"]
 [ext_resource type="Texture2D" uid="uid://dgc8nfybuo548" path="res://mecanicomovementPickup.png" id="5_kdubu"]
 [ext_resource type="PackedScene" uid="uid://d32mhqmwmkaw2" path="res://cat.tscn" id="5_q6r6c"]
+[ext_resource type="PackedScene" uid="uid://c3ocisoa4ryxq" path="res://controlMobile2.tscn" id="6_kdubu"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rj586"]
 
@@ -234,13 +234,10 @@ size = Vector2(2.67576, 16.044619)
 texture_filter = 1
 
 [node name="Taller" parent="." unique_id=1206592089 instance=ExtResource("1_0hol4")]
-position = Vector2(-634, 995)
 
 [node name="cat" parent="." unique_id=1498391355 instance=ExtResource("5_q6r6c")]
-position = Vector2(-1118, 890.00006)
+position = Vector2(264, 2.9999998)
 scale = Vector2(2.3999987, 2.5599988)
-collision_layer = 2
-collision_mask = 2
 
 [node name="Area2D" type="Area2D" parent="cat" unique_id=880086969]
 
@@ -249,19 +246,18 @@ scale = Vector2(1, 0.99999994)
 shape = SubResource("RectangleShape2D_rj586")
 
 [node name="Barry" type="CharacterBody2D" parent="." unique_id=1854204255]
-position = Vector2(-682, 890)
 script = ExtResource("1_0e48y")
 
 [node name="ItemHandsPlayer" type="Sprite2D" parent="Barry" unique_id=60600546]
-position = Vector2(57, -197)
+position = Vector2(56.799843, -89)
 scale = Vector2(0.32000008, 0.3200001)
 
 [node name="CollisionPlayer" type="CollisionShape2D" parent="Barry" unique_id=233743995]
-position = Vector2(5.5625, -86)
+position = Vector2(5.362343, 22)
 shape = SubResource("RectangleShape2D_flf07")
 
 [node name="MovementPlayer" type="AnimatedSprite2D" parent="Barry" unique_id=502754575]
-position = Vector2(0.5625, -157)
+position = Vector2(0.36234283, -48.999985)
 scale = Vector2(0.7412488, 0.78125)
 sprite_frames = SubResource("SpriteFrames_nr8wp")
 animation = &"right-pickup"
@@ -274,15 +270,7 @@ scale = Vector2(0.9999998, 0.9999998)
 zoom = Vector2(0.9, 0.9)
 drag_horizontal_offset = -0.04
 
-[node name="Control" parent="Barry" unique_id=1509325079 instance=ExtResource("1_epypp")]
-offset_left = -112.0
-offset_top = 41.0
-offset_right = -112.0
-offset_bottom = 41.0
-scale = Vector2(1.3200003, 1.3200003)
-
 [node name="InteractionZone" type="Node2D" parent="." unique_id=887231734]
-position = Vector2(-631, 1001)
 
 [node name="Aceites" type="Area2D" parent="InteractionZone" unique_id=255177090]
 
@@ -327,6 +315,10 @@ position = Vector2(1074.7808, -292.0608)
 rotation = -1.004312
 scale = Vector2(35.092953, 11.224026)
 shape = SubResource("RectangleShape2D_d21ai")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=766230160]
+
+[node name="joyStickv1" parent="CanvasLayer" unique_id=1758787695 instance=ExtResource("6_kdubu")]
 
 [connection signal="body_entered" from="InteractionZone/Aceites" to="Barry" method="_on_aceites_body_entered"]
 [connection signal="body_exited" from="InteractionZone/Aceites" to="Barry" method="_on_aceites_body_exited"]

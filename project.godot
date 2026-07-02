@@ -26,6 +26,10 @@ window/handheld/orientation=1
 
 project/assembly_name="MecanicoGame"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/virtual_joystick_DX/plugin.cfg", "res://addons/virtual_joystick_cf/plugin.cfg")
+
 [input]
 
 down={

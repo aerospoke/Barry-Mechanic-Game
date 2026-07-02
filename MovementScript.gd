@@ -11,59 +11,52 @@ var zona_actual: String = ""
 @onready var animation = $"MovementPlayer"
 @onready var item_hand = $ItemHandsPlayer
 
-func _physics_process(delta: float):
-	# 1. Reiniciamos la velocidad a 0 en cada frame
-	velocity.x = 0
-	velocity.y = 0
+func _physics_process(_delta: float):
+	# 1. Reiniciamos la velocidad a 0
+	velocity = Vector2.ZERO
 	
-	# --- NUEVO: Detectar el botón de acción (el Tick ✔️) ---
 	if Input.is_action_just_pressed("ui_accept"):
 		interactuar()
-		print("hola")
 
-	# -------------------------------------------------------
-	
-	# --- VARIABLE PARA SABER QUÉ ANIMACIÓN REPRODUCIR ---
 	var sufijo = ""
 	if tiene_item:
 		sufijo = "-pickup"
 	
-	# 2. Comprobamos las acciones con IF y ELIF para evitar diagonales
-	# Y POSICIONAMOS EL ÍTEM SEGÚN LA DIRECCIÓN
-	if Input.is_action_pressed("left"):
-		velocity.x = -velocidad
-		animation.play("left" + sufijo)
-		# Movemos el ítem a la izquierda y lo ponemos frente a Barry
-		item_hand.position = Vector2(-55, -190) 
-		item_hand.z_index = 1 
-		
-	elif Input.is_action_pressed("right"):
-		velocity.x = velocidad
-		animation.play("right" + sufijo)
-		# Movemos el ítem a la derecha y lo ponemos frente a Barry
-		item_hand.position = Vector2(55, -190) 
-		item_hand.z_index = 1
-		
-	elif Input.is_action_pressed("up"):
-		velocity.y = -velocidad
-		animation.play("up" + sufijo)
-		# Movemos el ítem un poco más arriba, pero lo mandamos DETRÁS de la espalda de Barry
-		item_hand.position = Vector2(0, -25) 
-		item_hand.z_index = -1 
-		
-	elif Input.is_action_pressed("down"):
-		velocity.y = velocidad
-		animation.play("down" + sufijo)
-		# Movemos el ítem al centro del pecho y frente a Barry
-		item_hand.position = Vector2(5, -160) 
-		item_hand.z_index = 1
-		
+	# ---> AQUÍ ESTÁ LA NUEVA LÍNEA: Lee el joystick en 360 grados <---
+	var dir = Input.get_vector("left", "right", "up", "down")
+	
+	# Si el joystick se está moviendo (la dirección es mayor a 0)...
+	if dir.length() > 0:
+		# Comparamos si el empuje horizontal (x) es mayor al vertical (y)
+		if abs(dir.x) > abs(dir.y):
+			# --- MOVIMIENTO HORIZONTAL ---
+			if dir.x > 0: # Derecha
+				velocity.x = velocidad
+				animation.play("right" + sufijo)
+				item_hand.position = Vector2(50, -30) 
+				item_hand.z_index = 1
+			else:         # Izquierda
+				velocity.x = -velocidad
+				animation.play("left" + sufijo)
+				item_hand.position = Vector2(-50, -30) 
+				item_hand.z_index = 1
+		else:
+			# --- MOVIMIENTO VERTICAL ---
+			if dir.y > 0: # Abajo
+				velocity.y = velocidad
+				animation.play("down" + sufijo)
+				item_hand.position = Vector2(5, -37) 
+				item_hand.z_index = 1
+			else:         # Arriba
+				velocity.y = -velocidad
+				animation.play("up" + sufijo)
+				item_hand.position = Vector2(0, -25) 
+				item_hand.z_index = -1 
 	else:
-		# Si el jugador no presiona NINGUNA tecla, detenemos la animación
+		# --- QUIETO ---
 		animation.stop()
 		animation.play("down" + sufijo) 
-		# Como vuelve a mirar hacia abajo por defecto, aseguramos la posición
-		item_hand.position = Vector2(5, -160)
+		item_hand.position = Vector2(5, -35)
 		item_hand.z_index = 1
 
 	# 3. Movemos al personaje de forma limpia
@@ -77,13 +70,13 @@ func interactuar():
 		tiene_item = true
 		item_hand.visible = true
 		
-		# Asignamos la imagen correcta (¡Asegúrate de que estas rutas sean correctas en tu proyecto!)
+		# Asignamos la imagen correcta
 		if zona_actual == "oils":
 			item_hand.texture = load("res://objetos/work1.png") 
 		elif zona_actual == "filters":
-			item_hand.texture = load("res://objetos/boxFilters.png")
+			item_hand.texture = load("res://objetos/airFlow5.png")
 		elif zona_actual == "lights":
-			item_hand.texture = load("res://objetos/boxLights.png")
+			item_hand.texture = load("res://objetos/light5.png")
 		elif zona_actual == "keys":
 			item_hand.texture = load("res://objetos/boxKeys.png")
 			
@@ -96,9 +89,6 @@ func interactuar():
 		print("Barry soltó el objeto.")
 
 # --- SEÑALES DE LAS ZONAS DE INTERACCIÓN ---
-# (Recuerda conectar estas señales desde los nodos Area2D en la interfaz de Godot a este script)
-
-# --- ACEITES ---
 func _on_aceites_body_entered(body):
 	if body.name == "Barry":
 		print("🚨 BARRY ENTRÓ AL ÁREA DE ACEITES")
@@ -109,7 +99,6 @@ func _on_aceites_body_exited(body):
 		zona_actual = ""
 		print("👋 Barry salió de aceites, memoria borrada")
 
-# --- FILTROS ---
 func _on_filters_body_entered(body):
 	if body.name == "Barry":
 		print("🚨 BARRY ENTRÓ AL ÁREA DE FILTROS")
@@ -120,7 +109,6 @@ func _on_filters_body_exited(body):
 		zona_actual = ""
 		print("👋 Barry salió de filtros, memoria borrada")
 
-# --- LUCES ---
 func _on_lights_2_body_entered(body):
 	if body.name == "Barry":
 		print("🚨 BARRY ENTRÓ AL ÁREA DE LUCES")
@@ -131,7 +119,6 @@ func _on_lights_2_body_exited(body):
 		zona_actual = ""
 		print("👋 Barry salió de luces, memoria borrada")
 
-# --- CERRAJERÍA ---
 func _on_keys_body_entered(body):
 	if body.name == "Barry":
 		print("🚨 BARRY ENTRÓ AL ÁREA DE CERRAJERÍA")

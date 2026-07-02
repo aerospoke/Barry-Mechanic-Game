@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://dtjdqy45x1m1j"]
+
+[ext_resource type="Script" uid="uid://d361t8y6sahvi" path="res://addons/virtual_joystick_cf/virtual_joystick_cf.gd" id="1_37qbi"]
+
+[node name="VirtualJoystickCF" type="Control" unique_id=1052087566]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_37qbi")
+metadata/_custom_type_script = "uid://d361t8y6sahvi"
