@@ -1,7 +1,7 @@
 extends CharacterBody2D
 
 # Velocidad de movimiento en píxeles por segundo
-const velocidad = 280.0 
+const velocidad = 310.0 
 
 # --- NUEVAS VARIABLES PARA LOS ITEMS ---
 var tiene_item: bool = false

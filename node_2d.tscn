@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://wesffcww6nx3" path="res://mecanicomovementPrincipal.png" id="2_0e48y"]
 [ext_resource type="Texture2D" uid="uid://dgc8nfybuo548" path="res://mecanicomovementPickup.png" id="5_kdubu"]
 [ext_resource type="PackedScene" uid="uid://d32mhqmwmkaw2" path="res://cat.tscn" id="5_q6r6c"]
-[ext_resource type="PackedScene" uid="uid://c3ocisoa4ryxq" path="res://controlMobile2.tscn" id="6_kdubu"]
+[ext_resource type="PackedScene" uid="uid://c3ocisoa4ryxq" path="res://ui.tscn" id="6_kdubu"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rj586"]
 
@@ -271,7 +271,6 @@ zoom = Vector2(0.9, 0.9)
 drag_horizontal_offset = -0.04
 
 [node name="InteractionZone" type="Node2D" parent="." unique_id=887231734]
-visible = false
 
 [node name="Aceites" type="Area2D" parent="InteractionZone" unique_id=255177090]
 
@@ -304,8 +303,8 @@ shape = SubResource("RectangleShape2D_kdubu")
 [node name="Trash" type="Area2D" parent="InteractionZone" unique_id=306601603]
 
 [node name="trash" type="CollisionShape2D" parent="InteractionZone/Trash" unique_id=1961820629]
-position = Vector2(764, -375.00003)
-rotation = 1.1269473
+position = Vector2(659, -385.00003)
+rotation = -1.1059886
 shape = SubResource("RectangleShape2D_kdubu")
 
 [node name="WorkZone" type="Area2D" parent="InteractionZone" unique_id=1204180509]
@@ -317,9 +316,19 @@ rotation = -1.004312
 scale = Vector2(35.092953, 11.224026)
 shape = SubResource("RectangleShape2D_d21ai")
 
+[node name="SearchWork" type="Area2D" parent="InteractionZone" unique_id=176858428]
+position = Vector2(-1348, 479)
+rotation = -0.048544824
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionZone/SearchWork" unique_id=192701477]
+position = Vector2(1158.848, -216.02052)
+rotation = 1.1343446
+scale = Vector2(35.092953, 11.224026)
+shape = SubResource("RectangleShape2D_d21ai")
+
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=766230160]
 
-[node name="joyStickv1" parent="CanvasLayer" unique_id=1758787695 instance=ExtResource("6_kdubu")]
+[node name="UI" parent="CanvasLayer" unique_id=1758787695 instance=ExtResource("6_kdubu")]
 
 [connection signal="body_entered" from="InteractionZone/Aceites" to="Barry" method="_on_aceites_body_entered"]
 [connection signal="body_exited" from="InteractionZone/Aceites" to="Barry" method="_on_aceites_body_exited"]
