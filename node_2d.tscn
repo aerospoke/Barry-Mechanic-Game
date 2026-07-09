@@ -260,7 +260,7 @@ shape = SubResource("RectangleShape2D_flf07")
 position = Vector2(0.36234283, -48.999985)
 scale = Vector2(0.7412488, 0.78125)
 sprite_frames = SubResource("SpriteFrames_nr8wp")
-animation = &"right-pickup"
+animation = &"down"
 speed_scale = 1.2
 
 [node name="CameraPlayer" type="Camera2D" parent="Barry" unique_id=501782760]
