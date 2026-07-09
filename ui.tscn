@@ -42,7 +42,7 @@ Diagonals = null
 metadata/_custom_type_script = "uid://bu5s5y4kf24i5"
 
 [node name="buttonAction" type="TouchScreenButton" parent="." unique_id=1934036030]
-position = Vector2(309, 635.99994)
+position = Vector2(297, 635.99994)
 scale = Vector2(0.065, 0.065)
 texture_normal = SubResource("CompressedTexture2D_27fn8")
 texture_pressed = SubResource("CompressedTexture2D_nltto")
