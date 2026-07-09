@@ -1,14 +1,18 @@
 [gd_scene format=3 uid="uid://c3ocisoa4ryxq"]
 
 [ext_resource type="Script" uid="uid://bu5s5y4kf24i5" path="res://addons/virtual_joystick_DX/vjdx_core_script.gd" id="1_0fbet"]
-[ext_resource type="Texture2D" uid="uid://cr1ypxjt4hf18" path="res://buttons ui/buttonBarry.png" id="4_nltto"]
-[ext_resource type="Texture2D" uid="uid://denfsuugol3bu" path="res://buttons ui/buttonBarryPressed.png" id="5_ibotj"]
 
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_27fn8"]
 load_path = "res://.godot/imported/buttonLupa_normal.png-a0c1b877174d7f402e7d809f42e4013a.ctex"
 
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_nltto"]
 load_path = "res://.godot/imported/buttonLupa_pressed.png-2323f01b03427cce63feaaf3695eba95.ctex"
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_fyqef"]
+load_path = "res://.godot/imported/buttonBarry.png-d57896e08cf83af3f0adba02311f678c.ctex"
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_m6e0p"]
+load_path = "res://.godot/imported/buttonBarryPressed.png-a0055cc05a9d9a91f01f33beafa5faa1.ctex"
 
 [node name="UI" type="Control" unique_id=1758787695]
 layout_mode = 3
@@ -51,6 +55,6 @@ action = "ui_accept"
 [node name="buttonAction2" type="TouchScreenButton" parent="." unique_id=740764162]
 position = Vector2(293.00003, 20)
 scale = Vector2(0.06449373, 0.06449372)
-texture_normal = ExtResource("4_nltto")
-texture_pressed = ExtResource("5_ibotj")
+texture_normal = SubResource("CompressedTexture2D_fyqef")
+texture_pressed = SubResource("CompressedTexture2D_m6e0p")
 action = "ui_accept"
