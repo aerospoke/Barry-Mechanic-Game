@@ -1,3 +1,14 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Build artifacts
+*.apk
+*.idsig
+*.aab
+
+# OS files
+.DS_Store
+
+# Source/design files
+*.psd

@@ -15,6 +15,10 @@ run/main_scene="uid://ca6o4hhyc6qty"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+Supabase="*res://supabase.gd"
+
 [display]
 
 window/size/viewport_width=420

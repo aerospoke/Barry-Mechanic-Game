@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://c3ocisoa4ryxq"]
+
+[ext_resource type="Script" uid="uid://bu5s5y4kf24i5" path="res://addons/virtual_joystick_DX/vjdx_core_script.gd" id="1_0fbet"]
+[ext_resource type="Texture2D" uid="uid://bnwimc50nnqwb" path="res://buttons_ui/buttonLupa_normal.png" id="2_lupa_n"]
+[ext_resource type="Texture2D" uid="uid://bfhnhsh8ycx7t" path="res://buttons_ui/buttonLupa_pressed.png" id="3_lupa_p"]
+[ext_resource type="Texture2D" uid="uid://cr1ypxjt4hf18" path="res://buttons_ui/buttonBarry.png" id="4_barry_n"]
+[ext_resource type="Texture2D" uid="uid://denfsuugol3bu" path="res://buttons_ui/buttonBarryPressed.png" id="5_barry_p"]
+
+[node name="UI" type="Control" unique_id=1758787695]
+layout_mode = 3
+anchors_preset = 0
+metadata/_edit_vertical_guides_ = [295.0]
+metadata/_edit_horizontal_guides_ = [679.0]
+
+[node name="VirtualJoystickDX" type="Control" parent="." unique_id=827451242]
+custom_minimum_size = Vector2(320, 320)
+anchors_preset = 0
+offset_left = 76.0
+offset_top = 645.0
+offset_right = 396.0
+offset_bottom = 965.0
+scale = Vector2(0.19999877, 0.19999877)
+mouse_filter = 2
+script = ExtResource("1_0fbet")
+joystick_radius = 160.0
+thumb_radius = 160.0
+debug_deadzone = false
+region_x = 5.0
+region_y = 560.0
+region_w = 220.0
+region_h = 220.0
+color_js_thumb = Color(0.972549, 0.75686276, 0.9647059, 1)
+color_js_thumb_active = Color(0.95686275, 0.7411765, 0.9529412, 1)
+"Colors - D-Pad" = null
+"Textures - D-Pad" = null
+Cardinals = null
+Diagonals = null
+metadata/_custom_type_script = "uid://bu5s5y4kf24i5"
+
+[node name="buttonAction" type="TouchScreenButton" parent="." unique_id=1934036030]
+position = Vector2(297, 635.99994)
+scale = Vector2(0.065, 0.065)
+texture_normal = ExtResource("2_lupa_n")
+texture_pressed = ExtResource("3_lupa_p")
+action = "ui_accept"
+
+[node name="buttonAction2" type="TouchScreenButton" parent="." unique_id=740764162]
+position = Vector2(293.00003, 20)
+scale = Vector2(0.06449373, 0.06449372)
+texture_normal = ExtResource("4_barry_n")
+texture_pressed = ExtResource("5_barry_p")
+action = "ui_accept"

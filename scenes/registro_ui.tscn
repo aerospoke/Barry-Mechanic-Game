@@ -1,0 +1,74 @@
+[gd_scene format=3 uid="uid://dffleo7gyvldx"]
+
+[ext_resource type="Script" uid="uid://kdogss5u1bo8" path="res://scripts/registro_ui.gd" id="1_v33j5"]
+[ext_resource type="Texture2D" uid="uid://bs48rmlsg5jgv" path="res://banners/bannerRegistro.png" id="2_fdrjx"]
+
+[node name="RegistroUI" type="Control" unique_id=1114860047]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_v33j5")
+
+[node name="EmailInput" type="LineEdit" parent="." unique_id=1022859701]
+layout_mode = 0
+offset_left = 49.0
+offset_top = 352.0
+offset_right = 280.5
+offset_bottom = 390.5
+scale = Vector2(1.4, 1.2)
+
+[node name="PasswordInput" type="LineEdit" parent="." unique_id=1356545502]
+layout_mode = 0
+offset_left = 47.999996
+offset_top = 454.00003
+offset_right = 281.0
+offset_bottom = 490.00003
+scale = Vector2(1.4, 1.2)
+secret = true
+
+[node name="BtnRegistrar" type="Button" parent="." unique_id=1567850316]
+layout_mode = 0
+offset_left = 97.0
+offset_top = 574.0
+offset_right = 282.0
+offset_bottom = 631.0
+scale = Vector2(1.2800001, 1.2800001)
+text = "Registrarme"
+
+[node name="HTTPRequest" type="HTTPRequest" parent="." unique_id=30889742]
+
+[node name="BtnRedirectLogin" type="Button" parent="." unique_id=1285824374]
+layout_mode = 0
+offset_left = 98.0
+offset_top = 670.0
+offset_right = 283.0
+offset_bottom = 727.0
+scale = Vector2(1.2800001, 1.2800001)
+text = "Ya tengo una cuenta"
+
+[node name="BannerRegistro" type="Sprite2D" parent="." unique_id=1414237004]
+position = Vector2(210.50002, 130.00003)
+scale = Vector2(0.2528805, 0.2559694)
+texture = ExtResource("2_fdrjx")
+
+[node name="Label - username" type="Label" parent="." unique_id=83199504]
+layout_mode = 0
+offset_left = 53.0
+offset_top = 318.0
+offset_right = 93.0
+offset_bottom = 341.0
+text = "Nombre de usuario:"
+
+[node name="Label - password" type="Label" parent="." unique_id=32115146]
+layout_mode = 0
+offset_left = 56.0
+offset_top = 425.0
+offset_right = 211.0
+offset_bottom = 448.0
+pivot_offset = Vector2(220, 10)
+text = "Contraseña:"
+
+[connection signal="pressed" from="BtnRedirectLogin" to="." method="_on_btn_redirect_login_pressed"]
