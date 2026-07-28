@@ -39,7 +39,8 @@ func _on_request_completed(_result: int, response_code: int, _headers: PackedStr
 		Callable(self, "_on_login_error")
 	)
 
-func _on_login_success(_data) -> void:
+func _on_login_success(data) -> void:
+	Supabase.set_session(data)
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 func _on_login_error(msg: String) -> void:
