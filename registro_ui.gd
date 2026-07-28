@@ -61,3 +61,7 @@ func _on_request_completed(result, response_code, headers, body):
 				print("Motivo: ", response_data["msg"])
 	else:
 		print("Error leyendo la respuesta del servidor.")
+
+
+func _on_btn_redirect_login_pressed() -> void:
+	get_tree().change_scene_to_file("res://login_ui.tscn")

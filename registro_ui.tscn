@@ -51,7 +51,7 @@ text = "Ya tengo una cuenta"
 
 [node name="BannerRegistro" type="Sprite2D" parent="." unique_id=1414237004]
 position = Vector2(210.50002, 130.00003)
-scale = Vector2(0.25530624, 0.2591929)
+scale = Vector2(0.2528805, 0.2559694)
 texture = ExtResource("2_fdrjx")
 
 [node name="Label - username" type="Label" parent="." unique_id=83199504]
@@ -70,3 +70,5 @@ offset_right = 211.0
 offset_bottom = 448.0
 pivot_offset = Vector2(220, 10)
 text = "Contraseña:"
+
+[connection signal="pressed" from="BtnRedirectLogin" to="." method="_on_btn_redirect_login_pressed"]
