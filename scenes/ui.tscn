@@ -74,7 +74,7 @@ offset_top = 10.0
 offset_right = 144.0
 offset_bottom = 33.0
 scale = Vector2(0.72, 0.72)
-text = "Perfil del Jugador"
+text = "Nombre de usuario"
 
 [node name="LabelNick" type="Label" parent="fondoOscuro/PanelProfile" unique_id=420025152]
 layout_mode = 0
@@ -82,7 +82,7 @@ offset_left = 10.0
 offset_top = 31.0
 offset_right = 185.0
 offset_bottom = 54.0
-text = "Nickname: Cargando..."
+text = "Cargando..."
 
 [node name="PanelMoney" type="Panel" parent="fondoOscuro" unique_id=1108656707]
 layout_mode = 0
@@ -145,6 +145,8 @@ scale = Vector2(0.03667804, 0.036678027)
 texture_normal = ExtResource("3_cgfq5")
 texture_pressed = ExtResource("4_7dvkv")
 action = "ui_accept"
+
+[node name="HTTPRequestProfile" type="HTTPRequest" parent="." unique_id=1374004256]
 
 [node name="buttonProfile" type="TouchScreenButton" parent="." unique_id=740764162]
 position = Vector2(293.00003, 20)
