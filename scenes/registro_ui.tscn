@@ -12,42 +12,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_v33j5")
 
-[node name="EmailInput" type="LineEdit" parent="." unique_id=1022859701]
-layout_mode = 0
-offset_left = 49.0
-offset_top = 352.0
-offset_right = 280.5
-offset_bottom = 390.5
-scale = Vector2(1.4, 1.2)
-
-[node name="PasswordInput" type="LineEdit" parent="." unique_id=1356545502]
-layout_mode = 0
-offset_left = 47.999996
-offset_top = 454.00003
-offset_right = 281.0
-offset_bottom = 490.00003
-scale = Vector2(1.4, 1.2)
-secret = true
-
-[node name="BtnRegistrar" type="Button" parent="." unique_id=1567850316]
-layout_mode = 0
-offset_left = 97.0
-offset_top = 574.0
-offset_right = 282.0
-offset_bottom = 631.0
-scale = Vector2(1.2800001, 1.2800001)
-text = "Registrarme"
-
 [node name="HTTPRequest" type="HTTPRequest" parent="." unique_id=30889742]
-
-[node name="BtnRedirectLogin" type="Button" parent="." unique_id=1285824374]
-layout_mode = 0
-offset_left = 98.0
-offset_top = 670.0
-offset_right = 283.0
-offset_bottom = 727.0
-scale = Vector2(1.2800001, 1.2800001)
-text = "Ya tengo una cuenta"
 
 [node name="BannerRegistro" type="Sprite2D" parent="." unique_id=1414237004]
 position = Vector2(210.50002, 130.00003)
@@ -58,17 +23,68 @@ texture = ExtResource("2_fdrjx")
 layout_mode = 0
 offset_left = 53.0
 offset_top = 318.0
-offset_right = 93.0
+offset_right = 208.0
 offset_bottom = 341.0
 text = "Nombre de usuario:"
 
+[node name="userNameInput" type="LineEdit" parent="." unique_id=1096260446]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 353.0
+offset_right = 281.5
+offset_bottom = 391.5
+scale = Vector2(1.4, 1.2)
+
+[node name="Label - Email" type="Label" parent="." unique_id=1410501918]
+layout_mode = 0
+offset_left = 53.0
+offset_top = 420.0
+offset_right = 208.0
+offset_bottom = 443.0
+text = "Email:"
+
+[node name="EmailInput" type="LineEdit" parent="." unique_id=1022859701]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 458.00003
+offset_right = 281.5
+offset_bottom = 496.50003
+scale = Vector2(1.4, 1.2)
+
 [node name="Label - password" type="Label" parent="." unique_id=32115146]
 layout_mode = 0
-offset_left = 56.0
-offset_top = 425.0
-offset_right = 211.0
-offset_bottom = 448.0
+offset_left = 51.0
+offset_top = 532.0
+offset_right = 206.0
+offset_bottom = 555.0
 pivot_offset = Vector2(220, 10)
 text = "Contraseña:"
+
+[node name="PasswordInput" type="LineEdit" parent="." unique_id=1356545502]
+layout_mode = 0
+offset_left = 46.0
+offset_top = 562.0
+offset_right = 279.0
+offset_bottom = 598.0
+scale = Vector2(1.4, 1.2)
+secret = true
+
+[node name="BtnRegistrar" type="Button" parent="." unique_id=1567850316]
+layout_mode = 0
+offset_left = 232.99998
+offset_top = 670.0
+offset_right = 418.0
+offset_bottom = 727.0
+scale = Vector2(0.9200001, 0.9200001)
+text = "Registrarme"
+
+[node name="BtnRedirectLogin" type="Button" parent="." unique_id=1285824374]
+layout_mode = 0
+offset_left = 25.999985
+offset_top = 671.0
+offset_right = 210.99998
+offset_bottom = 728.0
+scale = Vector2(0.9200001, 0.9200001)
+text = "Ya tengo una cuenta"
 
 [connection signal="pressed" from="BtnRedirectLogin" to="." method="_on_btn_redirect_login_pressed"]
