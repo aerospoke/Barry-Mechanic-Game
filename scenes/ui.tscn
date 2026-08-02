@@ -1,8 +1,12 @@
 [gd_scene format=3 uid="uid://c3ocisoa4ryxq"]
 
 [ext_resource type="Script" uid="uid://bu5s5y4kf24i5" path="res://addons/virtual_joystick_DX/vjdx_core_script.gd" id="1_0fbet"]
+[ext_resource type="Texture2D" uid="uid://c7s6pk6tfgq3f" path="res://buttons_ui/buttonCoin_normal.png" id="1_8dubc"]
 [ext_resource type="Texture2D" uid="uid://bnwimc50nnqwb" path="res://buttons_ui/buttonLupa_normal.png" id="2_lupa_n"]
+[ext_resource type="Texture2D" uid="uid://davr13b7kggt0" path="res://buttons_ui/buttonCoin_pressed.png" id="2_p7vwb"]
+[ext_resource type="Texture2D" uid="uid://qgavi0ooyyi2" path="res://buttons_ui/buttonTrophie_normal.png" id="3_cgfq5"]
 [ext_resource type="Texture2D" uid="uid://bfhnhsh8ycx7t" path="res://buttons_ui/buttonLupa_pressed.png" id="3_lupa_p"]
+[ext_resource type="Texture2D" uid="uid://bmj4v0lrsn3b3" path="res://buttons_ui/buttonTropphie_pressed.png" id="4_7dvkv"]
 [ext_resource type="Texture2D" uid="uid://cr1ypxjt4hf18" path="res://buttons_ui/buttonBarry.png" id="4_barry_n"]
 [ext_resource type="Texture2D" uid="uid://denfsuugol3bu" path="res://buttons_ui/buttonBarryPressed.png" id="5_barry_p"]
 
@@ -11,6 +15,100 @@ layout_mode = 3
 anchors_preset = 0
 metadata/_edit_vertical_guides_ = [295.0]
 metadata/_edit_horizontal_guides_ = [679.0]
+
+[node name="fondoOscuro" type="ColorRect" parent="." unique_id=230184596]
+layout_mode = 0
+offset_left = -10.0
+offset_top = -26.0
+offset_right = 426.0
+offset_bottom = 793.0
+color = Color(0.23529412, 0.101960786, 0.3019608, 1)
+
+[node name="PanelProfile" type="Panel" parent="fondoOscuro" unique_id=164641224]
+layout_mode = 0
+offset_left = 23.0
+offset_top = 40.0
+offset_right = 269.0
+offset_bottom = 105.0
+
+[node name="Perfil Del jugador" type="Label" parent="fondoOscuro/PanelProfile" unique_id=706920125]
+layout_mode = 0
+offset_left = 11.0
+offset_top = 10.0
+offset_right = 144.0
+offset_bottom = 33.0
+scale = Vector2(0.72, 0.72)
+text = "Perfil del Jugador"
+
+[node name="LabelNick" type="Label" parent="fondoOscuro/PanelProfile" unique_id=420025152]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 31.0
+offset_right = 185.0
+offset_bottom = 54.0
+text = "Nickname: Cargando..."
+
+[node name="PanelMoney" type="Panel" parent="fondoOscuro" unique_id=1108656707]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 120.0
+offset_right = 270.0
+offset_bottom = 185.0
+
+[node name="Perfil Del jugador" type="Label" parent="fondoOscuro/PanelMoney" unique_id=1622705562]
+layout_mode = 0
+offset_left = 61.999992
+offset_top = 6.9999995
+offset_right = 197.0
+offset_bottom = 30.0
+scale = Vector2(0.72, 0.72)
+text = "Creditos actuales"
+
+[node name="LabelNick" type="Label" parent="fondoOscuro/PanelMoney" unique_id=852930981]
+layout_mode = 0
+offset_left = 62.0
+offset_top = 31.0
+offset_right = 237.0
+offset_bottom = 54.0
+text = "Creditos: Cargando..."
+
+[node name="iconCoin" type="TouchScreenButton" parent="fondoOscuro/PanelMoney" unique_id=1160471384]
+position = Vector2(3, 2)
+scale = Vector2(0.036754508, 0.036754504)
+texture_normal = ExtResource("1_8dubc")
+texture_pressed = ExtResource("2_p7vwb")
+action = "ui_accept"
+
+[node name="PanelPoints" type="Panel" parent="fondoOscuro" unique_id=586404799]
+layout_mode = 0
+offset_left = 25.0
+offset_top = 203.0
+offset_right = 271.0
+offset_bottom = 268.0
+
+[node name="Perfil Del jugador" type="Label" parent="fondoOscuro/PanelPoints" unique_id=1638440390]
+layout_mode = 0
+offset_left = 63.000008
+offset_top = 4.9999995
+offset_right = 196.0
+offset_bottom = 28.0
+scale = Vector2(0.72, 0.72)
+text = "Puntos actuales"
+
+[node name="LabelNick" type="Label" parent="fondoOscuro/PanelPoints" unique_id=1608364301]
+layout_mode = 0
+offset_left = 63.0
+offset_top = 30.0
+offset_right = 238.0
+offset_bottom = 53.0
+text = "Puntos: Cargando..."
+
+[node name="iconCoin" type="TouchScreenButton" parent="fondoOscuro/PanelPoints" unique_id=870695274]
+position = Vector2(2, 2)
+scale = Vector2(0.03667804, 0.036678027)
+texture_normal = ExtResource("3_cgfq5")
+texture_pressed = ExtResource("4_7dvkv")
+action = "ui_accept"
 
 [node name="VirtualJoystickDX" type="Control" parent="." unique_id=827451242]
 custom_minimum_size = Vector2(320, 320)
@@ -44,7 +142,7 @@ texture_normal = ExtResource("2_lupa_n")
 texture_pressed = ExtResource("3_lupa_p")
 action = "ui_accept"
 
-[node name="buttonAction2" type="TouchScreenButton" parent="." unique_id=740764162]
+[node name="buttonProfile" type="TouchScreenButton" parent="." unique_id=740764162]
 position = Vector2(293.00003, 20)
 scale = Vector2(0.06449373, 0.06449372)
 texture_normal = ExtResource("4_barry_n")
