@@ -153,4 +153,3 @@ position = Vector2(293.00003, 20)
 scale = Vector2(0.06449373, 0.06449372)
 texture_normal = ExtResource("4_barry_n")
 texture_pressed = ExtResource("5_barry_p")
-action = "ui_accept"

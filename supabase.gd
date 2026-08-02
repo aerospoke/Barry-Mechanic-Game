@@ -7,6 +7,11 @@ var access_token: String = ""
 var user_id: String = ""
 var user_email: String = ""
 
+var profile_name: String = ""
+var profile_balance: int = 0
+var profile_points: int = 0
+var profile_loaded: bool = false
+
 func is_logged_in() -> bool:
 	return access_token != ""
 
@@ -44,6 +49,10 @@ func clear_session() -> void:
 	access_token = ""
 	user_id = ""
 	user_email = ""
+	profile_name = ""
+	profile_balance = 0
+	profile_points = 0
+	profile_loaded = false
 
 func handle_response(response_code: int, body: PackedByteArray, success_callable: Callable, error_callable: Callable) -> void:
 	var json = JSON.new()

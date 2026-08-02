@@ -21,7 +21,15 @@ func _on_button_profile_pressed() -> void:
 	else:
 		fondo_oscuro.visible = true
 		get_tree().paused = true
-		_fetch_profile()
+		if Supabase.profile_loaded:
+			_show_cached_profile()
+		else:
+			_fetch_profile()
+
+func _show_cached_profile() -> void:
+	label_nick.text = str(Supabase.profile_name)
+	label_money.text = str(Supabase.profile_balance)
+	label_points.text = str(Supabase.profile_points)
 
 func _fetch_profile() -> void:
 	if not Supabase.is_logged_in():
@@ -55,9 +63,11 @@ func _on_profile_request_completed(_result: int, response_code: int, _headers: P
 		var data = json.get_data()
 		if data is Array and data.size() > 0:
 			var profile = data[0]
-			label_nick.text = str(profile.get("name", ""))
-			label_money.text = str(profile.get("balance", 0))
-			label_points.text = str(profile.get("points", 0))
+			Supabase.profile_name = str(profile.get("name", ""))
+			Supabase.profile_balance = int(profile.get("balance", 0))
+			Supabase.profile_points = int(profile.get("points", 0))
+			Supabase.profile_loaded = true
+			_show_cached_profile()
 		else:
 			label_nick.text = "username: Sin datos"
 			label_money.text = "Creditos: Sin datos"

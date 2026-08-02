@@ -6,14 +6,14 @@ extends Control
 @onready var btn_login = $BtnLogin
 
 @onready var http_request = $HTTPRequest
-# 2. Agregamos el nuevo nodo que buscará el correo
 @onready var http_get_email = $HTTPRequest_GetEmail 
+@onready var http_profile = $HTTPRequest_Profile
 
 func _ready() -> void:
 	btn_login.pressed.connect(_on_btn_login_pressed)
 	http_request.request_completed.connect(_on_request_completed)
-	# 3. Conectamos la señal del nuevo nodo
-	http_get_email.request_completed.connect(_on_get_email_completed) 
+	http_get_email.request_completed.connect(_on_get_email_completed)
+	http_profile.request_completed.connect(_on_profile_completed)
 
 func _on_btn_redirect_register_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/registro_ui.tscn")
@@ -77,6 +77,23 @@ func _on_request_completed(_result: int, response_code: int, _headers: PackedStr
 func _on_login_success(data) -> void:
 	btn_login.disabled = false
 	Supabase.set_session(data)
+	_fetch_profile_on_login()
+
+func _fetch_profile_on_login() -> void:
+	var endpoint = "/rest/v1/profiles?id=eq." + Supabase.user_id + "&select=name,balance,points"
+	Supabase.make_auth_request(http_profile, endpoint, HTTPClient.METHOD_GET)
+
+func _on_profile_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	if response_code == 200:
+		var json = JSON.new()
+		json.parse(body.get_string_from_utf8())
+		var data = json.get_data()
+		if data is Array and data.size() > 0:
+			var profile = data[0]
+			Supabase.profile_name = str(profile.get("name", ""))
+			Supabase.profile_balance = int(profile.get("balance", 0))
+			Supabase.profile_points = int(profile.get("points", 0))
+			Supabase.profile_loaded = true
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 func _on_login_error(msg: String) -> void:

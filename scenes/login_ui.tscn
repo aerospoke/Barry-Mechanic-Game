@@ -42,6 +42,8 @@ text = "Iniciar sesion"
 
 [node name="HTTPRequest_GetEmail" type="HTTPRequest" parent="." unique_id=123608618]
 
+[node name="HTTPRequest_Profile" type="HTTPRequest" parent="."]
+
 [node name="BtnRedirectRegister" type="Button" parent="." unique_id=1024121125]
 layout_mode = 0
 offset_left = 141.0
