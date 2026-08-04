@@ -8,9 +8,10 @@ extends Node2D
 @onready var contenedor_juego = $ContenedorJuego
 @onready var botella_aceite = $ContenedorJuego/Aceite
 @onready var label_porcentaje = $ContenedorJuego/Label
+@onready var label_embudo = $ContenedorJuego/LabelEmbudo
 @onready var chorro_aceite = $ContenedorJuego/Aceite/ChorroAceite
-@onready var button_action = $ContenedorJuego/buttonAction # Botón
-@onready var liquido_shader = $ContenedorJuego/LiquidoShader # <-- NUEVO NODO DEL SHADER
+@onready var button_action = $ContenedorJuego/buttonAction
+@onready var liquido_shader = $ContenedorJuego/LiquidoShader
 
 var escala_original: Vector2 
 
@@ -22,17 +23,23 @@ var engine_textures = [
 ]
 
 # --- VARIABLES DEL MINIJUEGO ---
-var nivel_aceite = 0.0
-var velocidad_llenado = 15.0 # Sube 15% por segundo
+enum EstadoEmbudo { LLENANDO, DRENANDO, BLOQUEADO }
+var estado_embudo: EstadoEmbudo = EstadoEmbudo.LLENANDO
+
+var nivel_embudo: float = 0.0
+var nivel_aceite_total: float = 0.0
+
+var velocidad_llenado_embudo: float = 40.0
+var velocidad_drenaje_embudo: float = 80.0
+var velocidad_drenaje_desbordado: float = 30.0
+var ratio_embudo_a_total: float = 0.333
 
 func _ready():
 	escala_original = engine_sprite.scale 
 	
-	# Asegurarnos de que el minijuego esté oculto y las partículas apagadas al inicio
 	contenedor_juego.visible = false
 	chorro_aceite.emitting = false
 	
-	# Empezamos con el filtro totalmente NEGRO (a = 1.0)
 	filtro_oscuro.modulate.a = 1.0 
 	filtro_oscuro.visible = true 
 	
@@ -52,71 +59,93 @@ func iniciar_cinematica():
 	engine_sprite.scale = escala_original * 1.4 
 	engine_sprite.position = punto_inicio 
 	
-	# --- 1. ANIMACIÓN DEL MOTOR ---
 	var tween_motor = create_tween()
 	tween_motor.set_trans(Tween.TRANS_SINE)
 	tween_motor.set_ease(Tween.EASE_IN_OUT)
 	tween_motor.tween_property(engine_sprite, "position", punto_fin, 10.0)
 	tween_motor.parallel().tween_property(engine_sprite, "scale", escala_original, 10.0)
 	
-	# --- 2. ANIMACIÓN DEL FILTRO OSCURO (Efecto Cine) ---
 	var tween_filtro = create_tween()
 	
-	# Aclaramos, pausa, oscurecemos
 	tween_filtro.tween_property(filtro_oscuro, "modulate:a", 0.0, 1.5)
 	tween_filtro.tween_interval(2.0)
 	tween_filtro.tween_property(filtro_oscuro, "modulate:a", 1.0, 1.5)
 	
-	# Al terminar de oscurecer, llamamos a la función que inicia el minijuego
 	tween_filtro.tween_callback(iniciar_juego_aceite)
 
 func iniciar_juego_aceite():
-	# 1. Ocultamos el motor para que no estorbe en el fondo
 	engine_sprite.visible = false
 	
-	# 2. Hacemos visible todo lo del minijuego
 	contenedor_juego.visible = true
 	
-	# 3. Volvemos a aclarar el filtro oscuro suavemente para revelar el embudo y el aceite
 	var tween_revelar = create_tween()
 	tween_revelar.tween_property(filtro_oscuro, "modulate:a", 0.0, 1.0)
 
-# --- LÓGICA CONSTANTE DEL MINIJUEGO ---
 func _process(delta):
-	# Si el contenedor del juego aún no es visible, no hacemos nada
 	if not contenedor_juego.visible:
 		return
-		
+	
+	match estado_embudo:
+		EstadoEmbudo.LLENANDO:
+			_procesar_llenado(delta)
+		EstadoEmbudo.DRENANDO:
+			_procesar_drenaje(delta)
+		EstadoEmbudo.BLOQUEADO:
+			_procesar_bloqueado(delta)
+	
+	_actualizar_ui()
+
+func _procesar_llenado(delta):
 	if button_action.is_pressed():
-		# 1. Giramos la botella suavemente hacia la izquierda (-80 grados)
 		botella_aceite.rotation = lerp_angle(botella_aceite.rotation, deg_to_rad(-80), 5.0 * delta)
 		
-		# 2. MAGIA AQUÍ: Solo sale aceite si la botella ya superó los -60 grados de inclinación
 		if botella_aceite.rotation < deg_to_rad(-60):
 			chorro_aceite.emitting = true
 			
-			# Aumentamos el porcentaje de aceite solo cuando de verdad está saliendo
-			nivel_aceite += velocidad_llenado * delta
+			nivel_embudo += velocidad_llenado_embudo * delta
 			
-			# Evitamos que pase de 100
-			if nivel_aceite > 100.0:
-				nivel_aceite = 100.0
+			if nivel_embudo >= 100.0:
+				nivel_embudo = 100.0
+				_estado_drenando()
 		else:
-			# Si apenas se está inclinando, todavía no sale aceite ni sube el nivel
 			chorro_aceite.emitting = false
-			
 	else:
-		# Si soltamos el botón, se apaga el chorro INMEDIATAMENTE
 		chorro_aceite.emitting = false
-		
-		# Regresamos la botella a su posición original (0 grados) suavemente
 		botella_aceite.rotation = lerp_angle(botella_aceite.rotation, 0.0, 5.0 * delta)
 		
-	# Actualizamos el texto en pantalla
-	label_porcentaje.text = str(int(nivel_aceite)) + "%"
+		if nivel_embudo > 0.0:
+			_drenar(delta)
+
+func _drenar(delta, desbordado = false):
+	var velocidad = velocidad_drenaje_desbordado if desbordado else velocidad_drenaje_embudo
 	
-	# --- ACTUALIZACIÓN DEL SHADER ---
-	# Verificamos que el nodo exista y mandamos el nivel de aceite al shader
-	# (dividimos entre 100 porque el shader usa valores de 0.0 a 1.0)
+	nivel_embudo -= velocidad * delta
+	if nivel_embudo < 0.0:
+		nivel_embudo = 0.0
+	
+	var drenado = velocidad * delta
+	nivel_aceite_total += drenado * ratio_embudo_a_total
+	if nivel_aceite_total > 100.0:
+		nivel_aceite_total = 100.0
+	
+	if nivel_embudo <= 0.0 and estado_embudo == EstadoEmbudo.DRENANDO:
+		estado_embudo = EstadoEmbudo.LLENANDO
+
+func _procesar_drenaje(delta):
+	chorro_aceite.emitting = false
+	botella_aceite.rotation = lerp_angle(botella_aceite.rotation, 0.0, 5.0 * delta)
+	_drenar(delta, true)
+
+func _procesar_bloqueado(delta):
+	chorro_aceite.emitting = false
+	botella_aceite.rotation = lerp_angle(botella_aceite.rotation, 0.0, 5.0 * delta)
+
+func _estado_drenando():
+	estado_embudo = EstadoEmbudo.DRENANDO
+
+func _actualizar_ui():
+	label_porcentaje.text = str(int(nivel_aceite_total)) + "%"
+	label_embudo.text = "Embudo: " + str(int(nivel_embudo)) + "%"
+	
 	if liquido_shader:
-		liquido_shader.material.set_shader_parameter("fV", nivel_aceite / 100.0)
+		liquido_shader.material.set_shader_parameter("fV", nivel_embudo / 100.0)
