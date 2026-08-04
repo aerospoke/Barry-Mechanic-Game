@@ -9,7 +9,8 @@ extends Node2D
 @onready var botella_aceite = $ContenedorJuego/Aceite
 @onready var label_porcentaje = $ContenedorJuego/Label
 @onready var chorro_aceite = $ContenedorJuego/Aceite/ChorroAceite
-@onready var button_action = $ContenedorJuego/buttonAction # Agregamos el botón aquí
+@onready var button_action = $ContenedorJuego/buttonAction # Botón
+@onready var liquido_shader = $ContenedorJuego/LiquidoShader # <-- NUEVO NODO DEL SHADER
 
 var escala_original: Vector2 
 
@@ -70,14 +71,16 @@ func iniciar_cinematica():
 	tween_filtro.tween_callback(iniciar_juego_aceite)
 
 func iniciar_juego_aceite():
-	# Hacemos visible todo lo del minijuego
+	# 1. Ocultamos el motor para que no estorbe en el fondo
+	engine_sprite.visible = false
+	
+	# 2. Hacemos visible todo lo del minijuego
 	contenedor_juego.visible = true
 	
-	# Volvemos a aclarar el filtro oscuro suavemente para revelar el embudo y el aceite
+	# 3. Volvemos a aclarar el filtro oscuro suavemente para revelar el embudo y el aceite
 	var tween_revelar = create_tween()
 	tween_revelar.tween_property(filtro_oscuro, "modulate:a", 0.0, 1.0)
 
-# --- LÓGICA CONSTANTE DEL MINIJUEGO ---
 # --- LÓGICA CONSTANTE DEL MINIJUEGO ---
 func _process(delta):
 	# Si el contenedor del juego aún no es visible, no hacemos nada
@@ -111,3 +114,9 @@ func _process(delta):
 		
 	# Actualizamos el texto en pantalla
 	label_porcentaje.text = str(int(nivel_aceite)) + "%"
+	
+	# --- ACTUALIZACIÓN DEL SHADER ---
+	# Verificamos que el nodo exista y mandamos el nivel de aceite al shader
+	# (dividimos entre 100 porque el shader usa valores de 0.0 a 1.0)
+	if liquido_shader:
+		liquido_shader.material.set_shader_parameter("fV", nivel_aceite / 100.0)

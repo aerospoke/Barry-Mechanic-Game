@@ -7,11 +7,53 @@
 [ext_resource type="Texture2D" uid="uid://c1onwmveayjyi" path="res://buttons_ui/arrow_down_normal.png" id="5_jqknb"]
 [ext_resource type="Texture2D" uid="uid://b4qijw8fq8aw6" path="res://buttons_ui/arrow_down_pressed.png" id="6_rsuts"]
 
+[sub_resource type="Shader" id="Shader_jqknb"]
+code = "shader_type canvas_item;
+
+// fV = fill value
+uniform float fV;
+
+// NUEVO: Esto crea un selector de color en el Inspector de Godot
+uniform vec4 color_aceite : source_color = vec4(0.65, 0.45, 0.15, 1.0); 
+
+void fragment() {
+    vec2 uv = ((UV / -0.10)) + vec2(1.25,1.25);
+
+    float
+        sdf=length(uv),c=step(sdf,.85),
+        
+        vB=smoothstep(.1,.9,sin(uv.x+(PI*.5))-.3),
+        vBA=vB*sin(TIME*4.)*.1,
+        
+        fW=(sin(((TIME*2.)+uv.x)*2.)*.05)+vBA,
+        bW=(sin(((TIME*-2.)+uv.x)*2.+PI)*.05)-vBA,
+        
+        fA=(sin(TIME*4.)*.05)*vB,
+        
+        fP=fV * 2.3 +(sin((TIME)*PI)*.1) - 1.1,
+        
+        fF=step(uv.y,(fA+fW)+fP)*c,
+        bF=step(uv.y,(-fA+bW)+fP)*c;
+
+    // Guardamos la forma original blanca/gris en una variable
+    vec4 forma_original = vec4((step(sdf,1.)-step(sdf,.9))+
+        (fF+(clamp(bF-fF,0.,1.)*.8))+
+        clamp(pow((sdf+.01)*
+        ((1.-(fF+bF))*c),5.),0.,1.));
+        
+    // Multiplicamos la forma por nuestro color de aceite
+    COLOR = forma_original * color_aceite;
+} "
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3tna3"]
+shader = SubResource("Shader_jqknb")
+shader_parameter/fV = 0.0
+shader_parameter/color_aceite = Color(0.6117647, 0.47058824, 0.22745098, 1)
+
 [node name="Node2D" type="Node2D" unique_id=16537388]
 script = ExtResource("1_eoy2o")
 
 [node name="ColorRect" type="ColorRect" parent="." unique_id=890162150]
-visible = false
 offset_left = -2.0
 offset_top = -7.0
 offset_right = 425.0
@@ -19,13 +61,11 @@ offset_bottom = 785.0
 color = Color(0, 0, 0, 1)
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=863963214]
-visible = false
 position = Vector2(200, 434)
 scale = Vector2(0.28356484, 0.2835648)
 texture = ExtResource("2_rsfdm")
 
 [node name="ColorRect2" type="ColorRect" parent="." unique_id=819164288]
-visible = false
 offset_left = -25.0
 offset_top = -46.0
 offset_right = 402.0
@@ -36,26 +76,26 @@ color = Color(0, 0, 0, 1)
 [node name="ContenedorJuego" type="Node2D" parent="." unique_id=1841464734]
 
 [node name="Aceite" type="Sprite2D" parent="ContenedorJuego" unique_id=2119348287]
-position = Vector2(266, 141)
-scale = Vector2(0.2723432, 0.27195382)
+position = Vector2(287.00003, 164)
+scale = Vector2(0.32635984, 0.32589328)
 texture = ExtResource("3_jqknb")
 
 [node name="ChorroAceite" type="CPUParticles2D" parent="ContenedorJuego/Aceite" unique_id=1029232463]
-position = Vector2(-260.7005, -496.40796)
-scale = Vector2(1, 1.5883329)
+position = Vector2(-272.70523, -506.3007)
+scale = Vector2(1, 1.1984303)
 emitting = false
-amount = 600
+amount = 700
 direction = Vector2(0, 1)
-spread = 17.97
+spread = 63.63
 initial_velocity_min = 0.75
-initial_velocity_max = 15.67
-scale_amount_min = 10.05
-scale_amount_max = 25.07
-color = Color(0.45490196, 0.34509805, 0.15294118, 0.8039216)
+initial_velocity_max = 42.1
+scale_amount_min = 3.89
+scale_amount_max = 28.77
+color = Color(0.6117647, 0.47058824, 0.22745098, 1)
 
 [node name="Embudo" type="Sprite2D" parent="ContenedorJuego" unique_id=1762243933]
-position = Vector2(158.99997, 649.0001)
-scale = Vector2(0.3199994, 0.3199994)
+position = Vector2(127, 692.00006)
+scale = Vector2(0.23159201, 0.197448)
 texture = ExtResource("3_dnce1")
 
 [node name="buttonAction" type="TouchScreenButton" parent="ContenedorJuego" unique_id=597411985]
@@ -66,11 +106,20 @@ texture_pressed = ExtResource("6_rsuts")
 action = "ui_accept"
 
 [node name="Label" type="Label" parent="ContenedorJuego" unique_id=1075538245]
-offset_left = 23.0
-offset_top = 24.0
-offset_right = 63.0
-offset_bottom = 47.0
+offset_left = 278.0
+offset_top = 420.0
+offset_right = 318.0
+offset_bottom = 443.0
 scale = Vector2(3.2488682, 3.1740363)
 text = "50%"
+
+[node name="LiquidoShader" type="ColorRect" parent="ContenedorJuego" unique_id=259759928]
+material = SubResource("ShaderMaterial_3tna3")
+custom_minimum_size = Vector2(100, 100)
+offset_left = 60.000004
+offset_top = 576.00006
+offset_right = 160.0
+offset_bottom = 676.00006
+scale = Vector2(4.8104897, 4.80263)
 
 [connection signal="pressed" from="ContenedorJuego/buttonAction" to="." method="_on_button_action_pressed"]
