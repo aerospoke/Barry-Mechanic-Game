@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://dnhhotw1asvx4"]
+
+[ext_resource type="Script" uid="uid://cvewnxcfvs246" path="res://scenes/mini_game_oil.gd" id="1_eoy2o"]
+[ext_resource type="Texture2D" uid="uid://1weftydvfck0" path="res://enginesCars/engine1.png" id="2_rsfdm"]
+
+[node name="Node2D" type="Node2D" unique_id=16537388]
+script = ExtResource("1_eoy2o")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=890162150]
+offset_left = -2.0
+offset_top = -7.0
+offset_right = 425.0
+offset_bottom = 785.0
+color = Color(0, 0, 0, 1)
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=863963214]
+position = Vector2(200, 434)
+scale = Vector2(0.28356484, 0.2835648)
+texture = ExtResource("2_rsfdm")
+
+[node name="ColorRect2" type="ColorRect" parent="." unique_id=819164288]
+offset_left = -25.0
+offset_top = -46.0
+offset_right = 402.0
+offset_bottom = 746.0
+scale = Vector2(1.0994278, 1.1553752)
+color = Color(0, 0, 0, 1)

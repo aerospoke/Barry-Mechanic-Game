@@ -149,7 +149,7 @@ action = "ui_accept"
 [node name="HTTPRequestProfile" type="HTTPRequest" parent="." unique_id=1374004256]
 
 [node name="buttonProfile" type="TouchScreenButton" parent="." unique_id=740764162]
-position = Vector2(293.00003, 20)
+position = Vector2(312.00003, 27)
 scale = Vector2(0.06449373, 0.06449372)
 texture_normal = ExtResource("4_barry_n")
 texture_pressed = ExtResource("5_barry_p")
