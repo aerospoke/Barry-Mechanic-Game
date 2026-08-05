@@ -146,7 +146,33 @@ texture_normal = ExtResource("3_cgfq5")
 texture_pressed = ExtResource("4_7dvkv")
 action = "ui_accept"
 
+[node name="PanelWork" type="Panel" parent="fondoOscuro" unique_id=700112233]
+layout_mode = 0
+offset_left = 25.0
+offset_top = 286.0
+offset_right = 271.0
+offset_bottom = 351.0
+
+[node name="TitleWork" type="Label" parent="fondoOscuro/PanelWork" unique_id=700112234]
+layout_mode = 0
+offset_left = 63.0
+offset_top = 5.0
+offset_right = 196.0
+offset_bottom = 28.0
+scale = Vector2(0.72, 0.72)
+text = "Trabajo actual"
+
+[node name="LabelWork" type="Label" parent="fondoOscuro/PanelWork" unique_id=700112235]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 30.0
+offset_right = 235.0
+offset_bottom = 53.0
+text = "Sin trabajo activo"
+
 [node name="HTTPRequestProfile" type="HTTPRequest" parent="." unique_id=1374004256]
+
+[node name="HTTPRequestActiveWork" type="HTTPRequest" parent="." unique_id=700112240]
 
 [node name="buttonProfile" type="TouchScreenButton" parent="." unique_id=740764162]
 position = Vector2(312.00003, 27)

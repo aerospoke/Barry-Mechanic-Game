@@ -31,7 +31,7 @@ var nivel_aceite_total: float = 0.0
 
 var velocidad_llenado_embudo: float = 40.0
 var velocidad_drenaje_embudo: float = 80.0
-var velocidad_drenaje_desbordado: float = 30.0
+var velocidad_drenaje_desbordado: float = 24.0
 var ratio_embudo_a_total: float = 0.333
 
 func _ready():

@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://dgc8nfybuo548" path="res://objetos/mecanicomovement_pickup.png" id="5_kdubu"]
 [ext_resource type="PackedScene" uid="uid://d32mhqmwmkaw2" path="res://scenes/cat.tscn" id="5_q6r6c"]
 [ext_resource type="PackedScene" uid="uid://c3ocisoa4ryxq" path="res://scenes/ui.tscn" id="6_kdubu"]
+[ext_resource type="PackedScene" path="res://scenes/searchwork_ui.tscn" id="7_search"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rj586"]
 
@@ -329,3 +330,5 @@ shape = SubResource("RectangleShape2D_d21ai")
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=766230160]
 
 [node name="UI" parent="CanvasLayer" unique_id=1758787695 instance=ExtResource("6_kdubu")]
+
+[node name="SearchWorkUI" parent="CanvasLayer" instance=ExtResource("7_search")]

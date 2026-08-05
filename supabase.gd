@@ -12,6 +12,11 @@ var profile_balance: int = 0
 var profile_points: int = 0
 var profile_loaded: bool = false
 
+var active_work_id: String = ""
+var active_work_name: String = ""
+var active_work_points: int = 0
+var active_work_payment: int = 0
+
 func is_logged_in() -> bool:
 	return access_token != ""
 
@@ -53,6 +58,10 @@ func clear_session() -> void:
 	profile_balance = 0
 	profile_points = 0
 	profile_loaded = false
+	active_work_id = ""
+	active_work_name = ""
+	active_work_points = 0
+	active_work_payment = 0
 
 func handle_response(response_code: int, body: PackedByteArray, success_callable: Callable, error_callable: Callable) -> void:
 	var json = JSON.new()

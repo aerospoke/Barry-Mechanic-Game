@@ -113,7 +113,6 @@ offset_top = 420.0
 offset_right = 318.0
 offset_bottom = 443.0
 scale = Vector2(3.2488682, 3.1740363)
-text = "50%"
 
 [node name="LabelEmbudo" type="Label" parent="ContenedorJuego" unique_id=344739126]
 offset_left = 10.0
@@ -121,7 +120,6 @@ offset_top = 10.0
 offset_right = 250.0
 offset_bottom = 35.0
 scale = Vector2(1.2, 1.2)
-text = "Embudo: 0%  |  Ciclo: 1/3"
 
 [node name="LiquidoShader" type="ColorRect" parent="ContenedorJuego" unique_id=259759928]
 material = SubResource("ShaderMaterial_3tna3")

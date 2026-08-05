@@ -18,9 +18,11 @@ const ZONE_TEXTURES = {
 
 var tiene_item: bool = false
 var zona_actual: String = ""
+var en_search_work: bool = false
 
 @onready var animation = $MovementPlayer
 @onready var item_hand = $ItemHandsPlayer
+@onready var searchwork_ui = get_parent().get_node("CanvasLayer/SearchWorkUI")
 
 func _ready() -> void:
 	var interaction_zone = get_parent().get_node("InteractionZone")
@@ -28,6 +30,9 @@ func _ready() -> void:
 		if child is Area2D and child.name in ZONE_MAP:
 			child.body_entered.connect(_on_zone_entered.bind(child))
 			child.body_exited.connect(_on_zone_exited.bind(child))
+		elif child is Area2D and child.name == "SearchWork":
+			child.body_entered.connect(_on_search_work_entered.bind(child))
+			child.body_exited.connect(_on_search_work_exited.bind(child))
 
 func _physics_process(_delta: float) -> void:
 	velocity = Vector2.ZERO
@@ -70,6 +75,10 @@ func _physics_process(_delta: float) -> void:
 	move_and_slide()
 
 func interactuar() -> void:
+	if en_search_work and not tiene_item:
+		searchwork_ui.open()
+		return
+
 	if zona_actual != "" and not tiene_item:
 		tiene_item = true
 		item_hand.visible = true
@@ -88,3 +97,11 @@ func _on_zone_entered(body: Node2D, zone: Area2D) -> void:
 func _on_zone_exited(body: Node2D, zone: Area2D) -> void:
 	if body == self and zona_actual == ZONE_MAP[zone.name]:
 		zona_actual = ""
+
+func _on_search_work_entered(body: Node2D, _zone: Area2D) -> void:
+	if body == self:
+		en_search_work = true
+
+func _on_search_work_exited(body: Node2D, _zone: Area2D) -> void:
+	if body == self:
+		en_search_work = false
