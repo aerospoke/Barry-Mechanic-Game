@@ -6,17 +6,24 @@ extends Control
 @onready var btn_login = $BtnLogin
 
 @onready var http_request = $HTTPRequest
-@onready var http_get_email = $HTTPRequest_GetEmail 
-@onready var http_profile = $HTTPRequest_Profile
+@onready var http_get_email = $HTTPRequest_GetEmail
 
 const EyeToggle = preload("res://scripts/eye_toggle.gd")
 
+const StatusLabel = preload("res://scripts/status_label.gd")
+
+var status_label: Label
+
 func _ready() -> void:
+	# Entre el campo de contraseña (y=490) y el botón de entrar (y=574).
+	status_label = StatusLabel.crear(self, Vector2(40.0, 500.0), 340.0)
 	_agregar_ojo(password_input)
 	btn_login.pressed.connect(_on_btn_login_pressed)
+	# Al corregir los datos se borra el error anterior, que ya no aplica.
+	username_input.text_changed.connect(func(_t): status_label.limpiar())
+	password_input.text_changed.connect(func(_t): status_label.limpiar())
 	http_request.request_completed.connect(_on_request_completed)
 	http_get_email.request_completed.connect(_on_get_email_completed)
-	http_profile.request_completed.connect(_on_profile_completed)
 
 # Coloca el botón de ojo dentro del campo, pegado al borde derecho. Se ancla
 # en vez de posicionarse a mano para que siga al campo si cambia de tamaño.
@@ -47,11 +54,12 @@ func _on_btn_login_pressed() -> void:
 	var password = password_input.text
 
 	if username == "" or password == "":
-		print("Por favor, llena todos los campos.")
+		status_label.mostrar_error("Por favor, llena todos los campos.")
 		return
 
 	# Desactivamos el botón temporalmente para que el jugador no haga doble clic
-	btn_login.disabled = true 
+	btn_login.disabled = true
+	status_label.mostrar_info("Conectando...")
 
 	# 4. NUEVO PASO: En lugar de iniciar sesión, buscamos el correo del Nick
 	var error = Supabase.make_request(http_get_email, "/rest/v1/rpc/get_email_by_username", {
@@ -59,7 +67,7 @@ func _on_btn_login_pressed() -> void:
 	})
 
 	if error != OK:
-		print("Error al intentar conectar con la base de datos.")
+		status_label.mostrar_error("No hay conexion. Revisa tu internet. (error %d)" % error)
 		btn_login.disabled = false
 
 # 5. NUEVA FUNCIÓN: Recibe el correo oculto desde Supabase
@@ -72,10 +80,14 @@ func _on_get_email_completed(_result: int, response_code: int, _headers: PackedS
 		if email != "" and email != "null":
 			iniciar_sesion(email, password_input.text)
 		else:
-			print("Error: El nombre de usuario no existe.")
+			status_label.mostrar_error("El nombre de usuario no existe.")
 			btn_login.disabled = false
 	else:
-		print("Error en el servidor al buscar el usuario.")
+		# Se muestra el cuerpo de la respuesta: ahi viene el motivo real que
+		# manda Supabase (RLS, funcion inexistente, apikey invalida...).
+		status_label.mostrar_error("Error %d al buscar el usuario.\n%s" % [
+			response_code, body.get_string_from_utf8().strip_edges()
+		])
 		btn_login.disabled = false
 
 # 6. Tu función original se queda casi intacta
@@ -86,7 +98,7 @@ func iniciar_sesion(email: String, password: String) -> void:
 	})
 
 	if error != OK:
-		print("Error al intentar conectar con Supabase: ", error)
+		status_label.mostrar_error("No se pudo conectar con el servidor. (error %d)" % error)
 		btn_login.disabled = false
 
 # Las respuestas finales se quedan exactamente igual que en tu código
@@ -101,25 +113,17 @@ func _on_request_completed(_result: int, response_code: int, _headers: PackedStr
 func _on_login_success(data) -> void:
 	btn_login.disabled = false
 	Supabase.set_session(data)
-	_fetch_profile_on_login()
+	status_label.mostrar_info("Sesion iniciada, cargando perfil...")
 
-func _fetch_profile_on_login() -> void:
-	var endpoint = "/rest/v1/profiles?id=eq." + Supabase.user_id + "&select=name,balance,points"
-	Supabase.make_auth_request(http_profile, endpoint, HTTPClient.METHOD_GET)
+	# Se usa load_profile() del autoload en vez de una peticion propia: aquella
+	# no traia pos_x/pos_y pero marcaba el perfil como cargado, asi que despues
+	# el jugador nunca recuperaba su ultima posicion.
+	if not await Supabase.load_profile():
+		status_label.mostrar_error("No se pudo cargar tu perfil. Revisa las politicas RLS de SELECT en profiles.")
+		return
 
-func _on_profile_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
-	if response_code == 200:
-		var json = JSON.new()
-		json.parse(body.get_string_from_utf8())
-		var data = json.get_data()
-		if data is Array and data.size() > 0:
-			var profile = data[0]
-			Supabase.profile_name = str(profile.get("name", ""))
-			Supabase.profile_balance = int(profile.get("balance", 0))
-			Supabase.profile_points = int(profile.get("points", 0))
-			Supabase.profile_loaded = true
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 func _on_login_error(msg: String) -> void:
 	btn_login.disabled = false
-	print(msg)
+	status_label.mostrar_error(msg)
