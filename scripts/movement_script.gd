@@ -100,32 +100,46 @@ func _physics_process(_delta: float) -> void:
 		if abs(dir.x) > abs(dir.y):
 			if dir.x > 0:
 				velocity.x = SPEED
-				animation.play("right" + sufijo)
+				_animar("right" + sufijo)
 				item_hand.position = Vector2(50, -30)
 				item_hand.z_index = 1
 			else:
 				velocity.x = -SPEED
-				animation.play("left" + sufijo)
+				_animar("left" + sufijo)
 				item_hand.position = Vector2(-50, -30)
 				item_hand.z_index = 1
 		else:
 			if dir.y > 0:
 				velocity.y = SPEED
-				animation.play("down" + sufijo)
+				_animar("down" + sufijo)
 				item_hand.position = Vector2(5, -37)
 				item_hand.z_index = 1
 			else:
 				velocity.y = -SPEED
-				animation.play("up" + sufijo)
+				_animar("up" + sufijo)
 				item_hand.position = Vector2(0, -25)
 				item_hand.z_index = -1
 	else:
-		animation.stop()
-		animation.play("down" + sufijo)
+		_quieto("down" + sufijo)
 		item_hand.position = Vector2(5, -35)
 		item_hand.z_index = 1
 
 	move_and_slide()
+
+# Reproduce una animación de caminar solo si no era ya la que estaba sonando,
+# para no reiniciarla en cada frame.
+func _animar(nombre: String) -> void:
+	if animation.animation != nombre or not animation.is_playing():
+		animation.play(nombre)
+
+# Reposo: deja el sprite congelado en el primer frame de la animación en vez de
+# dejarla corriendo. Antes se hacía stop() + play() cada frame, que dependía del
+# orden de reseteo interno y podía dejar al personaje andando en el sitio.
+func _quieto(nombre: String) -> void:
+	if animation.animation != nombre:
+		animation.play(nombre)
+	animation.frame = 0
+	animation.pause()
 
 func interactuar() -> void:
 	if en_search_work and not tiene_item:

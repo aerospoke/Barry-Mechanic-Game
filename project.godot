@@ -23,7 +23,7 @@ Supabase="*res://supabase.gd"
 
 window/size/viewport_width=420
 window/size/viewport_height=780
-window/stretch/mode="viewport"
+window/stretch/mode="canvas_items"
 window/handheld/orientation=1
 
 [dotnet]

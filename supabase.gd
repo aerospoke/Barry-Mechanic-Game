@@ -73,10 +73,14 @@ func clear_session() -> void:
 	player_pos = Vector2.ZERO
 	has_player_pos = false
 
-func _request_sync(endpoint: String, method: int, body_dict: Dictionary = {}) -> Array:
+func _request_sync(endpoint: String, method: int, body_dict: Dictionary = {}, extra_headers: PackedStringArray = []) -> Array:
 	var http := HTTPRequest.new()
 	add_child(http)
-	var err = make_auth_request(http, endpoint, method, body_dict)
+	var headers := get_auth_headers()
+	for h in extra_headers:
+		headers.append(h)
+	var body_json = JSON.stringify(body_dict) if not body_dict.is_empty() else ""
+	var err = http.request(SUPABASE_URL + endpoint, headers, method, body_json)
 	if err != OK:
 		http.queue_free()
 		return [0, null]
@@ -131,13 +135,26 @@ func save_player_position(pos: Vector2) -> bool:
 	if not is_logged_in():
 		return false
 
+	# Se pide la fila de vuelta (return=representation) porque un PATCH que RLS
+	# filtra responde 204 igualmente, sin haber escrito nada: sin esto un fallo
+	# de permisos es indistinguible de un guardado correcto.
 	var res = await _request_sync(
 		"/rest/v1/profiles?id=eq." + user_id,
 		HTTPClient.METHOD_PATCH,
-		{"pos_x": pos.x, "pos_y": pos.y}
+		{"pos_x": pos.x, "pos_y": pos.y},
+		["Prefer: return=representation"]
 	)
+
+	return _update_ok(res, "No se pudo guardar la posicion")
+
+# Valida la respuesta de un PATCH que pidió return=representation: además del
+# código HTTP comprueba que de verdad se modificó alguna fila.
+func _update_ok(res: Array, contexto: String) -> bool:
 	if res[0] != 200 and res[0] != 204:
-		push_error("No se pudo guardar la posicion (%d)" % res[0])
+		push_error("%s (HTTP %d)" % [contexto, res[0]])
+		return false
+	if not res[1] is Array or res[1].is_empty():
+		push_error("%s: 0 filas afectadas (revisa las politicas RLS)" % contexto)
 		return false
 	return true
 
@@ -154,23 +171,25 @@ func complete_active_work() -> bool:
 		work_completed.emit(false, 0, 0)
 		return false
 
+	# Igual que al guardar la posición: se pide la fila de vuelta para poder
+	# distinguir un update real de uno que RLS filtró (ambos responden 204).
 	var work_res = await _request_sync(
 		"/rest/v1/usersWorks?userId=eq." + user_id + "&state=eq.active",
 		HTTPClient.METHOD_PATCH,
-		{"state": "completed"}
+		{"state": "completed"},
+		["Prefer: return=representation"]
 	)
-	if work_res[0] != 200 and work_res[0] != 204:
-		push_error("No se pudo cerrar el trabajo (%d)" % work_res[0])
+	if not _update_ok(work_res, "No se pudo cerrar el trabajo"):
 		work_completed.emit(false, 0, 0)
 		return false
 
 	var pay_res = await _request_sync(
 		"/rest/v1/profiles?id=eq." + user_id,
 		HTTPClient.METHOD_PATCH,
-		{"balance": profile_balance + payment, "points": profile_points + points}
+		{"balance": profile_balance + payment, "points": profile_points + points},
+		["Prefer: return=representation"]
 	)
-	if pay_res[0] != 200 and pay_res[0] != 204:
-		push_error("No se pudo pagar el trabajo (%d)" % pay_res[0])
+	if not _update_ok(pay_res, "No se pudo pagar el trabajo"):
 		work_completed.emit(false, 0, 0)
 		return false
 

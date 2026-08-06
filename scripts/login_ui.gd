@@ -9,11 +9,35 @@ extends Control
 @onready var http_get_email = $HTTPRequest_GetEmail 
 @onready var http_profile = $HTTPRequest_Profile
 
+const EyeToggle = preload("res://scripts/eye_toggle.gd")
+
 func _ready() -> void:
+	_agregar_ojo(password_input)
 	btn_login.pressed.connect(_on_btn_login_pressed)
 	http_request.request_completed.connect(_on_request_completed)
 	http_get_email.request_completed.connect(_on_get_email_completed)
 	http_profile.request_completed.connect(_on_profile_completed)
+
+# Coloca el botón de ojo dentro del campo, pegado al borde derecho. Se ancla
+# en vez de posicionarse a mano para que siga al campo si cambia de tamaño.
+func _agregar_ojo(campo: LineEdit) -> void:
+	var ojo := EyeToggle.new()
+	ojo.name = "EyeToggle"
+	campo.add_child(ojo)
+
+	var lado := campo.size.y * 0.8
+	ojo.custom_minimum_size = Vector2(lado, lado)
+	ojo.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	ojo.size = Vector2(lado, lado)
+	ojo.position = Vector2(campo.size.x - lado - 6.0, (campo.size.y - lado) / 2.0)
+
+	# Deja hueco a la derecha para que el texto no pase por debajo del ojo.
+	campo.add_theme_constant_override("minimum_character_width", 0)
+	var estilo := campo.get_theme_stylebox("normal").duplicate()
+	if estilo is StyleBox:
+		estilo.content_margin_right = lado + 10.0
+		campo.add_theme_stylebox_override("normal", estilo)
+		campo.add_theme_stylebox_override("focus", estilo)
 
 func _on_btn_redirect_register_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/registro_ui.tscn")
