@@ -18,6 +18,11 @@ var profile_loaded: bool = false
 var player_pos: Vector2 = Vector2.ZERO
 var has_player_pos: bool = false
 
+# El tutorial del taller se muestra una vez por sesión. Vive aquí y no en la
+# escena porque main.tscn se recrea cada vez que se vuelve de un minijuego, y
+# repetir la explicación en cada regreso sería insoportable.
+var tutorial_taller_visto: bool = false
+
 var active_work_id: String = ""
 var active_work_name: String = ""
 var active_work_points: int = 0
@@ -72,6 +77,7 @@ func clear_session() -> void:
 	active_work_payment = 0
 	player_pos = Vector2.ZERO
 	has_player_pos = false
+	tutorial_taller_visto = false
 
 func _request_sync(endpoint: String, method: int, body_dict: Dictionary = {}, extra_headers: PackedStringArray = []) -> Array:
 	var http := HTTPRequest.new()

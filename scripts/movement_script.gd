@@ -22,6 +22,32 @@ const MINIGAMES = {
 	"oils": {"escena": "res://scenes/miniGameOil.tscn", "clave": "aceite"},
 }
 
+const TutorialModal = preload("res://scripts/tutorial_modal.gd")
+
+# Explicación del taller al entrar por primera vez en la sesión.
+const TUTORIAL_TALLER := [
+	{
+		"titulo": "Bienvenido al taller",
+		"texto": "Este es tu taller. Muevete con el joystick de la izquierda.\n\nEl boton de accion sirve para todo: hablar con la PC, agarrar repuestos y empezar los trabajos.",
+	},
+	{
+		"titulo": "El boton de Barry",
+		"texto": "Arriba tienes el boton con la cara de Barry.\n\nAhi ves tu dinero, tu experiencia y cual es el trabajo que tienes activo. Si te pierdes, revisalo.",
+	},
+	{
+		"titulo": "La computadora",
+		"texto": "Acercate a la PC y pulsa accion para ver los precios y aceptar un trabajo.\n\nSolo puedes tener un trabajo activo a la vez.",
+	},
+	{
+		"titulo": "Los estantes",
+		"texto": "En los estantes estan los repuestos: aceites, filtros, bombillos y cerraduras.\n\nPonte al lado del estante y pulsa accion para llevarte el que pide tu trabajo. Pulsa otra vez para soltarlo.",
+	},
+	{
+		"titulo": "El carro",
+		"texto": "Con el repuesto en la mano, acercate al carro y pulsa accion para empezar el trabajo.\n\nAl terminarlo te pagan y sumas puntos.",
+	},
+]
+
 var tiene_item: bool = false
 var item_en_mano: String = ""
 var zona_actual: String = ""
@@ -32,12 +58,18 @@ var en_work_zone: bool = false
 # jugador no se mueva y luego lo teletransporte la respuesta del servidor.
 var _restaurando: bool = true
 
+# Congela al jugador mientras el modal de bienvenida está en pantalla.
+var _en_tutorial: bool = false
+
 @onready var animation = $MovementPlayer
 @onready var item_hand = $ItemHandsPlayer
 @onready var searchwork_ui = get_parent().get_node("CanvasLayer/SearchWorkUI")
 
 func _ready() -> void:
-	_restaurar_posicion()
+	# Se espera a la restauración para que el modal no salga mientras el
+	# jugador todavía puede aparecer en otro sitio.
+	await _restaurar_posicion()
+	_mostrar_tutorial_taller()
 
 	var interaction_zone = get_parent().get_node("InteractionZone")
 	for child in interaction_zone.get_children():
@@ -68,6 +100,17 @@ func _restaurar_posicion() -> void:
 		global_position = Supabase.player_pos
 	_restaurando = false
 
+# Solo la primera vez de la sesión: al volver de un minijuego no se repite.
+func _mostrar_tutorial_taller() -> void:
+	if Supabase.tutorial_taller_visto:
+		return
+	Supabase.tutorial_taller_visto = true
+
+	_en_tutorial = true
+	var modal = TutorialModal.crear(self, TUTORIAL_TALLER)
+	await modal.terminado
+	_en_tutorial = false
+
 func _exit_tree() -> void:
 	# Cubre el cambio de escena hacia un minijuego: el autoload conserva la
 	# posición exacta aunque no se haya escrito en la base de datos.
@@ -87,7 +130,7 @@ func _guardar_posicion() -> void:
 func _physics_process(_delta: float) -> void:
 	velocity = Vector2.ZERO
 
-	if _restaurando:
+	if _restaurando or _en_tutorial:
 		return
 
 	if Input.is_action_just_pressed("ui_accept"):

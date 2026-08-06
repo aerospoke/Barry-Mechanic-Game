@@ -94,7 +94,7 @@ const AVISO_CARGA_FINAL: float = 78.0
 # Tramos de precisión sobre el total final. Se evalúan de mejor a peor:
 # {minimo, bono sobre el pago (fracción), bono de puntos, texto}
 const TRAMOS_PRECISION := [
-	{"min": 99.0, "pago": 0.5, "puntos": 3, "titulo": "Clavado!", "detalle": "Nivel perfecto."},
+	{"min": 99.0, "pago": 0.5, "puntos": 3, "titulo": "¡Que precisión!", "detalle": "Nivel perfecto."},
 	{"min": 96.0, "pago": 0.25, "puntos": 2, "titulo": "Muy bien", "detalle": "Casi al punto."},
 	{"min": 92.0, "pago": 0.1, "puntos": 1, "titulo": "Aceptable", "detalle": "Le falto un poco."},
 	{"min": 0.0, "pago": 0.0, "puntos": 0, "titulo": "Justo", "detalle": "Quedo corto de aceite."},
