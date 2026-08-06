@@ -12,6 +12,12 @@ var profile_balance: int = 0
 var profile_points: int = 0
 var profile_loaded: bool = false
 
+# Última posición conocida del jugador en el mapa. Vive en el autoload, así que
+# sobrevive a los cambios de escena (ir a un minijuego y volver) además de
+# persistirse en el perfil para recuperarla al reiniciar sesión.
+var player_pos: Vector2 = Vector2.ZERO
+var has_player_pos: bool = false
+
 var active_work_id: String = ""
 var active_work_name: String = ""
 var active_work_points: int = 0
@@ -64,6 +70,8 @@ func clear_session() -> void:
 	active_work_name = ""
 	active_work_points = 0
 	active_work_payment = 0
+	player_pos = Vector2.ZERO
+	has_player_pos = false
 
 func _request_sync(endpoint: String, method: int, body_dict: Dictionary = {}) -> Array:
 	var http := HTTPRequest.new()
@@ -83,6 +91,56 @@ func _request_sync(endpoint: String, method: int, body_dict: Dictionary = {}) ->
 		data = json.get_data()
 	return [response_code, data]
 
+# Carga el perfil (saldo, puntos y última posición) desde la base de datos.
+# Solo golpea la red la primera vez salvo que se fuerce con recargar.
+func load_profile(recargar: bool = false) -> bool:
+	if profile_loaded and not recargar:
+		return true
+	if not is_logged_in():
+		return false
+
+	var res = await _request_sync(
+		"/rest/v1/profiles?id=eq." + user_id + "&select=name,balance,points,pos_x,pos_y",
+		HTTPClient.METHOD_GET
+	)
+	if res[0] != 200 or not res[1] is Array or res[1].is_empty():
+		push_error("No se pudo cargar el perfil (%d)" % res[0])
+		return false
+
+	var profile = res[1][0]
+	profile_name = str(profile.get("name", ""))
+	profile_balance = int(profile.get("balance", 0))
+	profile_points = int(profile.get("points", 0))
+
+	# pos_x/pos_y son NULL hasta la primera partida guardada: en ese caso el
+	# jugador debe aparecer donde lo ponga la escena, no en (0,0).
+	var px = profile.get("pos_x")
+	var py = profile.get("pos_y")
+	if px != null and py != null:
+		player_pos = Vector2(float(px), float(py))
+		has_player_pos = true
+
+	profile_loaded = true
+	return true
+
+# Guarda la posición del jugador en memoria y la persiste en el perfil.
+func save_player_position(pos: Vector2) -> bool:
+	player_pos = pos
+	has_player_pos = true
+
+	if not is_logged_in():
+		return false
+
+	var res = await _request_sync(
+		"/rest/v1/profiles?id=eq." + user_id,
+		HTTPClient.METHOD_PATCH,
+		{"pos_x": pos.x, "pos_y": pos.y}
+	)
+	if res[0] != 200 and res[0] != 204:
+		push_error("No se pudo guardar la posicion (%d)" % res[0])
+		return false
+	return true
+
 # Marca el trabajo activo como completado y abona pago + puntos al perfil.
 func complete_active_work() -> bool:
 	if not is_logged_in() or active_work_name == "":
@@ -92,19 +150,9 @@ func complete_active_work() -> bool:
 	var payment := active_work_payment
 	var points := active_work_points
 
-	if not profile_loaded:
-		var profile_res = await _request_sync(
-			"/rest/v1/profiles?id=eq." + user_id + "&select=name,balance,points",
-			HTTPClient.METHOD_GET
-		)
-		if profile_res[0] != 200 or not profile_res[1] is Array or profile_res[1].is_empty():
-			work_completed.emit(false, 0, 0)
-			return false
-		var profile = profile_res[1][0]
-		profile_name = str(profile.get("name", ""))
-		profile_balance = int(profile.get("balance", 0))
-		profile_points = int(profile.get("points", 0))
-		profile_loaded = true
+	if not await load_profile():
+		work_completed.emit(false, 0, 0)
+		return false
 
 	var work_res = await _request_sync(
 		"/rest/v1/usersWorks?userId=eq." + user_id + "&state=eq.active",

@@ -19,6 +19,9 @@ extends Control
 var game_controls: Array[CanvasItem] = []
 var _pending_work: Dictionary = {}
 
+# Cuánto se deja leer el mensaje de confirmación antes de cerrar el menú solo.
+const CIERRE_AUTOMATICO: float = 1.2
+
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -171,6 +174,9 @@ func _on_work_selected(btn: Button) -> void:
 
 	status_label.text = "Aceptando trabajo..."
 
+	# Evita que un segundo toque cree otro trabajo mientras va la petición.
+	_bloquear_seleccion(true)
+
 	Supabase.make_auth_request(http_accept_work, "/rest/v1/usersWorks", HTTPClient.METHOD_POST, {
 		"userId": Supabase.user_id,
 		"work": int(_pending_work["work_id"]),
@@ -186,9 +192,26 @@ func _on_accept_work_completed(_result: int, response_code: int, _headers: Packe
 
 		status_label.text = "Trabajo asignado!"
 		print("Trabajo activo: %s ($%d, %d pts)" % [Supabase.active_work_name, Supabase.active_work_payment, Supabase.active_work_points])
+		_cerrar_con_retardo()
 	else:
 		status_label.text = "Error al aceptar trabajo (%d)" % response_code
 		print("Error al aceptar trabajo: %d" % response_code)
+		# Falló: se devuelve el control para poder reintentar.
+		_bloquear_seleccion(false)
+
+func _bloquear_seleccion(bloqueado: bool) -> void:
+	for child in work_item_container.get_children():
+		if child is Button:
+			child.disabled = bloqueado
+
+func _cerrar_con_retardo() -> void:
+	# El árbol está pausado con el menú abierto, así que el timer debe correr
+	# igualmente (process_always = true, que es el valor por defecto).
+	await get_tree().create_timer(CIERRE_AUTOMATICO).timeout
+
+	# Si el jugador ya cerró el menú a mano no hay nada que hacer.
+	if visible:
+		close()
 
 func _fetch_work_list() -> void:
 	for child in item_container.get_children():

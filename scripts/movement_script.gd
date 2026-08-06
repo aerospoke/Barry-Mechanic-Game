@@ -28,11 +28,17 @@ var zona_actual: String = ""
 var en_search_work: bool = false
 var en_work_zone: bool = false
 
+# Bloquea el control mientras se consulta la posición guardada, para que el
+# jugador no se mueva y luego lo teletransporte la respuesta del servidor.
+var _restaurando: bool = true
+
 @onready var animation = $MovementPlayer
 @onready var item_hand = $ItemHandsPlayer
 @onready var searchwork_ui = get_parent().get_node("CanvasLayer/SearchWorkUI")
 
 func _ready() -> void:
+	_restaurar_posicion()
+
 	var interaction_zone = get_parent().get_node("InteractionZone")
 	for child in interaction_zone.get_children():
 		if child is Area2D and child.name in ZONE_MAP:
@@ -45,8 +51,44 @@ func _ready() -> void:
 			child.body_entered.connect(_on_work_zone_entered)
 			child.body_exited.connect(_on_work_zone_exited)
 
+func _restaurar_posicion() -> void:
+	# Si el autoload ya trae posición (venimos de un minijuego) se usa directa.
+	if Supabase.has_player_pos:
+		global_position = Supabase.player_pos
+		_restaurando = false
+		return
+
+	# Arranque de sesión: hay que esperar al perfil antes de colocar al jugador.
+	if not Supabase.is_logged_in():
+		_restaurando = false
+		return
+
+	await Supabase.load_profile()
+	if Supabase.has_player_pos:
+		global_position = Supabase.player_pos
+	_restaurando = false
+
+func _exit_tree() -> void:
+	# Cubre el cambio de escena hacia un minijuego: el autoload conserva la
+	# posición exacta aunque no se haya escrito en la base de datos.
+	# Si ya no hay sesión (logout) no se guarda nada: esa posición pertenecía
+	# al usuario anterior y heredarla colocaría mal al siguiente que entre.
+	if not Supabase.is_logged_in():
+		return
+	Supabase.player_pos = global_position
+	Supabase.has_player_pos = true
+
+# Punto único de guardado: se llama al entrar en cualquier zona de interacción.
+func _guardar_posicion() -> void:
+	Supabase.player_pos = global_position
+	Supabase.has_player_pos = true
+	Supabase.save_player_position(global_position)
+
 func _physics_process(_delta: float) -> void:
 	velocity = Vector2.ZERO
+
+	if _restaurando:
+		return
 
 	if Input.is_action_just_pressed("ui_accept"):
 		interactuar()
@@ -125,6 +167,7 @@ func _intentar_minijuego() -> void:
 func _on_zone_entered(body: Node2D, zone: Area2D) -> void:
 	if body == self:
 		zona_actual = ZONE_MAP[zone.name]
+		_guardar_posicion()
 
 func _on_zone_exited(body: Node2D, zone: Area2D) -> void:
 	if body == self and zona_actual == ZONE_MAP[zone.name]:
@@ -133,6 +176,7 @@ func _on_zone_exited(body: Node2D, zone: Area2D) -> void:
 func _on_search_work_entered(body: Node2D, _zone: Area2D) -> void:
 	if body == self:
 		en_search_work = true
+		_guardar_posicion()
 
 func _on_search_work_exited(body: Node2D, _zone: Area2D) -> void:
 	if body == self:
@@ -141,6 +185,7 @@ func _on_search_work_exited(body: Node2D, _zone: Area2D) -> void:
 func _on_work_zone_entered(body: Node2D) -> void:
 	if body == self:
 		en_work_zone = true
+		_guardar_posicion()
 
 func _on_work_zone_exited(body: Node2D) -> void:
 	if body == self:
