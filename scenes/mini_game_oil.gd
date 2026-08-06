@@ -13,7 +13,15 @@ extends Node2D
 @onready var button_action = $ContenedorJuego/buttonAction
 @onready var liquido_shader = $ContenedorJuego/LiquidoShader
 
-var escala_original: Vector2 
+var escala_original: Vector2
+
+# --- TIEMPOS DE LA CINEMÁTICA (segundos) ---
+const CINE_FADE_IN: float = 1.2      # el negro se abre y aparece el motor
+const CINE_VISIBLE: float = 3.5      # tiempo real mirando el motor
+const CINE_FADE_OUT: float = 1.2     # el negro vuelve a cerrar
+const CINE_NEGRO: float = 0.6        # pausa en negro antes del minijuego
+const CINE_REVELAR: float = 1.0      # el negro se abre sobre el minijuego
+const CINE_SALIDA: float = 1.4       # el negro cierra al terminar el juego
 
 var engine_textures = [
 	preload("res://enginesCars/engine1.png"),
@@ -29,6 +37,8 @@ var estado_embudo: EstadoEmbudo = EstadoEmbudo.LLENANDO
 var nivel_embudo: float = 0.0
 var nivel_aceite_total: float = 0.0
 
+var juego_terminado: bool = false
+
 var velocidad_llenado_embudo: float = 40.0
 var velocidad_drenaje_embudo: float = 80.0
 var velocidad_drenaje_desbordado: float = 24.0
@@ -38,10 +48,14 @@ func _ready():
 	escala_original = engine_sprite.scale 
 	
 	contenedor_juego.visible = false
+	contenedor_juego.modulate.a = 0.0
 	chorro_aceite.emitting = false
-	
-	filtro_oscuro.modulate.a = 1.0 
-	filtro_oscuro.visible = true 
+
+	filtro_oscuro.modulate.a = 1.0
+	filtro_oscuro.visible = true
+	# En el árbol ContenedorJuego va después del filtro, así que se dibujaría
+	# encima de él. Lo forzamos al frente para que el fade tape todo.
+	filtro_oscuro.z_index = 100
 	
 	engine_sprite.texture = engine_textures.pick_random()
 	
@@ -51,40 +65,58 @@ func iniciar_cinematica():
 	var centro_pantalla = get_viewport_rect().size / 2
 	var direccion_aleatoria = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)).normalized()
 	
-	var distancia_paneo = 350.0 
-	
+	# El paneo dura exactamente lo que dura la cinemática, así el motor
+	# nunca se corta a mitad de movimiento.
+	var duracion_paneo = CINE_FADE_IN + CINE_VISIBLE + CINE_FADE_OUT
+
+	# Distancia desde el centro a cada extremo del paneo. Cuanto más baja,
+	# más lento y sutil se ve el movimiento (recorre menos en el mismo tiempo).
+	var distancia_paneo = 120.0
+
 	var punto_inicio = centro_pantalla + (direccion_aleatoria * distancia_paneo)
 	var punto_fin = centro_pantalla - (direccion_aleatoria * distancia_paneo)
-	
-	engine_sprite.scale = escala_original * 1.4 
-	engine_sprite.position = punto_inicio 
-	
+
+	engine_sprite.scale = escala_original * 1.15
+	engine_sprite.position = punto_inicio
+
 	var tween_motor = create_tween()
 	tween_motor.set_trans(Tween.TRANS_SINE)
 	tween_motor.set_ease(Tween.EASE_IN_OUT)
-	tween_motor.tween_property(engine_sprite, "position", punto_fin, 10.0)
-	tween_motor.parallel().tween_property(engine_sprite, "scale", escala_original, 10.0)
-	
+	tween_motor.tween_property(engine_sprite, "position", punto_fin, duracion_paneo)
+	tween_motor.parallel().tween_property(engine_sprite, "scale", escala_original, duracion_paneo)
+
 	var tween_filtro = create_tween()
-	
-	tween_filtro.tween_property(filtro_oscuro, "modulate:a", 0.0, 1.5)
-	tween_filtro.tween_interval(2.0)
-	tween_filtro.tween_property(filtro_oscuro, "modulate:a", 1.0, 1.5)
-	
+	tween_filtro.set_trans(Tween.TRANS_SINE)
+
+	tween_filtro.tween_property(filtro_oscuro, "modulate:a", 0.0, CINE_FADE_IN).set_ease(Tween.EASE_OUT)
+	tween_filtro.tween_interval(CINE_VISIBLE)
+	tween_filtro.tween_property(filtro_oscuro, "modulate:a", 1.0, CINE_FADE_OUT).set_ease(Tween.EASE_IN)
+
+	# Pausa en negro: separa las dos escenas en vez de saltar de golpe.
+	tween_filtro.tween_interval(CINE_NEGRO)
 	tween_filtro.tween_callback(iniciar_juego_aceite)
 
 func iniciar_juego_aceite():
 	engine_sprite.visible = false
-	
+
 	contenedor_juego.visible = true
-	
+	contenedor_juego.modulate.a = 0.0
+
 	var tween_revelar = create_tween()
-	tween_revelar.tween_property(filtro_oscuro, "modulate:a", 0.0, 1.0)
+	tween_revelar.set_trans(Tween.TRANS_SINE)
+	tween_revelar.set_ease(Tween.EASE_OUT)
+	# El minijuego aparece junto con el negro que se abre, no detrás de él.
+	tween_revelar.tween_property(filtro_oscuro, "modulate:a", 0.0, CINE_REVELAR)
+	tween_revelar.parallel().tween_property(contenedor_juego, "modulate:a", 1.0, CINE_REVELAR * 0.8)
 
 func _process(delta):
-	if not contenedor_juego.visible:
+	if not contenedor_juego.visible or juego_terminado:
 		return
-	
+
+	if nivel_aceite_total >= 100.0:
+		_terminar_juego()
+		return
+
 	match estado_embudo:
 		EstadoEmbudo.LLENANDO:
 			_procesar_llenado(delta)
@@ -142,6 +174,33 @@ func _procesar_bloqueado(delta):
 
 func _estado_drenando():
 	estado_embudo = EstadoEmbudo.DRENANDO
+
+func _terminar_juego():
+	juego_terminado = true
+	estado_embudo = EstadoEmbudo.BLOQUEADO
+	chorro_aceite.emitting = false
+	button_action.visible = false
+
+	var payment = Supabase.active_work_payment
+	var points = Supabase.active_work_points
+	label_porcentaje.text = "100%"
+	label_embudo.text = "Trabajo completado! Guardando..."
+
+	var ok = await Supabase.complete_active_work()
+	if ok:
+		label_embudo.text = "+$%d  |  +%d pts" % [payment, points]
+	else:
+		label_embudo.text = "No se pudo guardar el trabajo"
+
+	await get_tree().create_timer(2.0).timeout
+
+	var tween_salida = create_tween()
+	tween_salida.set_trans(Tween.TRANS_SINE)
+	tween_salida.set_ease(Tween.EASE_IN)
+	tween_salida.tween_property(filtro_oscuro, "modulate:a", 1.0, CINE_SALIDA)
+	tween_salida.parallel().tween_property(contenedor_juego, "modulate:a", 0.0, CINE_SALIDA * 0.9)
+	tween_salida.tween_interval(CINE_NEGRO)
+	tween_salida.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
 
 func _actualizar_ui():
 	label_porcentaje.text = str(int(nivel_aceite_total)) + "%"

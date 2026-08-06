@@ -16,9 +16,17 @@ const ZONE_TEXTURES = {
 	"keys": preload("res://objetos/boxKeys.png"),
 }
 
+# Minijuego que se abre al llevar cada item al motor, y palabra clave que debe
+# tener el nombre del trabajo activo para que ese minijuego sea el correcto.
+const MINIGAMES = {
+	"oils": {"escena": "res://scenes/miniGameOil.tscn", "clave": "aceite"},
+}
+
 var tiene_item: bool = false
+var item_en_mano: String = ""
 var zona_actual: String = ""
 var en_search_work: bool = false
+var en_work_zone: bool = false
 
 @onready var animation = $MovementPlayer
 @onready var item_hand = $ItemHandsPlayer
@@ -33,6 +41,9 @@ func _ready() -> void:
 		elif child is Area2D and child.name == "SearchWork":
 			child.body_entered.connect(_on_search_work_entered.bind(child))
 			child.body_exited.connect(_on_search_work_exited.bind(child))
+		elif child is Area2D and child.name == "WorkZone":
+			child.body_entered.connect(_on_work_zone_entered)
+			child.body_exited.connect(_on_work_zone_exited)
 
 func _physics_process(_delta: float) -> void:
 	velocity = Vector2.ZERO
@@ -79,8 +90,13 @@ func interactuar() -> void:
 		searchwork_ui.open()
 		return
 
+	if en_work_zone and tiene_item:
+		_intentar_minijuego()
+		return
+
 	if zona_actual != "" and not tiene_item:
 		tiene_item = true
+		item_en_mano = zona_actual
 		item_hand.visible = true
 
 		if ZONE_TEXTURES.has(zona_actual):
@@ -88,7 +104,23 @@ func interactuar() -> void:
 
 	elif tiene_item:
 		tiene_item = false
+		item_en_mano = ""
 		item_hand.visible = false
+
+func _intentar_minijuego() -> void:
+	if not MINIGAMES.has(item_en_mano):
+		return
+	if Supabase.active_work_name == "":
+		print("No tienes un trabajo activo")
+		return
+
+	var config = MINIGAMES[item_en_mano]
+	if not Supabase.active_work_name.to_lower().contains(config["clave"]):
+		print("Tu trabajo activo no es este: %s" % Supabase.active_work_name)
+		return
+
+	get_tree().paused = false
+	get_tree().change_scene_to_file(config["escena"])
 
 func _on_zone_entered(body: Node2D, zone: Area2D) -> void:
 	if body == self:
@@ -105,3 +137,11 @@ func _on_search_work_entered(body: Node2D, _zone: Area2D) -> void:
 func _on_search_work_exited(body: Node2D, _zone: Area2D) -> void:
 	if body == self:
 		en_search_work = false
+
+func _on_work_zone_entered(body: Node2D) -> void:
+	if body == self:
+		en_work_zone = true
+
+func _on_work_zone_exited(body: Node2D) -> void:
+	if body == self:
+		en_work_zone = false
