@@ -39,10 +39,16 @@ var nivel_aceite_total: float = 0.0
 
 var juego_terminado: bool = false
 
+# Caudal que entra al embudo desde la botella mientras se vierte.
 var velocidad_llenado_embudo: float = 40.0
-var velocidad_drenaje_embudo: float = 80.0
-var velocidad_drenaje_desbordado: float = 24.0
-var ratio_embudo_a_total: float = 0.333
+# Caudal de salida del embudo hacia el motor. Actúa SIEMPRE que haya
+# líquido en el embudo, se esté vertiendo o no: es un embudo, no un vaso.
+# Debe ser menor que el llenado para que se pueda desbordar al verter seguido.
+var velocidad_drenaje_embudo: float = 25.0
+# Cuánto del aceite drenado cuenta para el total del motor. Es la palanca
+# principal de duración de la partida: más bajo = partida más larga.
+# Con el drenaje actual el techo teórico es 25 * ratio puntos por segundo.
+var ratio_embudo_a_total: float = 0.23
 
 func _ready():
 	escala_original = engine_sprite.scale 
@@ -128,45 +134,51 @@ func _process(delta):
 	_actualizar_ui()
 
 func _procesar_llenado(delta):
+	var vertiendo := false
+
 	if button_action.is_pressed():
 		botella_aceite.rotation = lerp_angle(botella_aceite.rotation, deg_to_rad(-80), 5.0 * delta)
-		
-		if botella_aceite.rotation < deg_to_rad(-60):
-			chorro_aceite.emitting = true
-			
-			nivel_embudo += velocidad_llenado_embudo * delta
-			
-			if nivel_embudo >= 100.0:
-				nivel_embudo = 100.0
-				_estado_drenando()
-		else:
-			chorro_aceite.emitting = false
+		# Solo sale aceite cuando la botella está lo bastante inclinada.
+		vertiendo = botella_aceite.rotation < deg_to_rad(-60)
 	else:
-		chorro_aceite.emitting = false
 		botella_aceite.rotation = lerp_angle(botella_aceite.rotation, 0.0, 5.0 * delta)
-		
-		if nivel_embudo > 0.0:
-			_drenar(delta)
 
-func _drenar(delta, desbordado = false):
-	var velocidad = velocidad_drenaje_desbordado if desbordado else velocidad_drenaje_embudo
-	
-	nivel_embudo -= velocidad * delta
-	if nivel_embudo < 0.0:
+	chorro_aceite.emitting = vertiendo
+
+	if vertiendo:
+		nivel_embudo += velocidad_llenado_embudo * delta
+
+	# El drenaje es independiente de si se está virtiendo: mientras quede
+	# aceite en el embudo, sigue cayendo al motor.
+	_drenar(delta)
+
+	if nivel_embudo >= 100.0:
+		nivel_embudo = 100.0
+		_estado_drenando()
+
+func _drenar(delta):
+	if nivel_embudo <= 0.0:
 		nivel_embudo = 0.0
-	
-	var drenado = velocidad * delta
+		return
+
+	var drenado = min(velocidad_drenaje_embudo * delta, nivel_embudo)
+
+	nivel_embudo -= drenado
+
 	nivel_aceite_total += drenado * ratio_embudo_a_total
 	if nivel_aceite_total > 100.0:
 		nivel_aceite_total = 100.0
-	
-	if nivel_embudo <= 0.0 and estado_embudo == EstadoEmbudo.DRENANDO:
-		estado_embudo = EstadoEmbudo.LLENANDO
+
+	if nivel_embudo <= 0.0:
+		nivel_embudo = 0.0
+		if estado_embudo == EstadoEmbudo.DRENANDO:
+			estado_embudo = EstadoEmbudo.LLENANDO
 
 func _procesar_drenaje(delta):
+	# Desbordado: la botella se endereza sola y hay que esperar a que vacíe.
 	chorro_aceite.emitting = false
 	botella_aceite.rotation = lerp_angle(botella_aceite.rotation, 0.0, 5.0 * delta)
-	_drenar(delta, true)
+	_drenar(delta)
 
 func _procesar_bloqueado(delta):
 	chorro_aceite.emitting = false
