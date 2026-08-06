@@ -159,13 +159,15 @@ func _update_ok(res: Array, contexto: String) -> bool:
 	return true
 
 # Marca el trabajo activo como completado y abona pago + puntos al perfil.
-func complete_active_work() -> bool:
+# El minijuego puede sumar un bono por precisión, o restar (bono negativo) si
+# el jugador se pasó. El saldo nunca baja de cero.
+func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 	if not is_logged_in() or active_work_name == "":
 		work_completed.emit(false, 0, 0)
 		return false
 
-	var payment := active_work_payment
-	var points := active_work_points
+	var payment := active_work_payment + bono_pago
+	var points := active_work_points + bono_puntos
 
 	if not await load_profile():
 		work_completed.emit(false, 0, 0)
@@ -186,15 +188,19 @@ func complete_active_work() -> bool:
 	var pay_res = await _request_sync(
 		"/rest/v1/profiles?id=eq." + user_id,
 		HTTPClient.METHOD_PATCH,
-		{"balance": profile_balance + payment, "points": profile_points + points},
+		{
+			"balance": max(0, profile_balance + payment),
+			"points": max(0, profile_points + points),
+		},
 		["Prefer: return=representation"]
 	)
 	if not _update_ok(pay_res, "No se pudo pagar el trabajo"):
 		work_completed.emit(false, 0, 0)
 		return false
 
-	profile_balance += payment
-	profile_points += points
+	# Mismo clamp que se mandó al servidor, si no la copia local se desincroniza.
+	profile_balance = max(0, profile_balance + payment)
+	profile_points = max(0, profile_points + points)
 	active_work_id = ""
 	active_work_name = ""
 	active_work_payment = 0

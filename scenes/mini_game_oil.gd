@@ -12,6 +12,7 @@ extends Node2D
 @onready var chorro_aceite = $ContenedorJuego/Aceite/ChorroAceite
 @onready var button_action = $ContenedorJuego/buttonAction
 @onready var liquido_shader = $ContenedorJuego/LiquidoShader
+@onready var embudo_sprite = $ContenedorJuego/Embudo
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
 
@@ -32,6 +33,10 @@ const TUTORIAL := [
 	{
 		"titulo": "El truco",
 		"texto": "No lo vacies ni lo desbordes: manten el embudo a media carga.\n\nVierte en tandas cortas y sueltalo antes de llenarlo. Asi el aceite cae al motor sin parar y terminas mucho mas rapido.",
+	},
+	{
+		"titulo": "La ultima carga",
+		"texto": "Al llegar al 90% del motor se corta el vertido: lo que quede en el embudo es TODO lo que va a entrar.\n\nCalculalo antes. Quedarte en 100% paga extra; pasarte derrama aceite y te descuentan.",
 	},
 ]
 
@@ -74,6 +79,33 @@ var velocidad_drenaje_embudo: float = 25.0
 # principal de duración de la partida: más bajo = partida más larga.
 # Con el drenaje actual el techo teórico es 25 * ratio puntos por segundo.
 var ratio_embudo_a_total: float = 0.23
+
+# --- CARGA FINAL ---
+# A partir de aquí ya no se puede verter: lo que quede en el embudo es todo el
+# aceite que le va a entrar al motor. El jugador tiene que haber calculado la
+# última carga antes de llegar a este punto.
+const CORTE_VERTIDO: float = 90.0
+# Desde aquí se enfoca el embudo. Es la única pista: no hay cartel, el
+# jugador nota que la escena se apaga y que le queda poco margen.
+# Referencia para balancear: el embudo ideal en el corte es
+# (100 - CORTE_VERTIDO) / ratio_embudo_a_total, hoy ~44%.
+const AVISO_CARGA_FINAL: float = 78.0
+
+# Tramos de precisión sobre el total final. Se evalúan de mejor a peor:
+# {minimo, bono sobre el pago (fracción), bono de puntos, texto}
+const TRAMOS_PRECISION := [
+	{"min": 99.0, "pago": 0.5, "puntos": 3, "titulo": "Clavado!", "detalle": "Nivel perfecto."},
+	{"min": 96.0, "pago": 0.25, "puntos": 2, "titulo": "Muy bien", "detalle": "Casi al punto."},
+	{"min": 92.0, "pago": 0.1, "puntos": 1, "titulo": "Aceptable", "detalle": "Le falto un poco."},
+	{"min": 0.0, "pago": 0.0, "puntos": 0, "titulo": "Justo", "detalle": "Quedo corto de aceite."},
+]
+
+# Castigo por pasarse del 100%: aceite derramado.
+const PENALIZACION_PAGO: int = -1
+const PENALIZACION_PUNTOS: int = -1
+
+var vertido_bloqueado: bool = false
+var enfoque_aplicado: bool = false
 
 func _ready():
 	escala_original = engine_sprite.scale 
@@ -157,9 +189,16 @@ func _process(delta):
 	if not contenedor_juego.visible or juego_terminado or tutorial_activo:
 		return
 
-	if nivel_aceite_total >= 100.0:
-		_terminar_juego()
-		return
+	# Ya no se termina al llegar a 100: hay que dejar que el embudo se vacíe
+	# para saber si el jugador se quedó corto o se pasó.
+	if nivel_aceite_total >= AVISO_CARGA_FINAL and not enfoque_aplicado:
+		_entrar_carga_final()
+
+	if nivel_aceite_total >= CORTE_VERTIDO:
+		vertido_bloqueado = true
+		if nivel_embudo <= 0.0:
+			_terminar_juego()
+			return
 
 	match estado_embudo:
 		EstadoEmbudo.LLENANDO:
@@ -174,7 +213,7 @@ func _process(delta):
 func _procesar_llenado(delta):
 	var vertiendo := false
 
-	if button_action.is_pressed():
+	if button_action.is_pressed() and not vertido_bloqueado:
 		botella_aceite.rotation = lerp_angle(botella_aceite.rotation, deg_to_rad(-80), 5.0 * delta)
 		# Solo sale aceite cuando la botella está lo bastante inclinada.
 		vertiendo = botella_aceite.rotation < deg_to_rad(-60)
@@ -203,9 +242,9 @@ func _drenar(delta):
 
 	nivel_embudo -= drenado
 
+	# Sin tope: pasarse del 100% es un resultado válido (y penalizado), así que
+	# el exceso tiene que registrarse en vez de recortarse.
 	nivel_aceite_total += drenado * ratio_embudo_a_total
-	if nivel_aceite_total > 100.0:
-		nivel_aceite_total = 100.0
 
 	if nivel_embudo <= 0.0:
 		nivel_embudo = 0.0
@@ -222,6 +261,19 @@ func _procesar_bloqueado(delta):
 	chorro_aceite.emitting = false
 	botella_aceite.rotation = lerp_angle(botella_aceite.rotation, 0.0, 5.0 * delta)
 
+# Se acerca el corte: se apaga todo menos el embudo para que el jugador mire
+# el nivel que le importa. Sin carteles ni avisos, solo el foco: la regla la
+# explica el tutorial y el resto lo aprende jugando.
+func _entrar_carga_final() -> void:
+	enfoque_aplicado = true
+
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(botella_aceite, "modulate", Color(0.45, 0.45, 0.5), 0.5)
+	tween.parallel().tween_property(button_action, "modulate", Color(0.6, 0.6, 0.65), 0.5)
+	tween.parallel().tween_property(engine_sprite, "modulate", Color(0.5, 0.5, 0.55), 0.5)
+	tween.parallel().tween_property(embudo_sprite, "modulate", Color(1.25, 1.2, 1.05), 0.5)
+
 func _estado_drenando():
 	estado_embudo = EstadoEmbudo.DRENANDO
 
@@ -231,17 +283,20 @@ func _terminar_juego():
 	chorro_aceite.emitting = false
 	button_action.visible = false
 
+	var final := nivel_aceite_total
+	var resultado := _evaluar_precision(final)
+
 	var payment = Supabase.active_work_payment
 	var points = Supabase.active_work_points
-	label_porcentaje.text = "100%"
-	label_embudo.text = "Trabajo completado! Guardando..."
+	label_porcentaje.text = "%d%%" % int(final)
+	label_embudo.text = "Guardando..."
 
-	var ok = await Supabase.complete_active_work()
+	var ok = await Supabase.complete_active_work(resultado["bono_pago"], resultado["bono_puntos"])
 	label_embudo.text = ""
 
 	# Mismo modal que el tutorial, ahora con el resultado. El jugador cierra
 	# cuando quiere en vez de comerse un timer fijo.
-	var modal = TutorialModal.crear(self, [_pagina_resultado(ok, payment, points)])
+	var modal = TutorialModal.crear(self, [_pagina_resultado(ok, payment, points, final, resultado)])
 	await modal.terminado
 
 	var tween_salida = create_tween()
@@ -252,9 +307,33 @@ func _terminar_juego():
 	tween_salida.tween_interval(CINE_NEGRO)
 	tween_salida.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
 
+# Traduce el nivel final del motor en bono o penalización. Pasarse del 100%
+# es aceite derramado: se cobra igual el trabajo pero con descuento.
+func _evaluar_precision(final: float) -> Dictionary:
+	if final > 100.0:
+		return {
+			"titulo": "Te pasaste",
+			"detalle": "Derramaste aceite: llegaste al %d%%." % int(final),
+			"bono_pago": PENALIZACION_PAGO,
+			"bono_puntos": PENALIZACION_PUNTOS,
+		}
+
+	for tramo in TRAMOS_PRECISION:
+		if final >= tramo["min"]:
+			return {
+				"titulo": tramo["titulo"],
+				"detalle": tramo["detalle"],
+				# El bono se calcula sobre el pago del trabajo, así los trabajos
+				# caros premian más la precisión sin tocar la tabla.
+				"bono_pago": int(ceil(Supabase.active_work_payment * tramo["pago"])),
+				"bono_puntos": tramo["puntos"],
+			}
+
+	return {"titulo": "Terminado", "detalle": "", "bono_pago": 0, "bono_puntos": 0}
+
 # Texto del modal de cierre. Si el guardado falló se avisa: el jugador tiene
 # que saber que ese pago no le entró antes de volver al mapa.
-func _pagina_resultado(ok: bool, payment: int, points: int) -> Dictionary:
+func _pagina_resultado(ok: bool, payment: int, points: int, final: float, resultado: Dictionary) -> Dictionary:
 	if not ok:
 		return {
 			"titulo": "Trabajo terminado",
@@ -262,15 +341,30 @@ func _pagina_resultado(ok: bool, payment: int, points: int) -> Dictionary:
 			"boton": "Continuar",
 		}
 
+	var bono_pago: int = resultado["bono_pago"]
+	var bono_puntos: int = resultado["bono_puntos"]
+
+	var texto := "%s\nNivel final: %d%%\n\n+ $%d\n+ %d puntos" % [
+		resultado["detalle"], int(final), payment, points
+	]
+
+	# El bono se muestra aparte del pago base para que se entienda de dónde
+	# sale, tanto si suma como si resta.
+	if bono_pago != 0 or bono_puntos != 0:
+		var signo := "+" if bono_pago >= 0 else "-"
+		texto += "\n\nPrecision: %s$%d  |  %s%d pts" % [
+			signo, abs(bono_pago), signo, abs(bono_puntos)
+		]
+
 	return {
-		"titulo": "Trabajo completado!",
-		"texto": "Dejaste el motor a punto.\n\n+ $%d\n+ %d puntos" % [payment, points],
+		"titulo": resultado["titulo"],
+		"texto": texto,
 		"boton": "Continuar",
 	}
 
 func _actualizar_ui():
 	label_porcentaje.text = str(int(nivel_aceite_total)) + "%"
 	label_embudo.text = "Embudo: " + str(int(nivel_embudo)) + "%"
-	
+
 	if liquido_shader:
 		liquido_shader.material.set_shader_parameter("fV", nivel_embudo / 100.0)
