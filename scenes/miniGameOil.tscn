@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dnhhotw1asvx4"]
 
 [ext_resource type="Script" uid="uid://cvewnxcfvs246" path="res://scenes/mini_game_oil.gd" id="1_eoy2o"]
-[ext_resource type="Texture2D" uid="uid://1weftydvfck0" path="res://enginesCars/engine1.png" id="2_rsfdm"]
+[ext_resource type="Texture2D" uid="uid://csww2t4o2j7ml" path="res://enginesCars/engine1.png" id="2_rsfdm"]
 [ext_resource type="Texture2D" uid="uid://c1ne1bocyxt7i" path="res://objetos/oil2-miniGameOil.png" id="3_jqknb"]
 [ext_resource type="Texture2D" uid="uid://c1onwmveayjyi" path="res://buttons_ui/arrow_down_normal.png" id="5_jqknb"]
 [ext_resource type="Texture2D" uid="uid://b4qijw8fq8aw6" path="res://buttons_ui/arrow_down_pressed.png" id="6_rsuts"]
@@ -96,9 +96,10 @@ scale_amount_max = 28.77
 color = Color(0.6117647, 0.47058824, 0.22745098, 1)
 
 [node name="Embudo" type="Sprite2D" parent="ContenedorJuego" unique_id=1762243933]
-position = Vector2(127, 692.00006)
+position = Vector2(80.99999, 628.00006)
 scale = Vector2(0.23159201, 0.197448)
 texture = SubResource("CompressedTexture2D_cwbo6")
+offset = Vector2(198.62518, 364.65332)
 
 [node name="buttonAction" type="TouchScreenButton" parent="ContenedorJuego" unique_id=597411985]
 position = Vector2(276.00003, 638)
@@ -124,10 +125,11 @@ scale = Vector2(1.2, 1.2)
 [node name="LiquidoShader" type="ColorRect" parent="ContenedorJuego" unique_id=259759928]
 material = SubResource("ShaderMaterial_3tna3")
 custom_minimum_size = Vector2(100, 100)
-offset_left = 60.000004
-offset_top = 576.00006
-offset_right = 160.0
-offset_bottom = 676.00006
+offset_left = 76.0
+offset_top = 618.0
+offset_right = 176.0
+offset_bottom = 718.0
 scale = Vector2(4.8104897, 4.80263)
+pivot_offset = Vector2(4.3654585, 9.161629)
 
 [connection signal="pressed" from="ContenedorJuego/buttonAction" to="." method="_on_button_action_pressed"]

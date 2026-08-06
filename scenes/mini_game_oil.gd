@@ -13,7 +13,32 @@ extends Node2D
 @onready var button_action = $ContenedorJuego/buttonAction
 @onready var liquido_shader = $ContenedorJuego/LiquidoShader
 
+const TutorialModal = preload("res://scripts/tutorial_modal.gd")
+
+# Páginas del tutorial que se muestra al entrar, antes de poder verter.
+const TUTORIAL := [
+	{
+		"titulo": "Cambio de aceite",
+		"texto": "Tu trabajo es llenar el motor de aceite hasta el 100%.\n\nManten pulsado el boton para inclinar la botella y verter.",
+	},
+	{
+		"titulo": "Los dos niveles",
+		"texto": "MOTOR: el porcentaje grande. Es tu objetivo, solo sube.\n\nEMBUDO: el de arriba a la izquierda. Es lo que estas vertiendo y todavia no entro al motor.",
+	},
+	{
+		"titulo": "Cuidado con desbordar",
+		"texto": "El embudo cuela mas lento de lo que tu viertes.\n\nSi llega al 100% se desborda: la botella se endereza sola y no puedes verter hasta que el embudo se vacie del todo.",
+	},
+	{
+		"titulo": "El truco",
+		"texto": "No lo vacies ni lo desbordes: manten el embudo a media carga.\n\nVierte en tandas cortas y sueltalo antes de llenarlo. Asi el aceite cae al motor sin parar y terminas mucho mas rapido.",
+	},
+]
+
 var escala_original: Vector2
+
+# Bloquea la lógica del minijuego mientras el modal está en pantalla.
+var tutorial_activo: bool = false
 
 # --- TIEMPOS DE LA CINEMÁTICA (segundos) ---
 const CINE_FADE_IN: float = 1.2      # el negro se abre y aparece el motor
@@ -114,9 +139,22 @@ func iniciar_juego_aceite():
 	# El minijuego aparece junto con el negro que se abre, no detrás de él.
 	tween_revelar.tween_property(filtro_oscuro, "modulate:a", 0.0, CINE_REVELAR)
 	tween_revelar.parallel().tween_property(contenedor_juego, "modulate:a", 1.0, CINE_REVELAR * 0.8)
+	# El tutorial sale con el minijuego ya visible detrás, para que se entienda
+	# de qué está hablando cada paso.
+	tween_revelar.tween_callback(mostrar_tutorial)
+
+func mostrar_tutorial():
+	tutorial_activo = true
+	# Se pinta el estado inicial (0% / embudo 0%) antes de tapar la pantalla:
+	# si no, los labels salen vacíos detrás del modal.
+	_actualizar_ui()
+
+	var modal = TutorialModal.crear(self, TUTORIAL)
+	await modal.terminado
+	tutorial_activo = false
 
 func _process(delta):
-	if not contenedor_juego.visible or juego_terminado:
+	if not contenedor_juego.visible or juego_terminado or tutorial_activo:
 		return
 
 	if nivel_aceite_total >= 100.0:
@@ -199,12 +237,12 @@ func _terminar_juego():
 	label_embudo.text = "Trabajo completado! Guardando..."
 
 	var ok = await Supabase.complete_active_work()
-	if ok:
-		label_embudo.text = "+$%d  |  +%d pts" % [payment, points]
-	else:
-		label_embudo.text = "No se pudo guardar el trabajo"
+	label_embudo.text = ""
 
-	await get_tree().create_timer(2.0).timeout
+	# Mismo modal que el tutorial, ahora con el resultado. El jugador cierra
+	# cuando quiere en vez de comerse un timer fijo.
+	var modal = TutorialModal.crear(self, [_pagina_resultado(ok, payment, points)])
+	await modal.terminado
 
 	var tween_salida = create_tween()
 	tween_salida.set_trans(Tween.TRANS_SINE)
@@ -213,6 +251,22 @@ func _terminar_juego():
 	tween_salida.parallel().tween_property(contenedor_juego, "modulate:a", 0.0, CINE_SALIDA * 0.9)
 	tween_salida.tween_interval(CINE_NEGRO)
 	tween_salida.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+
+# Texto del modal de cierre. Si el guardado falló se avisa: el jugador tiene
+# que saber que ese pago no le entró antes de volver al mapa.
+func _pagina_resultado(ok: bool, payment: int, points: int) -> Dictionary:
+	if not ok:
+		return {
+			"titulo": "Trabajo terminado",
+			"texto": "Llenaste el motor, pero no se pudo guardar el pago.\n\nRevisa tu conexion e intentalo de nuevo.",
+			"boton": "Continuar",
+		}
+
+	return {
+		"titulo": "Trabajo completado!",
+		"texto": "Dejaste el motor a punto.\n\n+ $%d\n+ %d puntos" % [payment, points],
+		"boton": "Continuar",
+	}
 
 func _actualizar_ui():
 	label_porcentaje.text = str(int(nivel_aceite_total)) + "%"
