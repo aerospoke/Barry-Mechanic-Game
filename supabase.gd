@@ -23,6 +23,13 @@ var has_player_pos: bool = false
 # repetir la explicación en cada regreso sería insoportable.
 var tutorial_taller_visto: bool = false
 
+# Salas creadas por el jugador (estilo Habbo). Se guardan en la tabla `rooms`
+# (ver sql/rooms.sql); aquí vive la copia en memoria porque la sala es una
+# escena aparte del taller y al entrar necesita saber qué estilo construir.
+# Solo se persiste nombre y estilo: la geometría la genera room_styles.gd.
+var rooms: Array = []
+var current_room: Dictionary = {}
+
 var active_work_id: String = ""
 var active_work_name: String = ""
 var active_work_points: int = 0
@@ -78,9 +85,15 @@ func clear_session() -> void:
 	player_pos = Vector2.ZERO
 	has_player_pos = false
 	tutorial_taller_visto = false
+	rooms = []
+	current_room = {}
 
 func _request_sync(endpoint: String, method: int, body_dict: Dictionary = {}, extra_headers: PackedStringArray = []) -> Array:
 	var http := HTTPRequest.new()
+	# Los menús de la PC pausan el árbol mientras están abiertos. Un HTTPRequest
+	# que herede ese modo no avanza nunca y la petición se queda colgada, así
+	# que se marca para que corra igualmente.
+	http.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(http)
 	var headers := get_auth_headers()
 	for h in extra_headers:
@@ -213,6 +226,47 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 	active_work_points = 0
 
 	work_completed.emit(true, payment, points)
+	return true
+
+# --- Salas -----------------------------------------------------------------
+
+# Crea una sala y devuelve la fila guardada, o {} si falló. Se pide la fila de
+# vuelta para quedarse con el id que genera la base de datos.
+func create_room(nombre: String, estilo: String) -> Dictionary:
+	if not is_logged_in():
+		return {}
+
+	var res = await _request_sync(
+		"/rest/v1/rooms",
+		HTTPClient.METHOD_POST,
+		{"owner": user_id, "name": nombre, "style": estilo},
+		["Prefer: return=representation"]
+	)
+	if res[0] != 201 and res[0] != 200:
+		push_error("No se pudo crear la sala (HTTP %d)" % res[0])
+		return {}
+	if not res[1] is Array or res[1].is_empty():
+		push_error("La sala no se guardo: 0 filas (revisa las politicas RLS)")
+		return {}
+
+	var sala: Dictionary = res[1][0]
+	rooms.append(sala)
+	return sala
+
+# Recarga las salas del jugador desde la base de datos.
+func load_rooms() -> bool:
+	if not is_logged_in():
+		return false
+
+	var res = await _request_sync(
+		"/rest/v1/rooms?owner=eq." + user_id + "&select=id,name,style,created_at&order=created_at.desc",
+		HTTPClient.METHOD_GET
+	)
+	if res[0] != 200 or not res[1] is Array:
+		push_error("No se pudieron cargar las salas (HTTP %d)" % res[0])
+		return false
+
+	rooms = res[1]
 	return true
 
 func handle_response(response_code: int, body: PackedByteArray, success_callable: Callable, error_callable: Callable) -> void:
