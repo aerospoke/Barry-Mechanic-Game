@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/room.gd" id="1_room"]
+[ext_resource type="PackedScene" path="res://scenes/barry.tscn" id="2_barry"]
+[ext_resource type="PackedScene" uid="uid://c3ocisoa4ryxq" path="res://scenes/ui.tscn" id="3_ui"]
+
+[node name="Room" type="Node2D"]
+texture_filter = 1
+script = ExtResource("1_room")
+
+[node name="Limites" type="StaticBody2D" parent="."]
+
+[node name="Contorno" type="CollisionPolygon2D" parent="Limites"]
+build_mode = 1
+
+[node name="Barry" parent="." instance=ExtResource("2_barry")]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="UI" parent="CanvasLayer" instance=ExtResource("3_ui")]
+
+[node name="Titulo" type="Label" parent="CanvasLayer"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 290.0
+offset_bottom = 55.0
+text = "Sala"
+
+[node name="BtnSalir" type="Button" parent="CanvasLayer"]
+offset_left = 20.0
+offset_top = 60.0
+offset_right = 120.0
+offset_bottom = 105.0
+text = "Salir"

@@ -2,7 +2,15 @@ extends Control
 
 @onready var btn_iniciar = $BtnIniciar
 @onready var btn_precios = $BtnPrecios
+@onready var btn_crear_sala = $BtnCrearSala
 @onready var btn_volver = $BtnVolver
+
+@onready var room_panel: Control = $RoomCreatePanel
+@onready var room_nombre_edit: LineEdit = $RoomCreatePanel/NombreEdit
+@onready var room_style_container: VBoxContainer = $RoomCreatePanel/StyleContainer
+@onready var room_list_container: VBoxContainer = $RoomCreatePanel/RoomListScroll/RoomListContainer
+@onready var room_status: Label = $RoomCreatePanel/StatusRoom
+@onready var btn_volver_room: Button = $RoomCreatePanel/BtnVolverRoom
 
 @onready var price_list_panel = $PriceListPanel
 @onready var item_container = $PriceListPanel/ScrollContainer/ItemContainer
@@ -27,9 +35,13 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	price_list_panel.visible = false
 	work_select_panel.visible = false
+	room_panel.visible = false
 	btn_iniciar.pressed.connect(_on_iniciar_pressed)
 	btn_precios.pressed.connect(_on_precios_pressed)
+	btn_crear_sala.pressed.connect(_on_crear_sala_pressed)
 	btn_volver.pressed.connect(_on_volver_pressed)
+	btn_volver_room.pressed.connect(_on_volver_room_pressed)
+	_construir_opciones_sala()
 	btn_volver_precios.pressed.connect(_on_volver_precios_pressed)
 	btn_volver_work.pressed.connect(_on_volver_work_pressed)
 	http_worklist.request_completed.connect(_on_worklist_request_completed)
@@ -59,6 +71,7 @@ func close() -> void:
 	visible = false
 	price_list_panel.visible = false
 	work_select_panel.visible = false
+	room_panel.visible = false
 	get_tree().paused = false
 	for ctrl in game_controls:
 		ctrl.visible = true
@@ -79,6 +92,90 @@ func _on_volver_precios_pressed() -> void:
 
 func _on_volver_work_pressed() -> void:
 	work_select_panel.visible = false
+
+# --- Salas -----------------------------------------------------------------
+
+func _on_crear_sala_pressed() -> void:
+	room_status.text = ""
+	room_nombre_edit.text = ""
+	room_panel.visible = true
+	_refrescar_mis_salas()
+
+# Las salas ya creadas se listan encima de los estilos para poder volver a
+# entrar sin crear una nueva cada vez.
+func _refrescar_mis_salas() -> void:
+	for child in room_list_container.get_children():
+		child.queue_free()
+
+	if not Supabase.is_logged_in():
+		return
+
+	await Supabase.load_rooms()
+
+	# El jugador pudo cerrar el panel mientras iba la petición.
+	if not room_panel.visible:
+		return
+
+	for sala in Supabase.rooms:
+		var btn := Button.new()
+		btn.custom_minimum_size.y = 45
+		var estilo: Dictionary = RoomStyles.get_estilo(str(sala.get("style", "")))
+		btn.text = "%s  (%s)" % [str(sala.get("name", "")), estilo["nombre"]]
+		btn.pressed.connect(_on_sala_existente.bind(sala))
+		room_list_container.add_child(btn)
+
+func _on_sala_existente(sala: Dictionary) -> void:
+	Supabase.current_room = sala
+	_entrar_a_sala()
+
+func _on_volver_room_pressed() -> void:
+	room_panel.visible = false
+
+# Una tarjeta por estilo, con nombre y descripción, como el selector de Habbo.
+func _construir_opciones_sala() -> void:
+	for id in RoomStyles.ORDEN:
+		var estilo: Dictionary = RoomStyles.ESTILOS[id]
+
+		var btn := Button.new()
+		btn.custom_minimum_size.y = 80
+		btn.text = "%s\n%s" % [estilo["nombre"], estilo["descripcion"]]
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.add_theme_color_override("font_color", estilo["suelo_a"])
+		btn.pressed.connect(_on_estilo_elegido.bind(id))
+		room_style_container.add_child(btn)
+
+func _on_estilo_elegido(id: String) -> void:
+	var estilo: Dictionary = RoomStyles.ESTILOS[id]
+	var nombre := room_nombre_edit.text.strip_edges()
+	if nombre == "":
+		nombre = str(estilo["nombre"])
+
+	room_status.text = "Creando \"%s\"..." % nombre
+	_bloquear_estilos(true)
+
+	var sala := await Supabase.create_room(nombre, id)
+	if sala.is_empty():
+		# Sin sesión o sin tabla `rooms`: se entra igual con una sala suelta,
+		# pero no quedará guardada al cerrar el juego.
+		room_status.text = "No se pudo guardar la sala; entras sin guardarla"
+		sala = {"id": "", "name": nombre, "style": id, "owner": Supabase.user_id}
+
+	_bloquear_estilos(false)
+
+	Supabase.current_room = sala
+	_entrar_a_sala()
+
+func _bloquear_estilos(bloqueado: bool) -> void:
+	for child in room_style_container.get_children():
+		if child is Button:
+			child.disabled = bloqueado
+
+func _entrar_a_sala() -> void:
+	# El menú deja el árbol pausado: hay que soltarlo antes de cambiar de
+	# escena o la sala arranca congelada.
+	visible = false
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://scenes/room.tscn")
 
 func _check_active_work() -> void:
 	for child in work_item_container.get_children():

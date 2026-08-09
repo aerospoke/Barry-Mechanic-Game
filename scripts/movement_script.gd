@@ -63,15 +63,30 @@ var _en_tutorial: bool = false
 
 @onready var animation = $MovementPlayer
 @onready var item_hand = $ItemHandsPlayer
-@onready var searchwork_ui = get_parent().get_node("CanvasLayer/SearchWorkUI")
+
+# El mismo jugador se usa en el taller y en las salas creadas por el jugador.
+# En una sala no hay PC, ni estantes, ni posición guardada que restaurar: se
+# detecta por los nodos que la escena padre trae, en vez de duplicar el script.
+var searchwork_ui: Node = null
+var _es_taller: bool = true
 
 func _ready() -> void:
+	var padre := get_parent()
+	if padre.has_node("CanvasLayer/SearchWorkUI"):
+		searchwork_ui = padre.get_node("CanvasLayer/SearchWorkUI")
+
+	_es_taller = padre.has_node("InteractionZone")
+	if not _es_taller:
+		# Sala: la escena decide dónde aparece el jugador y no hay tutorial.
+		_restaurando = false
+		return
+
 	# Se espera a la restauración para que el modal no salga mientras el
 	# jugador todavía puede aparecer en otro sitio.
 	await _restaurar_posicion()
 	_mostrar_tutorial_taller()
 
-	var interaction_zone = get_parent().get_node("InteractionZone")
+	var interaction_zone = padre.get_node("InteractionZone")
 	for child in interaction_zone.get_children():
 		if child is Area2D and child.name in ZONE_MAP:
 			child.body_entered.connect(_on_zone_entered.bind(child))
@@ -116,7 +131,8 @@ func _exit_tree() -> void:
 	# posición exacta aunque no se haya escrito en la base de datos.
 	# Si ya no hay sesión (logout) no se guarda nada: esa posición pertenecía
 	# al usuario anterior y heredarla colocaría mal al siguiente que entre.
-	if not Supabase.is_logged_in():
+	# En una sala tampoco: esa coordenada no significa nada en el taller.
+	if not _es_taller or not Supabase.is_logged_in():
 		return
 	Supabase.player_pos = global_position
 	Supabase.has_player_pos = true
@@ -185,7 +201,7 @@ func _quieto(nombre: String) -> void:
 	animation.pause()
 
 func interactuar() -> void:
-	if en_search_work and not tiene_item:
+	if en_search_work and not tiene_item and searchwork_ui != null:
 		searchwork_ui.open()
 		return
 

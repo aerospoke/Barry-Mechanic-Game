@@ -45,12 +45,20 @@ offset_right = 330.0
 offset_bottom = 350.0
 text = "Lista de Precios y Recompensas"
 
+[node name="BtnCrearSala" type="Button" parent="." unique_id=916109147]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 370.0
+offset_right = 330.0
+offset_bottom = 430.0
+text = "Crear Sala"
+
 [node name="BtnVolver" type="Button" parent="." unique_id=1129686762]
 layout_mode = 0
 offset_left = 120.0
-offset_top = 440.0
+offset_top = 460.0
 offset_right = 230.0
-offset_bottom = 490.0
+offset_bottom = 510.0
 text = "Volver"
 
 [node name="PriceListPanel" type="Control" parent="." unique_id=1760108960]
@@ -180,6 +188,101 @@ offset_left = 120.0
 offset_top = 460.0
 offset_right = 230.0
 offset_bottom = 510.0
+text = "Volver"
+
+[node name="RoomCreatePanel" type="Control" parent="." unique_id=600113000]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="FondoRoom" type="ColorRect" parent="RoomCreatePanel" unique_id=600113001]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.08, 0.18, 1)
+
+[node name="TituloRoom" type="Label" parent="RoomCreatePanel" unique_id=600113002]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 390.0
+offset_bottom = 55.0
+text = "SALAS"
+horizontal_alignment = 1
+
+[node name="LabelMisSalas" type="Label" parent="RoomCreatePanel" unique_id=600113010]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 60.0
+offset_right = 390.0
+offset_bottom = 85.0
+text = "Mis salas"
+
+[node name="RoomListScroll" type="ScrollContainer" parent="RoomCreatePanel" unique_id=600113011]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 90.0
+offset_right = 390.0
+offset_bottom = 225.0
+horizontal_scroll_mode = 0
+
+[node name="RoomListContainer" type="VBoxContainer" parent="RoomCreatePanel/RoomListScroll" unique_id=600113012]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LabelNombre" type="Label" parent="RoomCreatePanel" unique_id=600113003]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 240.0
+offset_right = 390.0
+offset_bottom = 265.0
+text = "Nombre de la sala nueva"
+
+[node name="NombreEdit" type="LineEdit" parent="RoomCreatePanel" unique_id=600113004]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 270.0
+offset_right = 390.0
+offset_bottom = 315.0
+max_length = 24
+placeholder_text = "Mi sala"
+
+[node name="LabelEstilo" type="Label" parent="RoomCreatePanel" unique_id=600113005]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 325.0
+offset_right = 390.0
+offset_bottom = 350.0
+text = "Elige el tipo de sala"
+
+[node name="StyleContainer" type="VBoxContainer" parent="RoomCreatePanel" unique_id=600113006]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 355.0
+offset_right = 390.0
+offset_bottom = 620.0
+theme_override_constants/separation = 12
+
+[node name="StatusRoom" type="Label" parent="RoomCreatePanel" unique_id=600113007]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 630.0
+offset_right = 390.0
+offset_bottom = 660.0
+horizontal_alignment = 1
+
+[node name="BtnVolverRoom" type="Button" parent="RoomCreatePanel" unique_id=600113008]
+layout_mode = 0
+offset_left = 150.0
+offset_top = 670.0
+offset_right = 270.0
+offset_bottom = 720.0
 text = "Volver"
 
 [node name="HTTPRequestActiveWork" type="HTTPRequest" parent="." unique_id=600112240]
