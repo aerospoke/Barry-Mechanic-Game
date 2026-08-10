@@ -2,19 +2,7 @@ extends CharacterBody2D
 
 const SPEED = 310.0
 
-const ZONE_MAP = {
-	"Aceites": "oils",
-	"Filters": "filters",
-	"Lights": "lights",
-	"Keys": "keys"
-}
-
-const ZONE_TEXTURES = {
-	"oils": preload("res://objetos/work1.png"),
-	"filters": preload("res://objetos/airFlow5.png"),
-	"lights": preload("res://objetos/light5.png"),
-	"keys": preload("res://objetos/boxKeys.png"),
-}
+const ShopCatalog = preload("res://scripts/shop_catalog.gd")
 
 # Minijuego que se abre al llevar cada item al motor, y palabra clave que debe
 # tener el nombre del trabajo activo para que ese minijuego sea el correcto.
@@ -39,8 +27,8 @@ const TUTORIAL_TALLER := [
 		"texto": "Acercate a la PC y pulsa accion para ver los precios y aceptar un trabajo.\n\nSolo puedes tener un trabajo activo a la vez.",
 	},
 	{
-		"titulo": "Los estantes",
-		"texto": "En los estantes estan los repuestos: aceites, filtros, bombillos y cerraduras.\n\nPonte al lado del estante y pulsa accion para llevarte el que pide tu trabajo. Pulsa otra vez para soltarlo.",
+		"titulo": "La tienda",
+		"texto": "En la PC tambien puedes comprar repuestos: aceites, filtros, bombillos y cerraduras.\n\nCompra el que pide tu trabajo: te descuenta el precio del saldo y Barry lo lleva en la mano. Pulsa accion para soltarlo.",
 	},
 	{
 		"titulo": "El carro",
@@ -50,7 +38,6 @@ const TUTORIAL_TALLER := [
 
 var tiene_item: bool = false
 var item_en_mano: String = ""
-var zona_actual: String = ""
 var en_search_work: bool = false
 var en_work_zone: bool = false
 
@@ -65,8 +52,11 @@ var _en_tutorial: bool = false
 @onready var item_hand = $ItemHandsPlayer
 
 # El mismo jugador se usa en el taller y en las salas creadas por el jugador.
-# En una sala no hay PC, ni estantes, ni posición guardada que restaurar: se
-# detecta por los nodos que la escena padre trae, en vez de duplicar el script.
+# Las salas también tienen su propia PC (InteractionZone/SearchWork), pero a
+# diferencia del taller no hay tutorial ni posición guardada que restaurar:
+# se detecta por los nodos que la escena padre trae, en vez de duplicar el
+# script. "Taller" es el nombre del nodo raíz de taller.tscn, así que solo
+# está presente ahí, nunca en una sala.
 var searchwork_ui: Node = null
 var _es_taller: bool = true
 
@@ -75,28 +65,37 @@ func _ready() -> void:
 	if padre.has_node("CanvasLayer/SearchWorkUI"):
 		searchwork_ui = padre.get_node("CanvasLayer/SearchWorkUI")
 
-	_es_taller = padre.has_node("InteractionZone")
-	if not _es_taller:
+	_es_taller = padre.has_node("Taller")
+	if _es_taller:
+		# Se espera a la restauración para que el modal no salga mientras el
+		# jugador todavía puede aparecer en otro sitio.
+		await _restaurar_posicion()
+		_mostrar_tutorial_taller()
+	else:
 		# Sala: la escena decide dónde aparece el jugador y no hay tutorial.
 		_restaurando = false
-		return
 
-	# Se espera a la restauración para que el modal no salga mientras el
-	# jugador todavía puede aparecer en otro sitio.
-	await _restaurar_posicion()
-	_mostrar_tutorial_taller()
+	if padre.has_node("InteractionZone"):
+		var interaction_zone = padre.get_node("InteractionZone")
+		for child in interaction_zone.get_children():
+			_conectar_zona(child)
 
-	var interaction_zone = padre.get_node("InteractionZone")
-	for child in interaction_zone.get_children():
-		if child is Area2D and child.name in ZONE_MAP:
-			child.body_entered.connect(_on_zone_entered.bind(child))
-			child.body_exited.connect(_on_zone_exited.bind(child))
-		elif child is Area2D and child.name == "SearchWork":
-			child.body_entered.connect(_on_search_work_entered.bind(child))
-			child.body_exited.connect(_on_search_work_exited.bind(child))
-		elif child is Area2D and child.name == "WorkZone":
-			child.body_entered.connect(_on_work_zone_entered)
-			child.body_exited.connect(_on_work_zone_exited)
+# Punto de conexion compartido entre las zonas estaticas del taller (arriba,
+# detectadas al arrancar) y los objetos dinamicos de una sala (room.gd los
+# instancia despues de una peticion de red, ya con este _ready() terminado,
+# asi que ahi hace falta llamarlo a mano: ver conectar_objeto()).
+func _conectar_zona(child: Node) -> void:
+	if child is Area2D and child.name == "SearchWork":
+		child.body_entered.connect(_on_search_work_entered.bind(child))
+		child.body_exited.connect(_on_search_work_exited.bind(child))
+	elif child is Area2D and child.name == "WorkZone":
+		child.body_entered.connect(_on_work_zone_entered)
+		child.body_exited.connect(_on_work_zone_exited)
+
+# Lo llama room.gd (via call(), ver ahi el porque) al instanciar un objeto
+# dinamico que necesita interaccion, como la PC.
+func conectar_objeto(objeto: Area2D) -> void:
+	_conectar_zona(objeto)
 
 func _restaurar_posicion() -> void:
 	# Si el autoload ya trae posición (venimos de un minijuego) se usa directa.
@@ -138,7 +137,11 @@ func _exit_tree() -> void:
 	Supabase.has_player_pos = true
 
 # Punto único de guardado: se llama al entrar en cualquier zona de interacción.
+# Las coordenadas que persiste son las del taller (profiles.pos_x/pos_y): en
+# una sala no significan nada, así que ahí no se toca nada.
 func _guardar_posicion() -> void:
+	if not _es_taller:
+		return
 	Supabase.player_pos = global_position
 	Supabase.has_player_pos = true
 	Supabase.save_player_position(global_position)
@@ -209,18 +212,18 @@ func interactuar() -> void:
 		_intentar_minijuego()
 		return
 
-	if zona_actual != "" and not tiene_item:
-		tiene_item = true
-		item_en_mano = zona_actual
-		item_hand.visible = true
-
-		if ZONE_TEXTURES.has(zona_actual):
-			item_hand.texture = ZONE_TEXTURES[zona_actual]
-
-	elif tiene_item:
+	if tiene_item:
 		tiene_item = false
 		item_en_mano = ""
 		item_hand.visible = false
+
+# Lo llama la tienda de la PC (searchwork_ui.gd) al comprar una pieza: pone el
+# item en la mano de Barry igual que antes hacia recoger del estante.
+func recibir_item_comprado(key: String) -> void:
+	tiene_item = true
+	item_en_mano = key
+	item_hand.visible = true
+	item_hand.texture = ShopCatalog.icono_mano(key)
 
 func _intentar_minijuego() -> void:
 	if not MINIGAMES.has(item_en_mano):
@@ -236,15 +239,6 @@ func _intentar_minijuego() -> void:
 
 	get_tree().paused = false
 	get_tree().change_scene_to_file(config["escena"])
-
-func _on_zone_entered(body: Node2D, zone: Area2D) -> void:
-	if body == self:
-		zona_actual = ZONE_MAP[zone.name]
-		_guardar_posicion()
-
-func _on_zone_exited(body: Node2D, zone: Area2D) -> void:
-	if body == self and zona_actual == ZONE_MAP[zone.name]:
-		zona_actual = ""
 
 func _on_search_work_entered(body: Node2D, _zone: Area2D) -> void:
 	if body == self:

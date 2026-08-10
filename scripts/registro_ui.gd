@@ -4,6 +4,7 @@ extends Control
 @onready var password_input = $PasswordInput
 @onready var btn_registrar = $BtnRegistrar
 @onready var http_request = $HTTPRequest
+@onready var http_login = $HTTPRequestLogin
 @onready var username_input = $userNameInput
 
 const StatusLabel = preload("res://scripts/status_label.gd")
@@ -16,6 +17,7 @@ func _ready() -> void:
 
 	btn_registrar.pressed.connect(_on_btn_registrar_pressed)
 	http_request.request_completed.connect(_on_request_completed)
+	http_login.request_completed.connect(_on_login_request_completed)
 
 	for campo in [email_input, password_input, username_input]:
 		campo.text_changed.connect(func(_t): status.limpiar())
@@ -68,14 +70,55 @@ func _on_request_completed(_result: int, response_code: int, _headers: PackedStr
 		Callable(self, "_on_register_error")
 	)
 
-func _on_register_success(_data) -> void:
-	status.mostrar_ok("Registro exitoso! Redirigiendo...")
-	await get_tree().create_timer(1.2).timeout
-	get_tree().change_scene_to_file("res://scenes/login_ui.tscn")
+func _on_register_success(data) -> void:
+	# Si el proyecto tiene la autoconfirmacion de correo activada, /signup ya
+	# devuelve una sesion valida (misma forma que /token), y se puede entrar
+	# directo sin pasarle los datos otra vez al login.
+	if data is Dictionary and data.has("access_token"):
+		await _continuar_con_sesion(data)
+		return
+
+	# Si no, se intenta iniciar sesion con los mismos datos que se acaban de
+	# registrar. Si Supabase lo rechaza (falta confirmar el correo, etc.) recien
+	# ahi se manda al login para que lo intente a mano.
+	status.mostrar_ok("Cuenta creada. Iniciando sesion...")
+	var error = Supabase.make_request(http_login, "/auth/v1/token?grant_type=password", {
+		"email": email_input.text,
+		"password": password_input.text
+	})
+	if error != OK:
+		_ir_a_login()
 
 func _on_register_error(msg: String) -> void:
 	btn_registrar.disabled = false
 	status.mostrar_error(msg)
+
+func _on_login_request_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	Supabase.handle_response(
+		response_code,
+		body,
+		Callable(self, "_continuar_con_sesion"),
+		Callable(self, "_on_login_automatico_error")
+	)
+
+func _continuar_con_sesion(data) -> void:
+	Supabase.set_session(data)
+	status.mostrar_info("Sesion iniciada, cargando perfil...")
+
+	if not await Supabase.load_profile():
+		# El registro ya quedo hecho; desde el login lo puede reintentar.
+		_ir_a_login()
+		return
+
+	await Supabase.redirigir_tras_login()
+
+func _on_login_automatico_error(_msg: String) -> void:
+	# Probablemente falta confirmar el correo: no hay nada mas que hacer aca,
+	# que lo intente a mano desde el login.
+	_ir_a_login()
+
+func _ir_a_login() -> void:
+	get_tree().change_scene_to_file("res://scenes/login_ui.tscn")
 
 func _on_btn_redirect_login_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/login_ui.tscn")

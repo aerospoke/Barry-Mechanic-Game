@@ -1,8 +1,12 @@
 extends Control
 
+const ShopCatalog = preload("res://scripts/shop_catalog.gd")
+
 @onready var btn_iniciar = $BtnIniciar
 @onready var btn_precios = $BtnPrecios
 @onready var btn_crear_sala = $BtnCrearSala
+@onready var btn_tienda = $BtnTienda
+@onready var btn_taller = $BtnTaller
 @onready var btn_volver = $BtnVolver
 
 @onready var room_panel: Control = $RoomCreatePanel
@@ -17,6 +21,11 @@ extends Control
 @onready var btn_volver_precios = $PriceListPanel/BtnVolverPrecios
 @onready var http_worklist = $HTTPRequestWorkList
 
+@onready var shop_panel: Control = $ShopPanel
+@onready var shop_status: Label = $ShopPanel/StatusTienda
+@onready var shop_item_container: VBoxContainer = $ShopPanel/ScrollContainer/ItemContainer
+@onready var btn_volver_tienda: Button = $ShopPanel/BtnVolverTienda
+
 @onready var work_select_panel = $WorkSelectPanel
 @onready var status_label = $WorkSelectPanel/StatusLabel
 @onready var work_item_container = $WorkSelectPanel/ScrollContainer/WorkItemContainer
@@ -26,6 +35,7 @@ extends Control
 
 var game_controls: Array[CanvasItem] = []
 var _pending_work: Dictionary = {}
+var _barry: Node = null
 
 # Cuánto se deja leer el mensaje de confirmación antes de cerrar el menú solo.
 const CIERRE_AUTOMATICO: float = 1.2
@@ -36,14 +46,20 @@ func _ready() -> void:
 	price_list_panel.visible = false
 	work_select_panel.visible = false
 	room_panel.visible = false
+	shop_panel.visible = false
 	btn_iniciar.pressed.connect(_on_iniciar_pressed)
 	btn_precios.pressed.connect(_on_precios_pressed)
 	btn_crear_sala.pressed.connect(_on_crear_sala_pressed)
+	btn_tienda.pressed.connect(_on_tienda_pressed)
+	btn_taller.pressed.connect(_on_taller_pressed)
+	# En el taller ya estamos ahi: el boton solo tiene sentido dentro de una sala.
+	btn_taller.visible = not get_parent().get_parent().has_node("Taller")
 	btn_volver.pressed.connect(_on_volver_pressed)
 	btn_volver_room.pressed.connect(_on_volver_room_pressed)
 	_construir_opciones_sala()
 	btn_volver_precios.pressed.connect(_on_volver_precios_pressed)
 	btn_volver_work.pressed.connect(_on_volver_work_pressed)
+	btn_volver_tienda.pressed.connect(_on_volver_tienda_pressed)
 	http_worklist.request_completed.connect(_on_worklist_request_completed)
 	http_active_work.request_completed.connect(_on_active_work_completed)
 	http_accept_work.request_completed.connect(_on_accept_work_completed)
@@ -60,8 +76,18 @@ func _cache_game_controls() -> void:
 		if ui.has_node("UI/buttonProfile"):
 			game_controls.append(ui.get_node("UI/buttonProfile"))
 
+# Barry no cuelga de CanvasLayer (donde vive este menú) sino de la raíz de
+# main.tscn, un nivel más arriba: get_parent() acá ya devuelve CanvasLayer.
+func _cache_barry() -> void:
+	if is_instance_valid(_barry):
+		return
+	var raiz = get_parent().get_parent()
+	if is_instance_valid(raiz) and raiz.has_node("Barry"):
+		_barry = raiz.get_node("Barry")
+
 func open() -> void:
 	_cache_game_controls()
+	_cache_barry()
 	visible = true
 	get_tree().paused = true
 	for ctrl in game_controls:
@@ -72,6 +98,7 @@ func close() -> void:
 	price_list_panel.visible = false
 	work_select_panel.visible = false
 	room_panel.visible = false
+	shop_panel.visible = false
 	get_tree().paused = false
 	for ctrl in game_controls:
 		ctrl.visible = true
@@ -87,11 +114,100 @@ func _on_precios_pressed() -> void:
 func _on_volver_pressed() -> void:
 	close()
 
+# Unica forma de salir de una sala: no hay boton de "Salir" en la escena, se
+# navega siempre desde la PC.
+func _on_taller_pressed() -> void:
+	visible = false
+	get_tree().paused = false
+	Supabase.current_room = {}
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
 func _on_volver_precios_pressed() -> void:
 	price_list_panel.visible = false
 
 func _on_volver_work_pressed() -> void:
 	work_select_panel.visible = false
+
+# --- Tienda ------------------------------------------------------------
+
+func _on_tienda_pressed() -> void:
+	shop_panel.visible = true
+	_fetch_shop_items()
+
+func _on_volver_tienda_pressed() -> void:
+	shop_panel.visible = false
+
+func _fetch_shop_items() -> void:
+	for child in shop_item_container.get_children():
+		child.queue_free()
+
+	if not Supabase.is_logged_in():
+		shop_status.text = "Inicia sesion para comprar repuestos"
+		return
+
+	shop_status.text = "Cargando..."
+	var items := await Supabase.load_shop_items()
+
+	# El jugador pudo cerrar el panel mientras iba la peticion.
+	if not shop_panel.visible:
+		return
+
+	if items.is_empty():
+		shop_status.text = "No se pudo cargar la tienda"
+		return
+
+	shop_status.text = "Saldo: %d" % Supabase.profile_balance
+	for item in items:
+		_add_shop_row(item)
+
+func _add_shop_row(item: Dictionary) -> void:
+	var key := str(item.get("key", ""))
+	var precio := int(item.get("price", 0))
+
+	var fila := HBoxContainer.new()
+	fila.custom_minimum_size.y = 60
+
+	var icono := TextureRect.new()
+	icono.texture = ShopCatalog.icono_tienda(key)
+	icono.custom_minimum_size = Vector2(48, 48)
+	icono.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	icono.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	fila.add_child(icono)
+
+	var lbl_nombre := Label.new()
+	lbl_nombre.text = str(item.get("name", key))
+	lbl_nombre.custom_minimum_size.x = 150
+	fila.add_child(lbl_nombre)
+
+	var lbl_precio := Label.new()
+	lbl_precio.text = "$%d" % precio
+	lbl_precio.custom_minimum_size.x = 60
+	fila.add_child(lbl_precio)
+
+	var btn := Button.new()
+	btn.text = "Comprar"
+	var ya_tiene_item: bool = is_instance_valid(_barry) and bool(_barry.tiene_item)
+	btn.disabled = ya_tiene_item or precio > Supabase.profile_balance
+	btn.pressed.connect(_on_comprar_pressed.bind(key, precio, btn))
+	fila.add_child(btn)
+
+	shop_item_container.add_child(fila)
+
+func _on_comprar_pressed(key: String, precio: int, btn: Button) -> void:
+	btn.disabled = true
+	shop_status.text = "Comprando..."
+
+	var ok: bool = await Supabase.buy_item(precio)
+	if not ok:
+		shop_status.text = "No se pudo completar la compra"
+		btn.disabled = false
+		return
+
+	if is_instance_valid(_barry):
+		_barry.recibir_item_comprado(key)
+
+	shop_status.text = "Compraste %s. Saldo: %d" % [key, Supabase.profile_balance]
+	close()
 
 # --- Salas -----------------------------------------------------------------
 

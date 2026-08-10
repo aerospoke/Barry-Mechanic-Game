@@ -53,12 +53,28 @@ offset_right = 330.0
 offset_bottom = 430.0
 text = "Crear Sala"
 
+[node name="BtnTienda" type="Button" parent="." unique_id=916109148]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 460.0
+offset_right = 330.0
+offset_bottom = 530.0
+text = "Tienda de Repuestos"
+
+[node name="BtnTaller" type="Button" parent="." unique_id=916109156]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 550.0
+offset_right = 330.0
+offset_bottom = 610.0
+text = "Volver al Taller"
+
 [node name="BtnVolver" type="Button" parent="." unique_id=1129686762]
 layout_mode = 0
 offset_left = 120.0
-offset_top = 460.0
+offset_top = 630.0
 offset_right = 230.0
-offset_bottom = 510.0
+offset_bottom = 680.0
 text = "Volver"
 
 [node name="PriceListPanel" type="Control" parent="." unique_id=1760108960]
@@ -127,6 +143,61 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="BtnVolverPrecios" type="Button" parent="PriceListPanel" unique_id=489915070]
+layout_mode = 0
+offset_left = 120.0
+offset_top = 460.0
+offset_right = 230.0
+offset_bottom = 510.0
+text = "Volver"
+
+[node name="ShopPanel" type="Control" parent="." unique_id=916109149]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="FondoTienda" type="ColorRect" parent="ShopPanel" unique_id=916109150]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.08, 0.18, 1)
+
+[node name="TituloTienda" type="Label" parent="ShopPanel" unique_id=916109151]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 390.0
+offset_bottom = 60.0
+text = "TIENDA DE REPUESTOS"
+horizontal_alignment = 1
+
+[node name="StatusTienda" type="Label" parent="ShopPanel" unique_id=916109152]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 70.0
+offset_right = 390.0
+offset_bottom = 100.0
+horizontal_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="ShopPanel" unique_id=916109153]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 110.0
+offset_right = 390.0
+offset_bottom = 440.0
+horizontal_scroll_mode = 0
+
+[node name="ItemContainer" type="VBoxContainer" parent="ShopPanel/ScrollContainer" unique_id=916109154]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="BtnVolverTienda" type="Button" parent="ShopPanel" unique_id=916109155]
 layout_mode = 0
 offset_left = 120.0
 offset_top = 460.0

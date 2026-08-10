@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world_object.gd" id="1_object"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_object"]
+size = Vector2(140, 140)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_solido"]
+size = Vector2(90, 60)
+
+[node name="WorldObject" type="Area2D"]
+script = ExtResource("1_object")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_object")
+
+[node name="CuerpoSolido" type="StaticBody2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CuerpoSolido"]
+shape = SubResource("RectangleShape2D_solido")

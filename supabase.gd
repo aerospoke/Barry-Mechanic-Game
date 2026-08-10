@@ -231,15 +231,17 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 # --- Salas -----------------------------------------------------------------
 
 # Crea una sala y devuelve la fila guardada, o {} si falló. Se pide la fila de
-# vuelta para quedarse con el id que genera la base de datos.
-func create_room(nombre: String, estilo: String) -> Dictionary:
+# vuelta para quedarse con el id que genera la base de datos. es_principal se
+# pasa en true solo desde el onboarding (crear_sala_ui.gd): la primera sala
+# de la cuenta es a la que se entra directo al iniciar sesion despues.
+func create_room(nombre: String, estilo: String, es_principal: bool = false) -> Dictionary:
 	if not is_logged_in():
 		return {}
 
 	var res = await _request_sync(
 		"/rest/v1/rooms",
 		HTTPClient.METHOD_POST,
-		{"owner": user_id, "name": nombre, "style": estilo},
+		{"owner": user_id, "name": nombre, "style": estilo, "is_main": es_principal},
 		["Prefer: return=representation"]
 	)
 	if res[0] != 201 and res[0] != 200:
@@ -259,7 +261,7 @@ func load_rooms() -> bool:
 		return false
 
 	var res = await _request_sync(
-		"/rest/v1/rooms?owner=eq." + user_id + "&select=id,name,style,created_at&order=created_at.desc",
+		"/rest/v1/rooms?owner=eq." + user_id + "&select=id,name,style,is_main,created_at&order=created_at.desc",
 		HTTPClient.METHOD_GET
 	)
 	if res[0] != 200 or not res[1] is Array:
@@ -267,6 +269,117 @@ func load_rooms() -> bool:
 		return false
 
 	rooms = res[1]
+	return true
+
+# --- Objetos de sala ---------------------------------------------------
+
+# Carga los objetos colocados en una sala (la PC, y lo que se agregue
+# despues). Devuelve [] si falla: room.gd lo trata igual que "sala vacia" y
+# coloca los objetos por defecto.
+func load_room_objects(room_id: String) -> Array:
+	var res = await _request_sync(
+		"/rest/v1/room_objects?room_id=eq." + room_id + "&select=id,kind,x,y",
+		HTTPClient.METHOD_GET
+	)
+	if res[0] != 200 or not res[1] is Array:
+		push_error("No se pudieron cargar los objetos de la sala (HTTP %d)" % res[0])
+		return []
+	return res[1]
+
+# Crea un objeto nuevo en una sala (ej. la PC por defecto, la primera vez que
+# se entra). Se pide la fila de vuelta para quedarse con el id que genera la
+# base de datos, que hace falta despues para moverlo.
+func create_room_object(room_id: String, kind: String, pos: Vector2) -> Dictionary:
+	var res = await _request_sync(
+		"/rest/v1/room_objects",
+		HTTPClient.METHOD_POST,
+		{"room_id": room_id, "kind": kind, "x": pos.x, "y": pos.y},
+		["Prefer: return=representation"]
+	)
+	if (res[0] != 201 and res[0] != 200) or not res[1] is Array or res[1].is_empty():
+		push_error("No se pudo crear el objeto de la sala (HTTP %d)" % res[0])
+		return {}
+	return res[1][0]
+
+# Guarda donde quedo un objeto despues de moverlo en el modo de edicion de la
+# sala. Igual que save_player_position, se pide la fila de vuelta para poder
+# distinguir un guardado real de uno que las politicas RLS filtraron.
+func save_room_object_position(object_id: String, pos: Vector2) -> bool:
+	var res = await _request_sync(
+		"/rest/v1/room_objects?id=eq." + object_id,
+		HTTPClient.METHOD_PATCH,
+		{"x": pos.x, "y": pos.y},
+		["Prefer: return=representation"]
+	)
+	return _update_ok(res, "No se pudo guardar la posicion del objeto")
+
+# Se llama justo despues de tener sesion y perfil cargados (desde login o
+# desde un registro con autoconfirmacion). Decide a que escena ir: sin
+# ninguna sala se manda a crear la primera; si ya tiene, entra directo a la
+# principal (ver _sala_principal); recien si no hay ninguna marcada como tal
+# cae al taller. Vive aca porque tanto login_ui.gd como registro_ui.gd
+# necesitan la misma decision, y Supabase (autoload) ya esta en el arbol para
+# poder cambiar de escena con get_tree().
+func redirigir_tras_login() -> void:
+	# Si load_rooms() falla (sin red, columna que no existe todavia, RLS...)
+	# no hay que asumir "sin salas": rooms se queda como estaba y se manda al
+	# taller igual, para no atrapar al jugador en el onboarding por un error
+	# que no tiene nada que ver con si tiene sala o no.
+	var ok := await load_rooms()
+	if ok and rooms.is_empty():
+		get_tree().change_scene_to_file("res://scenes/crear_sala_ui.tscn")
+		return
+
+	var principal := _sala_principal()
+	if principal.is_empty():
+		get_tree().change_scene_to_file("res://scenes/main.tscn")
+	else:
+		current_room = principal
+		get_tree().change_scene_to_file("res://scenes/room.tscn")
+
+# La sala marcada is_main, o si ninguna cuenta con eso (cuentas viejas de
+# antes de esta columna) la mas antigua, que es la que hace de "primera sala"
+# para esos casos. rooms viene ordenado por created_at desc, así que esa es
+# la ultima del array.
+func _sala_principal() -> Dictionary:
+	if rooms.is_empty():
+		return {}
+	for sala in rooms:
+		if bool(sala.get("is_main", false)):
+			return sala
+	return rooms[rooms.size() - 1]
+
+# --- Tienda ------------------------------------------------------------
+
+# Carga el catálogo de piezas comprables. Devuelve [] si falla: la UI de la
+# tienda simplemente se queda sin filas, no hay nada que romper.
+func load_shop_items() -> Array:
+	var res = await _request_sync(
+		"/rest/v1/shop_items?select=key,name,price&active=eq.true&order=key.asc",
+		HTTPClient.METHOD_GET
+	)
+	if res[0] != 200 or not res[1] is Array:
+		push_error("No se pudieron cargar los articulos de la tienda (HTTP %d)" % res[0])
+		return []
+	return res[1]
+
+# Descuenta el precio del saldo del jugador. La UI ya filtra que no se pueda
+# comprar sin saldo suficiente, pero se revalida acá por si el saldo en
+# memoria quedó desactualizado.
+func buy_item(precio: int) -> bool:
+	if not is_logged_in() or precio > profile_balance:
+		return false
+
+	var res = await _request_sync(
+		"/rest/v1/profiles?id=eq." + user_id,
+		HTTPClient.METHOD_PATCH,
+		{"balance": profile_balance - precio},
+		["Prefer: return=representation"]
+	)
+	if not _update_ok(res, "No se pudo completar la compra"):
+		return false
+
+	profile_balance -= precio
 	return true
 
 func handle_response(response_code: int, body: PackedByteArray, success_callable: Callable, error_callable: Callable) -> void:

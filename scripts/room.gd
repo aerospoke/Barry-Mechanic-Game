@@ -19,15 +19,32 @@ const TILE_H := 64.0
 # se ve demasiado pequeño en pantalla de móvil.
 const ZOOM_MINIMO := 0.8
 
+const WorldObjectScene = preload("res://scenes/world_object.tscn")
+
 @onready var limites: CollisionPolygon2D = $Limites/Contorno
 @onready var barry: CharacterBody2D = $Barry
 @onready var camara: Camera2D = $Barry/CameraPlayer
-@onready var titulo: Label = $CanvasLayer/Titulo
-@onready var btn_salir: Button = $CanvasLayer/BtnSalir
+@onready var interaction_zone: Node2D = $InteractionZone
+@onready var panel_edicion: Control = $CanvasLayer/PanelEdicion
+@onready var btn_listo_edicion: Button = $CanvasLayer/PanelEdicion/BtnListoEdicion
 
 var estilo: Dictionary = {}
 var ancho: int = 8
 var alto: int = 8
+
+# Objetos colocados en la sala (ver sql/room_objects.sql), instanciados de
+# forma dinamica en _cargar_objetos(). Ninguno viene predefinido en la
+# escena: asi un objeto nuevo no necesita tocar room.tscn, solo una entrada
+# en RoomObjectCatalog y filas en la tabla.
+var _objetos: Array[WorldObject] = []
+
+# Modo edicion: se activa desde el boton "Editar Sala" del panel de perfil
+# (ver ui.gd). Mientras esta activo, tocar y arrastrar un objeto lo mueve; al
+# soltarlo se ajusta a la baldosa mas cercana y se guarda en la base de datos.
+var editando: bool = false
+var _arrastrando: WorldObject = null
+
+const DISTANCIA_TOQUE := 90.0
 
 func _ready() -> void:
 	var sala: Dictionary = Supabase.current_room
@@ -35,14 +52,14 @@ func _ready() -> void:
 	ancho = int(estilo["ancho"])
 	alto = int(estilo["alto"])
 
-	titulo.text = str(sala.get("name", estilo["nombre"]))
-	btn_salir.pressed.connect(_salir)
-
 	RenderingServer.set_default_clear_color(estilo["fondo"])
+
+	btn_listo_edicion.pressed.connect(_salir_edicion)
 
 	_construir_limites()
 	_colocar_jugador()
 	queue_redraw()
+	_cargar_objetos()
 
 func _exit_tree() -> void:
 	# El taller usa el color de fondo por defecto; si no se restaura, al volver
@@ -115,15 +132,111 @@ func _construir_limites() -> void:
 		tile_a_mundo(0, alto),
 	])
 
+# --- Objetos ---------------------------------------------------------------
+
+# Carga los objetos guardados de la sala (ver sql/room_objects.sql) y los
+# instancia. Es async porque implica una peticion de red: se llama al final
+# de _ready() sin esperarla, para no atrasar la entrada a la sala por eso.
+func _cargar_objetos() -> void:
+	var room_id := str(Supabase.current_room.get("id", ""))
+	var filas: Array = await Supabase.load_room_objects(room_id) if room_id != "" else []
+
+	var tiene_pc := false
+	for fila in filas:
+		_instanciar_objeto(fila)
+		tiene_pc = tiene_pc or str(fila.get("kind", "")) == "pc"
+
+	if not tiene_pc:
+		# Sala sin PC todavia (recien creada, o vieja de antes de esta tabla):
+		# sin ella no hay nada que hacer en la sala, asi que se pone una por
+		# defecto al lado del centro (junto a donde aparece Barry) y se
+		# persiste ya, para no repetir este calculo cada vez que se entre.
+		var pos := tile_a_mundo(ancho / 2 + 1, alto / 2) + Vector2(0, TILE_H * 0.5)
+		var fila := {"id": "", "kind": "pc", "x": pos.x, "y": pos.y}
+		if room_id != "":
+			var creada := await Supabase.create_room_object(room_id, "pc", pos)
+			if not creada.is_empty():
+				fila = creada
+		_instanciar_objeto(fila)
+
+func _instanciar_objeto(fila: Dictionary) -> void:
+	var kind := str(fila.get("kind", ""))
+	var objeto: WorldObject = WorldObjectScene.instantiate()
+	var nombre := RoomObjectCatalog.nombre_nodo(kind)
+	objeto.name = nombre if nombre != "" else "Objeto_%d" % _objetos.size()
+	objeto.textura = RoomObjectCatalog.textura(kind)
+	objeto.escala_sprite = RoomObjectCatalog.escala(kind)
+	objeto.position = Vector2(float(fila.get("x", 0.0)), float(fila.get("y", 0.0)))
+	objeto.set_meta("room_object_id", str(fila.get("id", "")))
+	interaction_zone.add_child(objeto)
+	_objetos.append(objeto)
+
+	# Un "kind" con nombre de nodo reservado necesita que Barry conecte su
+	# interaccion (abrir la PC). Uno sin nombre es puramente decorativo.
+	# call() en vez de llamada directa: movement_script.gd no tiene class_name
+	# y "barry" esta tipado como CharacterBody2D (lo necesita para
+	# global_position en _colocar_jugador), asi que el chequeo estatico de
+	# GDScript rechazaria un metodo que no existe en esa clase base.
+	if nombre != "":
+		barry.call("conectar_objeto", objeto)
+
+# --- Edicion de sala ---------------------------------------------------------
+
+# Lo llama ui.gd cuando se toca "Editar Sala" en el panel de perfil.
+func activar_edicion() -> void:
+	editando = true
+	panel_edicion.visible = true
+
+func _salir_edicion() -> void:
+	editando = false
+	_arrastrando = null
+	panel_edicion.visible = false
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not editando:
+		return
+
+	if event is InputEventScreenTouch or event is InputEventMouseButton:
+		if event.pressed:
+			_arrastrando = _objeto_en(get_global_mouse_position())
+		elif _arrastrando != null:
+			_soltar_objeto(_arrastrando)
+			_arrastrando = null
+	elif (event is InputEventScreenDrag or event is InputEventMouseMotion) and _arrastrando != null:
+		_arrastrando.position = get_global_mouse_position()
+
+# Cualquiera de los objetos colocados sirve, no solo la PC: el que este mas
+# cerca del toque, dentro de un radio razonable.
+func _objeto_en(mundo: Vector2) -> WorldObject:
+	for objeto in _objetos:
+		if objeto.position.distance_to(mundo) < DISTANCIA_TOQUE:
+			return objeto
+	return null
+
+# Ajusta el objeto a la baldosa mas cercana (para que quede prolijo con el
+# resto del suelo isometrico) y persiste la posicion nueva.
+func _soltar_objeto(objeto: WorldObject) -> void:
+	var tile := _mundo_a_tile(objeto.position)
+	var tx := clampi(int(round(tile.x)), 1, ancho - 1)
+	var ty := clampi(int(round(tile.y)), 1, alto - 1)
+	objeto.position = tile_a_mundo(tx, ty) + Vector2(0, TILE_H * 0.5)
+
+	var id := str(objeto.get_meta("room_object_id", ""))
+	if id != "":
+		Supabase.save_room_object_position(id, objeto.position)
+
+# Inversa de tile_a_mundo(): de una posicion del mundo a coordenadas de
+# baldosa (con decimales, sin redondear todavia).
+func _mundo_a_tile(pos: Vector2) -> Vector2:
+	var a := pos.x / (TILE_W * 0.5)
+	var b := pos.y / (TILE_H * 0.5)
+	return Vector2((a + b) * 0.5, (b - a) * 0.5)
+
 # --- Jugador y cámara -----------------------------------------------------
 
 func _colocar_jugador() -> void:
 	# En medio de la sala, sobre el centro de la baldosa central.
 	barry.global_position = tile_a_mundo(ancho / 2, alto / 2) + Vector2(0, TILE_H * 0.5)
-
-	# La cámara viene inclinada del taller (allí el mapa está rotado); aquí la
-	# sala ya es isométrica por construcción, así que se endereza.
-	camara.rotation = 0.0
 
 	# Se intenta encuadrar la sala entera, pero con un tope: en una sala de 50
 	# baldosas alejar la cámara hasta que quepa dejaría a Barry como una
@@ -133,7 +246,3 @@ func _colocar_jugador() -> void:
 	var vista := get_viewport_rect().size
 	var z: float = maxf(min(vista.x / (ancho_px * 1.1), vista.y / (alto_px * 1.1), 1.0), ZOOM_MINIMO)
 	camara.zoom = Vector2(z, z)
-
-func _salir() -> void:
-	Supabase.current_room = {}
-	get_tree().change_scene_to_file("res://scenes/main.tscn")

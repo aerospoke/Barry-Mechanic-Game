@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/room.gd" id="1_room"]
 [ext_resource type="PackedScene" path="res://scenes/barry.tscn" id="2_barry"]
 [ext_resource type="PackedScene" uid="uid://c3ocisoa4ryxq" path="res://scenes/ui.tscn" id="3_ui"]
+[ext_resource type="PackedScene" path="res://scenes/searchwork_ui.tscn" id="6_search"]
 
 [node name="Room" type="Node2D"]
 texture_filter = 1
@@ -15,20 +16,39 @@ build_mode = 1
 
 [node name="Barry" parent="." instance=ExtResource("2_barry")]
 
+[node name="InteractionZone" type="Node2D" parent="."]
+
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="UI" parent="CanvasLayer" instance=ExtResource("3_ui")]
 
-[node name="Titulo" type="Label" parent="CanvasLayer"]
+[node name="SearchWorkUI" parent="CanvasLayer" instance=ExtResource("6_search")]
+
+[node name="PanelEdicion" type="Control" parent="CanvasLayer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HintEdicion" type="Label" parent="CanvasLayer/PanelEdicion"]
+layout_mode = 0
 offset_left = 20.0
 offset_top = 20.0
-offset_right = 290.0
-offset_bottom = 55.0
-text = "Sala"
+offset_right = 400.0
+offset_bottom = 60.0
+mouse_filter = 2
+text = "Arrastra un objeto para moverlo"
+horizontal_alignment = 1
+autowrap_mode = 3
 
-[node name="BtnSalir" type="Button" parent="CanvasLayer"]
-offset_left = 20.0
-offset_top = 60.0
-offset_right = 120.0
-offset_bottom = 105.0
-text = "Salir"
+[node name="BtnListoEdicion" type="Button" parent="CanvasLayer/PanelEdicion"]
+layout_mode = 0
+offset_left = 150.0
+offset_top = 700.0
+offset_right = 270.0
+offset_bottom = 750.0
+text = "Listo"

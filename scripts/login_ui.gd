@@ -122,7 +122,7 @@ func _on_login_success(data) -> void:
 		status_label.mostrar_error("No se pudo cargar tu perfil. Revisa las politicas RLS de SELECT en profiles.")
 		return
 
-	get_tree().change_scene_to_file("res://scenes/main.tscn")
+	await Supabase.redirigir_tras_login()
 
 func _on_login_error(msg: String) -> void:
 	btn_login.disabled = false

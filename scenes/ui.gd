@@ -7,6 +7,7 @@ extends Control
 @onready var label_money = $fondoOscuro/PanelMoney/LabelNick
 @onready var label_points = $fondoOscuro/PanelPoints/LabelNick
 @onready var label_work = $fondoOscuro/PanelWork/LabelWork
+@onready var btn_editar_sala: Button = $fondoOscuro/BtnEditarSala
 
 @onready var http_profile = $HTTPRequestProfile
 @onready var http_active_work = $HTTPRequestActiveWork
@@ -18,6 +19,25 @@ func _ready() -> void:
 	button_profile.pressed.connect(_on_button_profile_pressed)
 	http_profile.request_completed.connect(_on_profile_request_completed)
 	http_active_work.request_completed.connect(_on_active_work_request_completed)
+
+	btn_editar_sala.pressed.connect(_on_btn_editar_sala_pressed)
+	# Solo tiene sentido dentro de una sala (room.gd expone activar_edicion());
+	# en el taller no hay nada que mover todavia.
+	btn_editar_sala.visible = _raiz_editable() != null
+
+func _raiz_editable() -> Node:
+	var raiz := get_parent().get_parent()
+	if is_instance_valid(raiz) and raiz.has_method("activar_edicion"):
+		return raiz
+	return null
+
+func _on_btn_editar_sala_pressed() -> void:
+	var raiz := _raiz_editable()
+	if raiz != null:
+		raiz.activar_edicion()
+	# Cierra el panel de perfil y despausa, igual que un segundo toque al
+	# boton de Barry: el modo edicion necesita el juego corriendo.
+	_on_button_profile_pressed()
 
 func _on_button_profile_pressed() -> void:
 	if fondo_oscuro.visible == true:

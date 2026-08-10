@@ -1,19 +1,16 @@
-[gd_scene format=3 uid="uid://c16t8p1evbfob"]
+[gd_scene format=3 uid="uid://8iudn14v8m7e"]
 
-[ext_resource type="PackedScene" uid="uid://5yvi2jkkd8wq" path="res://scenes/mapa.tscn" id="1_0hol4"]
+[ext_resource type="PackedScene" path="res://scenes/taller.tscn" id="1_0hol4"]
 [ext_resource type="PackedScene" uid="uid://d32mhqmwmkaw2" path="res://scenes/cat.tscn" id="5_q6r6c"]
 [ext_resource type="PackedScene" uid="uid://c3ocisoa4ryxq" path="res://scenes/ui.tscn" id="6_kdubu"]
-[ext_resource type="PackedScene" path="res://scenes/searchwork_ui.tscn" id="7_search"]
-[ext_resource type="PackedScene" path="res://scenes/barry.tscn" id="8_barry"]
+[ext_resource type="PackedScene" uid="uid://cavu4p4ki8r0a" path="res://scenes/searchwork_ui.tscn" id="7_search"]
+[ext_resource type="PackedScene" uid="uid://dktyxqx0dxv41" path="res://scenes/barry.tscn" id="8_barry"]
+[ext_resource type="PackedScene" path="res://scenes/world_object.tscn" id="9_object"]
+[ext_resource type="Texture2D" uid="uid://d0l1pwkvylehp" path="res://objetos/Desktop.png" id="10_desktop"]
+[ext_resource type="Texture2D" uid="uid://ca5rd26d8pqg7" path="res://objetos/a3.png" id="11_carro"]
+[ext_resource type="Texture2D" uid="uid://dfojmjxy31gcy" path="res://objetos/trash2.png" id="12_trash"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rj586"]
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_kdubu"]
-custom_solver_bias = 0.47
-size = Vector2(85.45874, 241.52148)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_d21ai"]
-size = Vector2(2.67576, 16.044619)
 
 [node name="mechanicGame" type="Node2D" unique_id=54788714]
 texture_filter = 1
@@ -34,62 +31,23 @@ shape = SubResource("RectangleShape2D_rj586")
 
 [node name="InteractionZone" type="Node2D" parent="." unique_id=887231734]
 
-[node name="Aceites" type="Area2D" parent="InteractionZone" unique_id=255177090]
-
-[node name="Aceites" type="CollisionShape2D" parent="InteractionZone/Aceites" unique_id=1244433826]
-position = Vector2(-1063.2463, -241.20747)
-rotation = 1.122349
-shape = SubResource("RectangleShape2D_kdubu")
-
-[node name="Lights" type="Area2D" parent="InteractionZone" unique_id=1097928063]
-
-[node name="Lights" type="CollisionShape2D" parent="InteractionZone/Lights" unique_id=1552451972]
-position = Vector2(-695.00006, -440.00003)
-rotation = 4.258283
-shape = SubResource("RectangleShape2D_kdubu")
-
-[node name="Filters" type="Area2D" parent="InteractionZone" unique_id=344891384]
-
-[node name="Filters" type="CollisionShape2D" parent="InteractionZone/Filters" unique_id=2032949291]
-position = Vector2(-358.00006, -607)
-rotation = 4.258283
-shape = SubResource("RectangleShape2D_kdubu")
-
-[node name="Keys" type="Area2D" parent="InteractionZone" unique_id=985566502]
-
-[node name="keys" type="CollisionShape2D" parent="InteractionZone/Keys" unique_id=1261826343]
-position = Vector2(-30, -786)
-rotation = 1.1269473
-shape = SubResource("RectangleShape2D_kdubu")
-
-[node name="Trash" type="Area2D" parent="InteractionZone" unique_id=306601603]
-
-[node name="trash" type="CollisionShape2D" parent="InteractionZone/Trash" unique_id=1961820629]
-position = Vector2(659, -385.00003)
-rotation = -1.1059886
-shape = SubResource("RectangleShape2D_kdubu")
-
-[node name="WorkZone" type="Area2D" parent="InteractionZone" unique_id=1204180509]
+[node name="WorkZone" parent="InteractionZone" unique_id=1204180509 instance=ExtResource("9_object")]
 position = Vector2(-1400, 19)
+textura = ExtResource("11_carro")
+escala_sprite = Vector2(0.5, 0.5)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionZone/WorkZone" unique_id=1362081043]
-position = Vector2(1074.7808, -292.0608)
-rotation = -1.004312
-scale = Vector2(35.092953, 11.224026)
-shape = SubResource("RectangleShape2D_d21ai")
-
-[node name="SearchWork" type="Area2D" parent="InteractionZone" unique_id=176858428]
+[node name="SearchWork" parent="InteractionZone" unique_id=176858428 instance=ExtResource("9_object")]
 position = Vector2(-1348, 479)
-rotation = -0.048544824
+textura = ExtResource("10_desktop")
+escala_sprite = Vector2(0.3, 0.3)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionZone/SearchWork" unique_id=192701477]
-position = Vector2(1158.848, -216.02052)
-rotation = 1.1343446
-scale = Vector2(35.092953, 11.224026)
-shape = SubResource("RectangleShape2D_d21ai")
+[node name="Trash" parent="InteractionZone" unique_id=306601603 instance=ExtResource("9_object")]
+position = Vector2(659, -385.00003)
+textura = ExtResource("12_trash")
+escala_sprite = Vector2(0.3, 0.3)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=766230160]
 
 [node name="UI" parent="CanvasLayer" unique_id=1758787695 instance=ExtResource("6_kdubu")]
 
-[node name="SearchWorkUI" parent="CanvasLayer" instance=ExtResource("7_search")]
+[node name="SearchWorkUI" parent="CanvasLayer" unique_id=1240891958 instance=ExtResource("7_search")]

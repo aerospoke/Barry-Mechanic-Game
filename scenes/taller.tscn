@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://objetos/mapa_2.png" id="1_fondo"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_limites"]
+size = Vector2(2638, 1600)
+
+[node name="Taller" type="Node2D"]
+texture_filter = 1
+
+[node name="Fondo" type="Sprite2D" parent="."]
+texture = ExtResource("1_fondo")
+
+[node name="Limites" type="StaticBody2D" parent="."]
+
+[node name="Contorno" type="CollisionShape2D" parent="Limites"]
+shape = SubResource("RectangleShape2D_limites")
