@@ -12,9 +12,6 @@ extends Node2D
 # Todo lo demás es igual que en el taller: el jugador es scenes/barry.tscn con
 # su movement_script, y el joystick y los botones son scenes/ui.tscn.
 
-const TILE_W := 128.0
-const TILE_H := 64.0
-
 # Lo más lejos que se permite poner la cámara: por debajo de esto el personaje
 # se ve demasiado pequeño en pantalla de móvil.
 const ZOOM_MINIMO := 0.8
@@ -71,15 +68,15 @@ func _exit_tree() -> void:
 # Devuelve el vértice superior de la baldosa (tx, ty). Con tx o ty igual al
 # tamaño de la sala devuelve la esquina exacta del suelo.
 func tile_a_mundo(tx: int, ty: int) -> Vector2:
-	return Vector2((tx - ty) * TILE_W * 0.5, (tx + ty) * TILE_H * 0.5)
+	return Vector2((tx - ty) * RoomStyles.TILE_W * 0.5, (tx + ty) * RoomStyles.TILE_H * 0.5)
 
 func _rombo(tx: int, ty: int) -> PackedVector2Array:
 	var o := tile_a_mundo(tx, ty)
 	return PackedVector2Array([
 		o,
-		o + Vector2(TILE_W * 0.5, TILE_H * 0.5),
-		o + Vector2(0, TILE_H),
-		o + Vector2(-TILE_W * 0.5, TILE_H * 0.5),
+		o + Vector2(RoomStyles.TILE_W * 0.5, RoomStyles.TILE_H * 0.5),
+		o + Vector2(0, RoomStyles.TILE_H),
+		o + Vector2(-RoomStyles.TILE_W * 0.5, RoomStyles.TILE_H * 0.5),
 	])
 
 # El nodo se dibuja antes que sus hijos, así que Barry queda siempre encima.
@@ -134,6 +131,16 @@ func _construir_limites() -> void:
 
 # --- Objetos ---------------------------------------------------------------
 
+# Cada sala arranca con estos objetos si todavia no los tiene guardados: la
+# PC, el auto (donde se completa un trabajo) y la basura. El offset es en
+# baldosas desde el centro, para que no se superpongan entre si; el jugador
+# los puede reacomodar despues con el modo de edicion.
+const OBJETOS_POR_DEFECTO := {
+	"pc": Vector2(1, 0),
+	"car": Vector2(-2, 0),
+	"trash": Vector2(0, 2),
+}
+
 # Carga los objetos guardados de la sala (ver sql/room_objects.sql) y los
 # instancia. Es async porque implica una peticion de red: se llama al final
 # de _ready() sin esperarla, para no atrasar la entrada a la sala por eso.
@@ -141,23 +148,39 @@ func _cargar_objetos() -> void:
 	var room_id := str(Supabase.current_room.get("id", ""))
 	var filas: Array = await Supabase.load_room_objects(room_id) if room_id != "" else []
 
-	var tiene_pc := false
+	var kinds_presentes := {}
 	for fila in filas:
 		_instanciar_objeto(fila)
-		tiene_pc = tiene_pc or str(fila.get("kind", "")) == "pc"
+		kinds_presentes[str(fila.get("kind", ""))] = true
 
-	if not tiene_pc:
-		# Sala sin PC todavia (recien creada, o vieja de antes de esta tabla):
-		# sin ella no hay nada que hacer en la sala, asi que se pone una por
-		# defecto al lado del centro (junto a donde aparece Barry) y se
-		# persiste ya, para no repetir este calculo cada vez que se entre.
-		var pos := tile_a_mundo(ancho / 2 + 1, alto / 2) + Vector2(0, TILE_H * 0.5)
-		var fila := {"id": "", "kind": "pc", "x": pos.x, "y": pos.y}
+	for kind in OBJETOS_POR_DEFECTO:
+		if kinds_presentes.has(kind):
+			continue
+		# Sala vieja o recien creada sin este objeto todavia: se calcula la
+		# posicion por defecto y se persiste ya, para no repetir el calculo
+		# cada vez que se entre.
+		var offset: Vector2 = OBJETOS_POR_DEFECTO[kind]
+		var pos := tile_a_mundo(ancho / 2 + int(offset.x), alto / 2 + int(offset.y)) + Vector2(0, RoomStyles.TILE_H * 0.5)
+		var fila := {"id": "", "kind": kind, "x": pos.x, "y": pos.y}
 		if room_id != "":
-			var creada := await Supabase.create_room_object(room_id, "pc", pos)
+			var creada := await Supabase.create_room_object(room_id, kind, pos)
 			if not creada.is_empty():
 				fila = creada
 		_instanciar_objeto(fila)
+
+# Lo llama searchwork_ui.gd (via call()) cuando se compra una decoracion en
+# la tienda de la PC. Aparece cerca del centro; el jugador la reacomoda con
+# el modo de edicion (que se activa solo al comprar, ver ahi el porque).
+func agregar_objeto_comprado(kind: String) -> void:
+	var room_id := str(Supabase.current_room.get("id", ""))
+	var pos := tile_a_mundo(ancho / 2, alto / 2 - 3) + Vector2(0, RoomStyles.TILE_H * 0.5)
+	var fila := {"id": "", "kind": kind, "x": pos.x, "y": pos.y}
+	if room_id != "":
+		var creada := await Supabase.create_room_object(room_id, kind, pos)
+		if not creada.is_empty():
+			fila = creada
+	_instanciar_objeto(fila)
+	activar_edicion()
 
 func _instanciar_objeto(fila: Dictionary) -> void:
 	var kind := str(fila.get("kind", ""))
@@ -166,19 +189,25 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	objeto.name = nombre if nombre != "" else "Objeto_%d" % _objetos.size()
 	objeto.textura = RoomObjectCatalog.textura(kind)
 	objeto.escala_sprite = RoomObjectCatalog.escala(kind)
+	objeto.tamano_colision = RoomObjectCatalog.tamano_colision(kind)
 	objeto.position = Vector2(float(fila.get("x", 0.0)), float(fila.get("y", 0.0)))
 	objeto.set_meta("room_object_id", str(fila.get("id", "")))
+
+	var pieza_gratis := RoomObjectCatalog.pieza_gratis(kind)
+	if pieza_gratis != "":
+		objeto.set_meta("pieza_gratis", pieza_gratis)
+
 	interaction_zone.add_child(objeto)
 	_objetos.append(objeto)
 
-	# Un "kind" con nombre de nodo reservado necesita que Barry conecte su
-	# interaccion (abrir la PC). Uno sin nombre es puramente decorativo.
-	# call() en vez de llamada directa: movement_script.gd no tiene class_name
-	# y "barry" esta tipado como CharacterBody2D (lo necesita para
-	# global_position en _colocar_jugador), asi que el chequeo estatico de
-	# GDScript rechazaria un metodo que no existe en esa clase base.
-	if nombre != "":
-		barry.call("conectar_objeto", objeto)
+	# Barry decide que conectar segun el nombre reservado (PC, auto) o la meta
+	# "pieza_gratis" (estantes); un objeto puramente decorativo no tiene
+	# ninguno de los dos y conectar_objeto() no hace nada. call() en vez de
+	# llamada directa: movement_script.gd no tiene class_name y "barry" esta
+	# tipado como CharacterBody2D (lo necesita para global_position en
+	# _colocar_jugador), asi que el chequeo estatico de GDScript rechazaria
+	# un metodo que no existe en esa clase base.
+	barry.call("conectar_objeto", objeto)
 
 # --- Edicion de sala ---------------------------------------------------------
 
@@ -219,7 +248,7 @@ func _soltar_objeto(objeto: WorldObject) -> void:
 	var tile := _mundo_a_tile(objeto.position)
 	var tx := clampi(int(round(tile.x)), 1, ancho - 1)
 	var ty := clampi(int(round(tile.y)), 1, alto - 1)
-	objeto.position = tile_a_mundo(tx, ty) + Vector2(0, TILE_H * 0.5)
+	objeto.position = tile_a_mundo(tx, ty) + Vector2(0, RoomStyles.TILE_H * 0.5)
 
 	var id := str(objeto.get_meta("room_object_id", ""))
 	if id != "":
@@ -228,21 +257,21 @@ func _soltar_objeto(objeto: WorldObject) -> void:
 # Inversa de tile_a_mundo(): de una posicion del mundo a coordenadas de
 # baldosa (con decimales, sin redondear todavia).
 func _mundo_a_tile(pos: Vector2) -> Vector2:
-	var a := pos.x / (TILE_W * 0.5)
-	var b := pos.y / (TILE_H * 0.5)
+	var a := pos.x / (RoomStyles.TILE_W * 0.5)
+	var b := pos.y / (RoomStyles.TILE_H * 0.5)
 	return Vector2((a + b) * 0.5, (b - a) * 0.5)
 
 # --- Jugador y cámara -----------------------------------------------------
 
 func _colocar_jugador() -> void:
 	# En medio de la sala, sobre el centro de la baldosa central.
-	barry.global_position = tile_a_mundo(ancho / 2, alto / 2) + Vector2(0, TILE_H * 0.5)
+	barry.global_position = tile_a_mundo(ancho / 2, alto / 2) + Vector2(0, RoomStyles.TILE_H * 0.5)
 
 	# Se intenta encuadrar la sala entera, pero con un tope: en una sala de 50
 	# baldosas alejar la cámara hasta que quepa dejaría a Barry como una
 	# hormiga. A partir de ahí la cámara le sigue, igual que en el taller.
-	var ancho_px := (ancho + alto) * TILE_W * 0.5
-	var alto_px := (ancho + alto) * TILE_H * 0.5 + RoomStyles.alto_pared(estilo)
+	var ancho_px := (ancho + alto) * RoomStyles.TILE_W * 0.5
+	var alto_px := (ancho + alto) * RoomStyles.TILE_H * 0.5 + RoomStyles.alto_pared(estilo)
 	var vista := get_viewport_rect().size
 	var z: float = maxf(min(vista.x / (ancho_px * 1.1), vista.y / (alto_px * 1.1), 1.0), ZOOM_MINIMO)
 	camara.zoom = Vector2(z, z)

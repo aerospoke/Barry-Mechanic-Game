@@ -7,6 +7,15 @@ class_name RoomStyles
 #
 # Las salas son isométricas (estilo Habbo) y se generan por código, así que un
 # estilo es solo tamaño de rejilla + paleta: no hay tilemap que mantener.
+
+# Tamaño de una baldosa, igual en toda sala sin importar el estilo — lo único
+# que varía entre estilos es cuántas baldosas tiene la grilla (ancho/alto más
+# abajo), nunca el tamaño de cada una. Vive acá (y no repetida en room.gd)
+# para que room_object_catalog.gd pueda expresar el tamaño de un objeto en
+# "cuantas baldosas ocupa" y que eso mida lo mismo en cualquier sala.
+const TILE_W := 128.0
+const TILE_H := 64.0
+
 const ESTILOS := {
 	"basica": {
 		"nombre": "Sala Basica",

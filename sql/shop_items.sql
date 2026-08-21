@@ -1,4 +1,4 @@
--- Catálogo de piezas que se compran en la tienda de la PC del taller.
+-- Catálogo de piezas que se compran en la tienda de la PC.
 --
 -- El cliente solo lee esta tabla (ver ShopCatalog en scripts/shop_catalog.gd
 -- para los íconos, que viven en el cliente y no acá). Los precios se pueden

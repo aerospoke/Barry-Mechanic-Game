@@ -12,11 +12,13 @@ const MINIGAMES = {
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
 
-# Explicación del taller al entrar por primera vez en la sesión.
-const TUTORIAL_TALLER := [
+# Explicación de la sala al entrar por primera vez en la sesión. Toda escena
+# jugable es una sala (no existe un "taller" aparte), así que esto se muestra
+# siempre, sin condicion de en cual estas.
+const TUTORIAL_BIENVENIDA := [
 	{
-		"titulo": "Bienvenido al taller",
-		"texto": "Este es tu taller. Muevete con el joystick de la izquierda.\n\nEl boton de accion sirve para todo: hablar con la PC, agarrar repuestos y empezar los trabajos.",
+		"titulo": "Bienvenido",
+		"texto": "Esta es tu sala. Muevete con el joystick de la izquierda.\n\nEl boton de accion sirve para todo: hablar con la PC, agarrar repuestos y empezar los trabajos.",
 	},
 	{
 		"titulo": "El boton de Barry",
@@ -41,9 +43,10 @@ var item_en_mano: String = ""
 var en_search_work: bool = false
 var en_work_zone: bool = false
 
-# Bloquea el control mientras se consulta la posición guardada, para que el
-# jugador no se mueva y luego lo teletransporte la respuesta del servidor.
-var _restaurando: bool = true
+# Key de la pieza que se puede agarrar gratis del estante en el que esta
+# parado Barry ahora mismo (ver RoomObjectCatalog.pieza_gratis), o "" si no
+# hay ninguno cerca.
+var en_pieza_gratis: String = ""
 
 # Congela al jugador mientras el modal de bienvenida está en pantalla.
 var _en_tutorial: bool = false
@@ -51,105 +54,54 @@ var _en_tutorial: bool = false
 @onready var animation = $MovementPlayer
 @onready var item_hand = $ItemHandsPlayer
 
-# El mismo jugador se usa en el taller y en las salas creadas por el jugador.
-# Las salas también tienen su propia PC (InteractionZone/SearchWork), pero a
-# diferencia del taller no hay tutorial ni posición guardada que restaurar:
-# se detecta por los nodos que la escena padre trae, en vez de duplicar el
-# script. "Taller" es el nombre del nodo raíz de taller.tscn, así que solo
-# está presente ahí, nunca en una sala.
+# Lo cachea room.tscn (CanvasLayer/SearchWorkUI) para poder abrir el menu de
+# la PC desde interactuar().
 var searchwork_ui: Node = null
-var _es_taller: bool = true
 
 func _ready() -> void:
 	var padre := get_parent()
 	if padre.has_node("CanvasLayer/SearchWorkUI"):
 		searchwork_ui = padre.get_node("CanvasLayer/SearchWorkUI")
 
-	_es_taller = padre.has_node("Taller")
-	if _es_taller:
-		# Se espera a la restauración para que el modal no salga mientras el
-		# jugador todavía puede aparecer en otro sitio.
-		await _restaurar_posicion()
-		_mostrar_tutorial_taller()
-	else:
-		# Sala: la escena decide dónde aparece el jugador y no hay tutorial.
-		_restaurando = false
+	_mostrar_tutorial_bienvenida()
 
-	if padre.has_node("InteractionZone"):
-		var interaction_zone = padre.get_node("InteractionZone")
-		for child in interaction_zone.get_children():
-			_conectar_zona(child)
-
-# Punto de conexion compartido entre las zonas estaticas del taller (arriba,
-# detectadas al arrancar) y los objetos dinamicos de una sala (room.gd los
-# instancia despues de una peticion de red, ya con este _ready() terminado,
-# asi que ahi hace falta llamarlo a mano: ver conectar_objeto()).
-func _conectar_zona(child: Node) -> void:
-	if child is Area2D and child.name == "SearchWork":
-		child.body_entered.connect(_on_search_work_entered.bind(child))
-		child.body_exited.connect(_on_search_work_exited.bind(child))
-	elif child is Area2D and child.name == "WorkZone":
-		child.body_entered.connect(_on_work_zone_entered)
-		child.body_exited.connect(_on_work_zone_exited)
-
-# Lo llama room.gd (via call(), ver ahi el porque) al instanciar un objeto
-# dinamico que necesita interaccion, como la PC.
+# Lo llama room.gd (via call(): movement_script.gd no tiene class_name, y de
+# tenerlo tipado igual el chequeo estatico de GDScript no encontraria este
+# metodo en CharacterBody2D) al instanciar un objeto que necesita interaccion
+# (la PC, el auto, un estante). Los objetos se cargan de forma asincrona
+# despues de que la sala ya esta lista, asi que la conexion se hace a mano en
+# vez de escanear InteractionZone en _ready(). Un objeto puramente decorativo
+# no matchea ninguna rama y no queda conectado a nada.
 func conectar_objeto(objeto: Area2D) -> void:
-	_conectar_zona(objeto)
-
-func _restaurar_posicion() -> void:
-	# Si el autoload ya trae posición (venimos de un minijuego) se usa directa.
-	if Supabase.has_player_pos:
-		global_position = Supabase.player_pos
-		_restaurando = false
-		return
-
-	# Arranque de sesión: hay que esperar al perfil antes de colocar al jugador.
-	if not Supabase.is_logged_in():
-		_restaurando = false
-		return
-
-	await Supabase.load_profile()
-	if Supabase.has_player_pos:
-		global_position = Supabase.player_pos
-	_restaurando = false
+	if objeto.name == "SearchWork":
+		objeto.body_entered.connect(_on_search_work_entered.bind(objeto))
+		objeto.body_exited.connect(_on_search_work_exited.bind(objeto))
+	elif objeto.name == "WorkZone":
+		objeto.body_entered.connect(_on_work_zone_entered)
+		objeto.body_exited.connect(_on_work_zone_exited)
+	elif objeto.has_meta("pieza_gratis"):
+		# A diferencia de la PC/el auto puede haber mas de un estante por
+		# sala (incluso del mismo tipo), asi que esto no se identifica por
+		# nombre de nodo sino por la key que trae la meta.
+		var key: String = objeto.get_meta("pieza_gratis")
+		objeto.body_entered.connect(_on_pieza_gratis_entered.bind(key))
+		objeto.body_exited.connect(_on_pieza_gratis_exited.bind(key))
 
 # Solo la primera vez de la sesión: al volver de un minijuego no se repite.
-func _mostrar_tutorial_taller() -> void:
-	if Supabase.tutorial_taller_visto:
+func _mostrar_tutorial_bienvenida() -> void:
+	if Supabase.tutorial_visto:
 		return
-	Supabase.tutorial_taller_visto = true
+	Supabase.tutorial_visto = true
 
 	_en_tutorial = true
-	var modal = TutorialModal.crear(self, TUTORIAL_TALLER)
+	var modal = TutorialModal.crear(self, TUTORIAL_BIENVENIDA)
 	await modal.terminado
 	_en_tutorial = false
-
-func _exit_tree() -> void:
-	# Cubre el cambio de escena hacia un minijuego: el autoload conserva la
-	# posición exacta aunque no se haya escrito en la base de datos.
-	# Si ya no hay sesión (logout) no se guarda nada: esa posición pertenecía
-	# al usuario anterior y heredarla colocaría mal al siguiente que entre.
-	# En una sala tampoco: esa coordenada no significa nada en el taller.
-	if not _es_taller or not Supabase.is_logged_in():
-		return
-	Supabase.player_pos = global_position
-	Supabase.has_player_pos = true
-
-# Punto único de guardado: se llama al entrar en cualquier zona de interacción.
-# Las coordenadas que persiste son las del taller (profiles.pos_x/pos_y): en
-# una sala no significan nada, así que ahí no se toca nada.
-func _guardar_posicion() -> void:
-	if not _es_taller:
-		return
-	Supabase.player_pos = global_position
-	Supabase.has_player_pos = true
-	Supabase.save_player_position(global_position)
 
 func _physics_process(_delta: float) -> void:
 	velocity = Vector2.ZERO
 
-	if _restaurando or _en_tutorial:
+	if _en_tutorial:
 		return
 
 	if Input.is_action_just_pressed("ui_accept"):
@@ -212,13 +164,18 @@ func interactuar() -> void:
 		_intentar_minijuego()
 		return
 
+	if en_pieza_gratis != "" and not tiene_item:
+		recibir_item_comprado(en_pieza_gratis)
+		return
+
 	if tiene_item:
 		tiene_item = false
 		item_en_mano = ""
 		item_hand.visible = false
 
-# Lo llama la tienda de la PC (searchwork_ui.gd) al comprar una pieza: pone el
-# item en la mano de Barry igual que antes hacia recoger del estante.
+# Pone una pieza en la mano de Barry. Lo llama la tienda de la PC
+# (searchwork_ui.gd) al comprar, y tambien interactuar() al agarrar gratis
+# de un estante ya pagado (ver en_pieza_gratis mas arriba).
 func recibir_item_comprado(key: String) -> void:
 	tiene_item = true
 	item_en_mano = key
@@ -243,7 +200,6 @@ func _intentar_minijuego() -> void:
 func _on_search_work_entered(body: Node2D, _zone: Area2D) -> void:
 	if body == self:
 		en_search_work = true
-		_guardar_posicion()
 
 func _on_search_work_exited(body: Node2D, _zone: Area2D) -> void:
 	if body == self:
@@ -252,8 +208,15 @@ func _on_search_work_exited(body: Node2D, _zone: Area2D) -> void:
 func _on_work_zone_entered(body: Node2D) -> void:
 	if body == self:
 		en_work_zone = true
-		_guardar_posicion()
 
 func _on_work_zone_exited(body: Node2D) -> void:
 	if body == self:
 		en_work_zone = false
+
+func _on_pieza_gratis_entered(body: Node2D, key: String) -> void:
+	if body == self:
+		en_pieza_gratis = key
+
+func _on_pieza_gratis_exited(body: Node2D, key: String) -> void:
+	if body == self and en_pieza_gratis == key:
+		en_pieza_gratis = ""

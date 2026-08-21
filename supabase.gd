@@ -12,21 +12,15 @@ var profile_balance: int = 0
 var profile_points: int = 0
 var profile_loaded: bool = false
 
-# Última posición conocida del jugador en el mapa. Vive en el autoload, así que
-# sobrevive a los cambios de escena (ir a un minijuego y volver) además de
-# persistirse en el perfil para recuperarla al reiniciar sesión.
-var player_pos: Vector2 = Vector2.ZERO
-var has_player_pos: bool = false
-
-# El tutorial del taller se muestra una vez por sesión. Vive aquí y no en la
-# escena porque main.tscn se recrea cada vez que se vuelve de un minijuego, y
-# repetir la explicación en cada regreso sería insoportable.
-var tutorial_taller_visto: bool = false
+# El tutorial de bienvenida se muestra una vez por sesión. Vive aquí y no en
+# la escena porque room.tscn se recrea cada vez que se vuelve de un
+# minijuego, y repetir la explicación en cada regreso sería insoportable.
+var tutorial_visto: bool = false
 
 # Salas creadas por el jugador (estilo Habbo). Se guardan en la tabla `rooms`
-# (ver sql/rooms.sql); aquí vive la copia en memoria porque la sala es una
-# escena aparte del taller y al entrar necesita saber qué estilo construir.
-# Solo se persiste nombre y estilo: la geometría la genera room_styles.gd.
+# (ver sql/rooms.sql); aquí vive la copia en memoria porque room.tscn
+# necesita saber qué estilo construir al entrar. Solo se persiste nombre y
+# estilo: la geometría la genera room_styles.gd.
 var rooms: Array = []
 var current_room: Dictionary = {}
 
@@ -82,9 +76,7 @@ func clear_session() -> void:
 	active_work_name = ""
 	active_work_points = 0
 	active_work_payment = 0
-	player_pos = Vector2.ZERO
-	has_player_pos = false
-	tutorial_taller_visto = false
+	tutorial_visto = false
 	rooms = []
 	current_room = {}
 
@@ -114,8 +106,8 @@ func _request_sync(endpoint: String, method: int, body_dict: Dictionary = {}, ex
 		data = json.get_data()
 	return [response_code, data]
 
-# Carga el perfil (saldo, puntos y última posición) desde la base de datos.
-# Solo golpea la red la primera vez salvo que se fuerce con recargar.
+# Carga el perfil (saldo y puntos) desde la base de datos. Solo golpea la
+# red la primera vez salvo que se fuerce con recargar.
 func load_profile(recargar: bool = false) -> bool:
 	if profile_loaded and not recargar:
 		return true
@@ -123,7 +115,7 @@ func load_profile(recargar: bool = false) -> bool:
 		return false
 
 	var res = await _request_sync(
-		"/rest/v1/profiles?id=eq." + user_id + "&select=name,balance,points,pos_x,pos_y",
+		"/rest/v1/profiles?id=eq." + user_id + "&select=name,balance,points",
 		HTTPClient.METHOD_GET
 	)
 	if res[0] != 200 or not res[1] is Array or res[1].is_empty():
@@ -135,36 +127,8 @@ func load_profile(recargar: bool = false) -> bool:
 	profile_balance = int(profile.get("balance", 0))
 	profile_points = int(profile.get("points", 0))
 
-	# pos_x/pos_y son NULL hasta la primera partida guardada: en ese caso el
-	# jugador debe aparecer donde lo ponga la escena, no en (0,0).
-	var px = profile.get("pos_x")
-	var py = profile.get("pos_y")
-	if px != null and py != null:
-		player_pos = Vector2(float(px), float(py))
-		has_player_pos = true
-
 	profile_loaded = true
 	return true
-
-# Guarda la posición del jugador en memoria y la persiste en el perfil.
-func save_player_position(pos: Vector2) -> bool:
-	player_pos = pos
-	has_player_pos = true
-
-	if not is_logged_in():
-		return false
-
-	# Se pide la fila de vuelta (return=representation) porque un PATCH que RLS
-	# filtra responde 204 igualmente, sin haber escrito nada: sin esto un fallo
-	# de permisos es indistinguible de un guardado correcto.
-	var res = await _request_sync(
-		"/rest/v1/profiles?id=eq." + user_id,
-		HTTPClient.METHOD_PATCH,
-		{"pos_x": pos.x, "pos_y": pos.y},
-		["Prefer: return=representation"]
-	)
-
-	return _update_ok(res, "No se pudo guardar la posicion")
 
 # Valida la respuesta de un PATCH que pidió return=representation: además del
 # código HTTP comprueba que de verdad se modificó alguna fila.
@@ -302,7 +266,7 @@ func create_room_object(room_id: String, kind: String, pos: Vector2) -> Dictiona
 	return res[1][0]
 
 # Guarda donde quedo un objeto despues de moverlo en el modo de edicion de la
-# sala. Igual que save_player_position, se pide la fila de vuelta para poder
+# sala. Se pide la fila de vuelta (return=representation) para poder
 # distinguir un guardado real de uno que las politicas RLS filtraron.
 func save_room_object_position(object_id: String, pos: Vector2) -> bool:
 	var res = await _request_sync(
@@ -314,27 +278,17 @@ func save_room_object_position(object_id: String, pos: Vector2) -> bool:
 	return _update_ok(res, "No se pudo guardar la posicion del objeto")
 
 # Se llama justo despues de tener sesion y perfil cargados (desde login o
-# desde un registro con autoconfirmacion). Decide a que escena ir: sin
-# ninguna sala se manda a crear la primera; si ya tiene, entra directo a la
-# principal (ver _sala_principal); recien si no hay ninguna marcada como tal
-# cae al taller. Vive aca porque tanto login_ui.gd como registro_ui.gd
-# necesitan la misma decision, y Supabase (autoload) ya esta en el arbol para
-# poder cambiar de escena con get_tree().
+# desde un registro con autoconfirmacion). Decision binaria, sin pasar nunca
+# por el taller: sin ninguna sala se manda a crear la primera; con salas,
+# entra directo a la principal (ver _sala_principal). Vive aca porque tanto
+# login_ui.gd como registro_ui.gd necesitan la misma decision, y Supabase
+# (autoload) ya esta en el arbol para poder cambiar de escena con get_tree().
 func redirigir_tras_login() -> void:
-	# Si load_rooms() falla (sin red, columna que no existe todavia, RLS...)
-	# no hay que asumir "sin salas": rooms se queda como estaba y se manda al
-	# taller igual, para no atrapar al jugador en el onboarding por un error
-	# que no tiene nada que ver con si tiene sala o no.
-	var ok := await load_rooms()
-	if ok and rooms.is_empty():
+	await load_rooms()
+	if rooms.is_empty():
 		get_tree().change_scene_to_file("res://scenes/crear_sala_ui.tscn")
-		return
-
-	var principal := _sala_principal()
-	if principal.is_empty():
-		get_tree().change_scene_to_file("res://scenes/main.tscn")
 	else:
-		current_room = principal
+		current_room = _sala_principal()
 		get_tree().change_scene_to_file("res://scenes/room.tscn")
 
 # La sala marcada is_main, o si ninguna cuenta con eso (cuentas viejas de
@@ -355,7 +309,7 @@ func _sala_principal() -> Dictionary:
 # tienda simplemente se queda sin filas, no hay nada que romper.
 func load_shop_items() -> Array:
 	var res = await _request_sync(
-		"/rest/v1/shop_items?select=key,name,price&active=eq.true&order=key.asc",
+		"/rest/v1/shop_items?select=key,name,price,tipo&active=eq.true&order=key.asc",
 		HTTPClient.METHOD_GET
 	)
 	if res[0] != 200 or not res[1] is Array:

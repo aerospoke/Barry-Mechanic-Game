@@ -6,7 +6,6 @@ const ShopCatalog = preload("res://scripts/shop_catalog.gd")
 @onready var btn_precios = $BtnPrecios
 @onready var btn_crear_sala = $BtnCrearSala
 @onready var btn_tienda = $BtnTienda
-@onready var btn_taller = $BtnTaller
 @onready var btn_volver = $BtnVolver
 
 @onready var room_panel: Control = $RoomCreatePanel
@@ -51,9 +50,6 @@ func _ready() -> void:
 	btn_precios.pressed.connect(_on_precios_pressed)
 	btn_crear_sala.pressed.connect(_on_crear_sala_pressed)
 	btn_tienda.pressed.connect(_on_tienda_pressed)
-	btn_taller.pressed.connect(_on_taller_pressed)
-	# En el taller ya estamos ahi: el boton solo tiene sentido dentro de una sala.
-	btn_taller.visible = not get_parent().get_parent().has_node("Taller")
 	btn_volver.pressed.connect(_on_volver_pressed)
 	btn_volver_room.pressed.connect(_on_volver_room_pressed)
 	_construir_opciones_sala()
@@ -77,7 +73,7 @@ func _cache_game_controls() -> void:
 			game_controls.append(ui.get_node("UI/buttonProfile"))
 
 # Barry no cuelga de CanvasLayer (donde vive este menú) sino de la raíz de
-# main.tscn, un nivel más arriba: get_parent() acá ya devuelve CanvasLayer.
+# room.tscn, un nivel más arriba: get_parent() acá ya devuelve CanvasLayer.
 func _cache_barry() -> void:
 	if is_instance_valid(_barry):
 		return
@@ -113,14 +109,6 @@ func _on_precios_pressed() -> void:
 
 func _on_volver_pressed() -> void:
 	close()
-
-# Unica forma de salir de una sala: no hay boton de "Salir" en la escena, se
-# navega siempre desde la PC.
-func _on_taller_pressed() -> void:
-	visible = false
-	get_tree().paused = false
-	Supabase.current_room = {}
-	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 func _on_volver_precios_pressed() -> void:
 	price_list_panel.visible = false
@@ -163,12 +151,18 @@ func _fetch_shop_items() -> void:
 func _add_shop_row(item: Dictionary) -> void:
 	var key := str(item.get("key", ""))
 	var precio := int(item.get("price", 0))
+	var tipo := str(item.get("tipo", "pieza"))
+	var es_decoracion := tipo == "decoracion"
 
 	var fila := HBoxContainer.new()
 	fila.custom_minimum_size.y = 60
 
 	var icono := TextureRect.new()
-	icono.texture = ShopCatalog.icono_tienda(key)
+	# Las piezas de trabajo tienen su icono en ShopCatalog (van a la mano de
+	# Barry); las decoraciones usan el mismo catalogo que las instancia en la
+	# sala (RoomObjectCatalog), asi el icono de la tienda es el mismo objeto
+	# que despues aparece colocado.
+	icono.texture = RoomObjectCatalog.textura(key) if es_decoracion else ShopCatalog.icono_tienda(key)
 	icono.custom_minimum_size = Vector2(48, 48)
 	icono.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	icono.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -186,14 +180,16 @@ func _add_shop_row(item: Dictionary) -> void:
 
 	var btn := Button.new()
 	btn.text = "Comprar"
-	var ya_tiene_item: bool = is_instance_valid(_barry) and bool(_barry.tiene_item)
+	# Una decoracion no ocupa la mano de Barry, asi que esa restriccion solo
+	# aplica a las piezas de trabajo.
+	var ya_tiene_item: bool = not es_decoracion and is_instance_valid(_barry) and bool(_barry.tiene_item)
 	btn.disabled = ya_tiene_item or precio > Supabase.profile_balance
-	btn.pressed.connect(_on_comprar_pressed.bind(key, precio, btn))
+	btn.pressed.connect(_on_comprar_pressed.bind(key, precio, tipo, btn))
 	fila.add_child(btn)
 
 	shop_item_container.add_child(fila)
 
-func _on_comprar_pressed(key: String, precio: int, btn: Button) -> void:
+func _on_comprar_pressed(key: String, precio: int, tipo: String, btn: Button) -> void:
 	btn.disabled = true
 	shop_status.text = "Comprando..."
 
@@ -203,7 +199,13 @@ func _on_comprar_pressed(key: String, precio: int, btn: Button) -> void:
 		btn.disabled = false
 		return
 
-	if is_instance_valid(_barry):
+	if tipo == "decoracion":
+		# La sala instancia el objeto y ya te deja en modo edicion para que lo
+		# ubiques donde quieras: es literalmente para lo que se compró.
+		var sala = get_parent().get_parent()
+		if is_instance_valid(sala):
+			sala.call("agregar_objeto_comprado", key)
+	elif is_instance_valid(_barry):
 		_barry.recibir_item_comprado(key)
 
 	shop_status.text = "Compraste %s. Saldo: %d" % [key, Supabase.profile_balance]

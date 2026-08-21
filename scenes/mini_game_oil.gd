@@ -305,7 +305,7 @@ func _terminar_juego():
 	tween_salida.tween_property(filtro_oscuro, "modulate:a", 1.0, CINE_SALIDA)
 	tween_salida.parallel().tween_property(contenedor_juego, "modulate:a", 0.0, CINE_SALIDA * 0.9)
 	tween_salida.tween_interval(CINE_NEGRO)
-	tween_salida.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	tween_salida.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/room.tscn"))
 
 # Traduce el nivel final del motor en bono o penalización. Pasarse del 100%
 # es aceite derramado: se cobra igual el trabajo pero con descuento.

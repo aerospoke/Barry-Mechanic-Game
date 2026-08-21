@@ -115,9 +115,9 @@ func _on_login_success(data) -> void:
 	Supabase.set_session(data)
 	status_label.mostrar_info("Sesion iniciada, cargando perfil...")
 
-	# Se usa load_profile() del autoload en vez de una peticion propia: aquella
-	# no traia pos_x/pos_y pero marcaba el perfil como cargado, asi que despues
-	# el jugador nunca recuperaba su ultima posicion.
+	# Se usa load_profile() del autoload (en vez de una peticion propia) porque
+	# marca el perfil como cargado, asi profile_balance/profile_points ya
+	# quedan listos para cuando la sala los necesite.
 	if not await Supabase.load_profile():
 		status_label.mostrar_error("No se pudo cargar tu perfil. Revisa las politicas RLS de SELECT en profiles.")
 		return

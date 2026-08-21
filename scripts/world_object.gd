@@ -28,11 +28,23 @@ class_name WorldObject
 		escala_sprite = value
 		_aplicar_escala()
 
+# Tamaño del cuerpo sólido (el "pie" físico del objeto), en píxeles. Quien
+# instancia esto lo calcula normalmente a partir de baldosas — ver
+# RoomObjectCatalog.tamano_colision() — para que un mismo "kind" mida
+# exactamente lo mismo sin importar la sala. El default (90x60) es solo para
+# objetos que no pasan por ese catálogo.
+@export var tamano_colision: Vector2 = Vector2(90, 60):
+	set(value):
+		tamano_colision = value
+		_aplicar_tamano_colision()
+
 @onready var sprite: Sprite2D = $Sprite2D
+@onready var forma_solida: CollisionShape2D = $CuerpoSolido/CollisionShape2D
 
 func _ready() -> void:
 	_aplicar_textura()
 	_aplicar_escala()
+	_aplicar_tamano_colision()
 
 func _aplicar_textura() -> void:
 	if is_instance_valid(sprite):
@@ -41,3 +53,10 @@ func _aplicar_textura() -> void:
 func _aplicar_escala() -> void:
 	if is_instance_valid(sprite):
 		sprite.scale = escala_sprite
+
+func _aplicar_tamano_colision() -> void:
+	if not is_instance_valid(forma_solida):
+		return
+	var forma := RectangleShape2D.new()
+	forma.size = tamano_colision
+	forma_solida.shape = forma

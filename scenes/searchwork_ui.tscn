@@ -61,20 +61,12 @@ offset_right = 330.0
 offset_bottom = 530.0
 text = "Tienda de Repuestos"
 
-[node name="BtnTaller" type="Button" parent="." unique_id=916109156]
-layout_mode = 0
-offset_left = 50.0
-offset_top = 550.0
-offset_right = 330.0
-offset_bottom = 610.0
-text = "Volver al Taller"
-
 [node name="BtnVolver" type="Button" parent="." unique_id=1129686762]
 layout_mode = 0
 offset_left = 120.0
-offset_top = 630.0
+offset_top = 550.0
 offset_right = 230.0
-offset_bottom = 680.0
+offset_bottom = 600.0
 text = "Volver"
 
 [node name="PriceListPanel" type="Control" parent="." unique_id=1760108960]
