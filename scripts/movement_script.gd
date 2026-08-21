@@ -87,11 +87,16 @@ func conectar_objeto(objeto: Area2D) -> void:
 		objeto.body_entered.connect(_on_pieza_gratis_entered.bind(key))
 		objeto.body_exited.connect(_on_pieza_gratis_exited.bind(key))
 
-# Solo la primera vez de la sesión: al volver de un minijuego no se repite.
+# "bienvenida" es el id en el catalogo `tutorials` (ver sql/tutorials.sql).
+const ID_TUTORIAL_BIENVENIDA := "bienvenida"
+
+# Se muestra una unica vez por cuenta, para siempre (no por sesion): queda
+# registrado en userTutorials, así que ni volviendo a iniciar sesión otro día
+# vuelve a salir.
 func _mostrar_tutorial_bienvenida() -> void:
-	if Supabase.tutorial_visto:
+	if await Supabase.tutorial_fue_visto(ID_TUTORIAL_BIENVENIDA):
 		return
-	Supabase.tutorial_visto = true
+	Supabase.marcar_tutorial_visto(ID_TUTORIAL_BIENVENIDA)
 
 	_en_tutorial = true
 	var modal = TutorialModal.crear(self, TUTORIAL_BIENVENIDA)

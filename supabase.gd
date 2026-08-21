@@ -12,11 +12,6 @@ var profile_balance: int = 0
 var profile_points: int = 0
 var profile_loaded: bool = false
 
-# El tutorial de bienvenida se muestra una vez por sesión. Vive aquí y no en
-# la escena porque room.tscn se recrea cada vez que se vuelve de un
-# minijuego, y repetir la explicación en cada regreso sería insoportable.
-var tutorial_visto: bool = false
-
 # Salas creadas por el jugador (estilo Habbo). Se guardan en la tabla `rooms`
 # (ver sql/rooms.sql); aquí vive la copia en memoria porque room.tscn
 # necesita saber qué estilo construir al entrar. Solo se persiste nombre y
@@ -76,7 +71,6 @@ func clear_session() -> void:
 	active_work_name = ""
 	active_work_points = 0
 	active_work_payment = 0
-	tutorial_visto = false
 	rooms = []
 	current_room = {}
 
@@ -302,6 +296,38 @@ func _sala_principal() -> Dictionary:
 		if bool(sala.get("is_main", false)):
 			return sala
 	return rooms[rooms.size() - 1]
+
+# --- Tutoriales ----------------------------------------------------------
+
+# true si el usuario ya vio este tutorial (ver sql/tutorials.sql). tutorial_id
+# es el id del catalogo `tutorials`, ej. "bienvenida". Si falla la consulta
+# se asume que no lo vio: mejor mostrarlo de mas una vez que dejarlo atrapado
+# sin poder cerrarlo si Supabase no responde.
+func tutorial_fue_visto(tutorial_id: String) -> bool:
+	if not is_logged_in():
+		return false
+
+	var res = await _request_sync(
+		"/rest/v1/userTutorials?userId=eq." + user_id + "&tutorialId=eq." + tutorial_id + "&select=visto",
+		HTTPClient.METHOD_GET
+	)
+	if res[0] != 200 or not res[1] is Array or res[1].is_empty():
+		return false
+	return bool(res[1][0].get("visto", false))
+
+# Marca el tutorial como visto. Upsert (resolution=merge-duplicates) sobre la
+# unica (userId, tutorialId): si el jugador ya lo tenia marcado no falla, solo
+# actualiza seenAt.
+func marcar_tutorial_visto(tutorial_id: String) -> void:
+	if not is_logged_in():
+		return
+
+	await _request_sync(
+		"/rest/v1/userTutorials?on_conflict=userId,tutorialId",
+		HTTPClient.METHOD_POST,
+		{"userId": user_id, "tutorialId": tutorial_id, "visto": true},
+		["Prefer: resolution=merge-duplicates,return=minimal"]
+	)
 
 # --- Tienda ------------------------------------------------------------
 

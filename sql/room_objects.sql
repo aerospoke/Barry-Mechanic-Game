@@ -22,11 +22,13 @@ alter table public.room_objects enable row level security;
 
 -- Los objetos se ven entre jugadores (igual que las salas), pero solo el
 -- dueño de la sala los puede crear/mover/borrar.
+drop policy if exists "room_objects_select_all" on public.room_objects;
 create policy "room_objects_select_all"
 	on public.room_objects for select
 	to authenticated
 	using (true);
 
+drop policy if exists "room_objects_insert_own" on public.room_objects;
 create policy "room_objects_insert_own"
 	on public.room_objects for insert
 	to authenticated
@@ -34,6 +36,7 @@ create policy "room_objects_insert_own"
 		select 1 from public.rooms r where r.id = room_id and r.owner = auth.uid()
 	));
 
+drop policy if exists "room_objects_update_own" on public.room_objects;
 create policy "room_objects_update_own"
 	on public.room_objects for update
 	to authenticated
@@ -41,6 +44,7 @@ create policy "room_objects_update_own"
 		select 1 from public.rooms r where r.id = room_id and r.owner = auth.uid()
 	));
 
+drop policy if exists "room_objects_delete_own" on public.room_objects;
 create policy "room_objects_delete_own"
 	on public.room_objects for delete
 	to authenticated

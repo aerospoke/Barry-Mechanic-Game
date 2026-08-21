@@ -16,6 +16,10 @@ extends Node2D
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
 
+# Id en el catalogo `tutorials` (ver sql/tutorials.sql): se muestra una unica
+# vez por cuenta, no cada vez que se entra al minijuego.
+const ID_TUTORIAL := "minigame_oil"
+
 # Páginas del tutorial que se muestra al entrar, antes de poder verter.
 const TUTORIAL := [
 	{
@@ -176,6 +180,10 @@ func iniciar_juego_aceite():
 	tween_revelar.tween_callback(mostrar_tutorial)
 
 func mostrar_tutorial():
+	if await Supabase.tutorial_fue_visto(ID_TUTORIAL):
+		return
+	Supabase.marcar_tutorial_visto(ID_TUTORIAL)
+
 	tutorial_activo = true
 	# Se pinta el estado inicial (0% / embudo 0%) antes de tapar la pantalla:
 	# si no, los labels salen vacíos detrás del modal.

@@ -15,6 +15,7 @@ create table if not exists public.shop_items (
 
 alter table public.shop_items enable row level security;
 
+drop policy if exists "shop_items_select_all" on public.shop_items;
 create policy "shop_items_select_all"
 	on public.shop_items for select
 	to authenticated

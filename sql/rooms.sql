@@ -20,22 +20,26 @@ alter table public.rooms enable row level security;
 
 -- Las salas se ven entre jugadores (la idea es poder visitarlas), pero solo
 -- las toca su dueño.
+drop policy if exists "rooms_select_all" on public.rooms;
 create policy "rooms_select_all"
 	on public.rooms for select
 	to authenticated
 	using (true);
 
+drop policy if exists "rooms_insert_own" on public.rooms;
 create policy "rooms_insert_own"
 	on public.rooms for insert
 	to authenticated
 	with check (auth.uid() = owner);
 
+drop policy if exists "rooms_update_own" on public.rooms;
 create policy "rooms_update_own"
 	on public.rooms for update
 	to authenticated
 	using (auth.uid() = owner)
 	with check (auth.uid() = owner);
 
+drop policy if exists "rooms_delete_own" on public.rooms;
 create policy "rooms_delete_own"
 	on public.rooms for delete
 	to authenticated
