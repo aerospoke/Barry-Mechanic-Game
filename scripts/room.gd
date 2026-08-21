@@ -190,6 +190,8 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	objeto.textura = RoomObjectCatalog.textura(kind)
 	objeto.escala_sprite = RoomObjectCatalog.escala(kind)
 	objeto.tamano_colision = RoomObjectCatalog.tamano_colision(kind)
+	objeto.rotacion_colision = RoomObjectCatalog.rotacion_colision(kind)
+	objeto.poligono_colision = RoomObjectCatalog.poligono_colision(kind)
 	objeto.position = Vector2(float(fila.get("x", 0.0)), float(fila.get("y", 0.0)))
 	objeto.set_meta("room_object_id", str(fila.get("id", "")))
 

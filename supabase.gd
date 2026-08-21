@@ -322,12 +322,17 @@ func marcar_tutorial_visto(tutorial_id: String) -> void:
 	if not is_logged_in():
 		return
 
-	await _request_sync(
+	var res = await _request_sync(
 		"/rest/v1/userTutorials?on_conflict=userId,tutorialId",
 		HTTPClient.METHOD_POST,
 		{"userId": user_id, "tutorialId": tutorial_id, "visto": true},
 		["Prefer: resolution=merge-duplicates,return=minimal"]
 	)
+	# Sin este chequeo, un tutorial_id que no existe en `tutorials` (foreign
+	# key) fallaba en silencio: el tutorial nunca quedaba marcado y volvia a
+	# salir siempre, sin ningun rastro de por que.
+	if res[0] != 201 and res[0] != 204:
+		push_error("No se pudo marcar el tutorial '%s' como visto (HTTP %d). ¿Existe en la tabla tutorials?" % [tutorial_id, res[0]])
 
 # --- Tienda ------------------------------------------------------------
 
