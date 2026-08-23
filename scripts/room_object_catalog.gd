@@ -33,9 +33,6 @@ const OBJETOS := {
 		# Sin nombre_nodo: decorativo, nunca tuvo comportamiento propio.
 	},
 	"estante_aceite": {
-		# TODO: aceites1.png ya no existe (se borro al reorganizar Estantes/).
-		# oil2.png es un parche temporal para que compile; cambiar cuando haya
-		# un reemplazo definitivo (ver tambien scripts/shop_catalog.gd "oils").
 		"textura": preload("res://objetos/Estantes/aceites.png"),
 		"escala": Vector2(0.3, 0.3),
 		# Al interactuar con la mano vacia, da esta pieza gratis (ya se pago
