@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://dgc8nfybuo548" path="res://objetos/mecanicomovement_pickup.png" id="5_kdubu"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_flf07"]
-size = Vector2(62, 18)
+size = Vector2(18, 18)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_0e48y"]
 atlas = ExtResource("2_0e48y")
@@ -218,7 +218,7 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="Barry" type="CharacterBody2D"]
+[node name="Barry" type="CharacterBody2D" unique_id=1975180856]
 script = ExtResource("1_0e48y")
 
 [node name="ItemHandsPlayer" type="Sprite2D" parent="." unique_id=60600546]
@@ -226,8 +226,9 @@ position = Vector2(56.799843, -89)
 scale = Vector2(0.32000008, 0.3200001)
 
 [node name="CollisionPlayer" type="CollisionShape2D" parent="." unique_id=233743995]
-position = Vector2(5.362343, 22)
+position = Vector2(4, 24)
 shape = SubResource("RectangleShape2D_flf07")
+debug_color = Color(0, 0.6, 0.69803923, 1)
 
 [node name="MovementPlayer" type="AnimatedSprite2D" parent="." unique_id=502754575]
 position = Vector2(0.36234283, -48.999985)

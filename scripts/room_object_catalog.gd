@@ -16,8 +16,8 @@ const OBJETOS := {
 		# nada al tocarlo.
 		"nombre_nodo": "SearchWork",
 		# Forma calcada del escritorio (ajustada a mano en el editor sobre
-		# world_object.tscn y llevada a numeros limpios). Pisa el rectangulo
-		# comun para este kind en particular.
+		# world_object.tscn y llevada a numeros limpios). Pisa el rombo comun
+		# para este kind en particular: la PC es mas ancha que una baldosa.
 		"poligono_colision": [
 			Vector2(-137, 88), Vector2(-60, 129), Vector2(124, 38),
 			Vector2(127, -69), Vector2(36, -116), Vector2(-149, -20),
@@ -47,20 +47,6 @@ const OBJETOS := {
 	},
 }
 
-# Tamaño de colisión física (el "pie" que bloquea a Barry): el mismo para
-# todos los objetos, 1 baldosa (128x64), para no tener que ajustar cada
-# figura por separado. Si mas adelante hace falta que alguno sea distinto,
-# se le agrega "tamano_colision" a su entrada en OBJETOS y tamano_colision()
-# de mas abajo lo respeta en vez de este valor comun.
-const TAMANO_COLISION_COMUN := Vector2(1, 1)
-
-# Inclinacion comun de esa caja, en grados: acomoda el rectangulo al angulo
-# de las baldosas isometricas (atan(TILE_H/TILE_W), la pendiente del borde
-# de un rombo del piso) en vez de dejarlo derecho. No calza pixel-perfecto
-# con el rombo (un rectangulo rotado nunca deja de tener 90° en las
-# esquinas), pero queda bastante mejor alineado a ojo que sin rotar.
-const ROTACION_COLISION_COMUN := -26.57
-
 static func textura(kind: String) -> Texture2D:
 	return OBJETOS.get(kind, {}).get("textura")
 
@@ -73,24 +59,26 @@ static func nombre_nodo(kind: String) -> String:
 static func pieza_gratis(kind: String) -> String:
 	return OBJETOS.get(kind, {}).get("pieza_gratis", "")
 
-# Si el "kind" trae "tamano_colision" explicito (numero de pixeles ajustado
-# a ojo en el editor) se usa ese tal cual. Si no, todos comparten
-# TAMANO_COLISION_COMUN traducido a pixeles (multiplicado por
-# RoomStyles.TILE_W/TILE_H), asi mide lo mismo en cualquier sala.
-static func tamano_colision(kind: String) -> Vector2:
-	var datos: Dictionary = OBJETOS.get(kind, {})
-	if datos.has("tamano_colision"):
-		return datos["tamano_colision"]
-	return Vector2(TAMANO_COLISION_COMUN.x * RoomStyles.TILE_W, TAMANO_COLISION_COMUN.y * RoomStyles.TILE_H)
-
-# Mismo patron que tamano_colision(): comun para todos salvo que el "kind"
-# traiga su propio "rotacion_colision".
-static func rotacion_colision(kind: String) -> float:
-	return OBJETOS.get(kind, {}).get("rotacion_colision", ROTACION_COLISION_COMUN)
-
-# Vacio para casi todos (usan el rectangulo comun). Si el "kind" trae
-# "poligono_colision", ese pisa por completo al rectangulo — ver
-# world_object.gd _aplicar_forma_colision().
+# Forma de colision de cada "kind". Si trae "poligono_colision" a medida (ej.
+# la PC, calcada de su sprite) se usa esa. Si no, el default ya NO es un
+# rectangulo: es un rombo de 1 baldosa (ver _rombo_baldosa), la misma forma
+# que las baldosas del piso — para que un objeto sin ajuste especial siga
+# combinando con el estilo isometrico en vez de verse como una caja plana.
 static func poligono_colision(kind: String) -> PackedVector2Array:
 	var puntos: Array = OBJETOS.get(kind, {}).get("poligono_colision", [])
+	if puntos.is_empty():
+		return _rombo_baldosa()
 	return PackedVector2Array(puntos)
+
+# Rombo de 1 baldosa (128x64) centrado en el origen del objeto — mismos
+# cuatro puntos que dibuja room.gd para el piso (_rombo()), pero sin
+# desplazarlos a una esquina de la grilla.
+static func _rombo_baldosa() -> PackedVector2Array:
+	var medio_ancho := RoomStyles.TILE_W * 0.5
+	var medio_alto := RoomStyles.TILE_H * 0.5
+	return PackedVector2Array([
+		Vector2(0, -medio_alto),
+		Vector2(medio_ancho, 0),
+		Vector2(0, medio_alto),
+		Vector2(-medio_ancho, 0),
+	])

@@ -33,11 +33,9 @@ class_name WorldObject
 		escala_sprite = value
 		_aplicar_escala()
 
-# Tamaño del cuerpo sólido (el "pie" físico del objeto), en píxeles. Quien
-# instancia esto lo calcula normalmente a partir de baldosas — ver
-# RoomObjectCatalog.tamano_colision() — para que un mismo "kind" mida
-# exactamente lo mismo sin importar la sala. El default (90x60) es solo para
-# objetos que no pasan por ese catálogo.
+# Rectángulo de respaldo si nadie define un polígono (ver poligono_colision
+# más abajo, que es lo que usa RoomObjectCatalog en la práctica). Solo entra
+# en juego para un WorldObject suelto que no pasó por ese catálogo.
 @export var tamano_colision: Vector2 = Vector2(90, 60):
 	set(value):
 		tamano_colision = value
