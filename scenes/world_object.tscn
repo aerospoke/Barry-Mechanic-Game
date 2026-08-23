@@ -1,22 +1,26 @@
 [gd_scene format=3 uid="uid://c8in6edbt1c5t"]
 
 [ext_resource type="Script" uid="uid://cfrdeytxjs8w1" path="res://scripts/world_object.gd" id="1_object"]
-[ext_resource type="Texture2D" uid="uid://m2hh2uxj76vv" path="res://objetos/Desktop.png" id="2_8uidd"]
+[ext_resource type="Texture2D" uid="uid://bki3jbq4r47wy" path="res://objetos/Estantes/desktop.png" id="2_8uidd"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_6odbs"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_object"]
-size = Vector2(140, 140)
+size = Vector2(189, 113)
 
 [node name="WorldObject" type="Area2D" unique_id=714963852]
 script = ExtResource("1_object")
-textura = ExtResource("2_8uidd")
-rotacion_colision = null
+textura = SubResource("CompressedTexture2D_6odbs")
+poligono_colision = PackedVector2Array()
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=621323040]
+position = Vector2(-1.9999999, -100.99999)
 scale = Vector2(0.35, 0.35)
 texture = ExtResource("2_8uidd")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1424555862]
-position = Vector2(50, 96)
+position = Vector2(74, 145)
+rotation = -0.46182632
 shape = SubResource("RectangleShape2D_object")
 
 [node name="CuerpoSolido" type="StaticBody2D" parent="." unique_id=1587827347]
@@ -24,4 +28,4 @@ scale = Vector2(8.4, 5.04)
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="CuerpoSolido" unique_id=653826613]
 scale = Vector2(2.0254114, 3.0263216)
-polygon = PackedVector2Array(-8.05245, 5.769485, -3.5266206, 8.4575405, 7.2883496, 2.4913685, 7.4646807, -4.523801, 2.1159725, -7.6052303, -8.757774, -1.3112466, -8.757774, 4.917175)
+polygon = PackedVector2Array(-3.5853977, 8.916477, 7.2883496, 2.8847425, 2.1747494, -0.13112466, -8.816552, 5.769485)

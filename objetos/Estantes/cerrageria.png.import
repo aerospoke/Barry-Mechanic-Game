@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://doalsahqhcqis"
-path="res://.godot/imported/aceites1.png-2d365b6edfebf1bdbbd0ffdf50352b46.ctex"
+uid="uid://ckacn5cbycegv"
+path="res://.godot/imported/cerrageria.png-3ebebd814d28875db240c44d19d086d9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://objetos/aceites1.png"
-dest_files=["res://.godot/imported/aceites1.png-2d365b6edfebf1bdbbd0ffdf50352b46.ctex"]
+source_file="res://objetos/Estantes/cerrageria.png"
+dest_files=["res://.godot/imported/cerrageria.png-3ebebd814d28875db240c44d19d086d9.ctex"]
 
 [params]
 

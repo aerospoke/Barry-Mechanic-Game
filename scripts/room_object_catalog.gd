@@ -8,21 +8,17 @@ class_name RoomObjectCatalog
 # datos (ver sql/room_objects.sql).
 const OBJETOS := {
 	"pc": {
-		"textura": preload("res://objetos/Desktop.png"),
+		"textura": preload("res://objetos/Estantes/desktop.png"),
 		"escala": Vector2(0.3, 0.3),
 		# Nombre de nodo que espera movement_script.gd para reconocer el
 		# objeto como interactivo (ver conectar_objeto() ahi). Un "kind" sin
 		# esta entrada es puramente decorativo: se ve y choca, pero no hace
 		# nada al tocarlo.
 		"nombre_nodo": "SearchWork",
-		# Forma calcada del escritorio (ajustada a mano en el editor sobre
-		# world_object.tscn y llevada a numeros limpios). Pisa el rombo comun
-		# para este kind en particular: la PC es mas ancha que una baldosa.
-		"poligono_colision": [
-			Vector2(-137, 88), Vector2(-60, 129), Vector2(124, 38),
-			Vector2(127, -69), Vector2(36, -116), Vector2(-149, -20),
-			Vector2(-149, 75),
-		],
+		# Sin poligono_colision propio: las imagenes de Estantes/ ya vienen
+		# todas con la misma base/tamaño, asi que comparten el rombo comun
+		# (ver poligono_colision() mas abajo) en vez de necesitar un ajuste
+		# a medida por objeto.
 	},
 	"car": {
 		"textura": preload("res://objetos/a3.png"),
@@ -32,12 +28,15 @@ const OBJETOS := {
 		"nombre_nodo": "WorkZone",
 	},
 	"trash": {
-		"textura": preload("res://objetos/trash2.png"),
+		"textura": preload("res://objetos/Estantes/basura.png"),
 		"escala": Vector2(0.3, 0.3),
 		# Sin nombre_nodo: decorativo, nunca tuvo comportamiento propio.
 	},
 	"estante_aceite": {
-		"textura": preload("res://objetos/aceites1.png"),
+		# TODO: aceites1.png ya no existe (se borro al reorganizar Estantes/).
+		# oil2.png es un parche temporal para que compile; cambiar cuando haya
+		# un reemplazo definitivo (ver tambien scripts/shop_catalog.gd "oils").
+		"textura": preload("res://objetos/Estantes/aceites.png"),
 		"escala": Vector2(0.3, 0.3),
 		# Al interactuar con la mano vacia, da esta pieza gratis (ya se pago
 		# al comprar el estante en la tienda). No usa nombre_nodo porque

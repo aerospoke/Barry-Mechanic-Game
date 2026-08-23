@@ -8,11 +8,14 @@ class_name ShopCatalog
 # solo viven los assets, que no tiene sentido guardar en la base de datos.
 const ITEMS := {
 	"oils": {
-		"icono_tienda": preload("res://objetos/aceites1.png"),
+		# TODO: aceites1.png ya no existe (se borro al reorganizar Estantes/).
+		# oil2.png es un parche temporal para que compile; cambiar cuando haya
+		# un reemplazo definitivo.
+		"icono_tienda": preload("res://objetos/oil2.png"),
 		"icono_mano": preload("res://objetos/work1.png"),
 	},
 	"filters": {
-		"icono_tienda": preload("res://objetos/filtrosaire.png"),
+		"icono_tienda": preload("res://objetos/Estantes/filtrosAire.png"),
 		"icono_mano": preload("res://objetos/airFlow5.png"),
 	},
 	"lights": {
@@ -20,7 +23,7 @@ const ITEMS := {
 		"icono_mano": preload("res://objetos/light5.png"),
 	},
 	"keys": {
-		"icono_tienda": preload("res://objetos/cerrageria.png"),
+		"icono_tienda": preload("res://objetos/Estantes/cerrageria.png"),
 		"icono_mano": preload("res://objetos/boxKeys.png"),
 	},
 }

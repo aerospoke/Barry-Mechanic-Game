@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://de847daom2mr3"
-path="res://.godot/imported/filtrosaire.png-0d14b6ea10ec35f4b3487834c219ebb2.ctex"
+uid="uid://da6ed4i06mthk"
+path="res://.godot/imported/lights.png-07cf260dbc5d8656778b4e7b647d6bbe.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://objetos/filtrosaire.png"
-dest_files=["res://.godot/imported/filtrosaire.png-0d14b6ea10ec35f4b3487834c219ebb2.ctex"]
+source_file="res://objetos/Estantes/lights.png"
+dest_files=["res://.godot/imported/lights.png-07cf260dbc5d8656778b4e7b647d6bbe.ctex"]
 
 [params]
 

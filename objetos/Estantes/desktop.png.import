@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://m2hh2uxj76vv"
-path="res://.godot/imported/Desktop.png-b3b6500a9d4df7faab7eac2d59a280ea.ctex"
+uid="uid://bki3jbq4r47wy"
+path="res://.godot/imported/desktop.png-ad325a7a2d11845bf6a83e51c7a4f35a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://objetos/Desktop.png"
-dest_files=["res://.godot/imported/Desktop.png-b3b6500a9d4df7faab7eac2d59a280ea.ctex"]
+source_file="res://objetos/Estantes/desktop.png"
+dest_files=["res://.godot/imported/desktop.png-ad325a7a2d11845bf6a83e51c7a4f35a.ctex"]
 
 [params]
 

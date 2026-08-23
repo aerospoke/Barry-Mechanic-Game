@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dlcv0lmspide6"
-path="res://.godot/imported/cerrageria.png-5cc5ee4e28ec8fce4c7eef9d0c9c8c15.ctex"
+uid="uid://brk5ttwvxrqh1"
+path="res://.godot/imported/filtrosAire.png-2bc19622909e4e3ef74e2b3088c64f73.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://objetos/cerrageria.png"
-dest_files=["res://.godot/imported/cerrageria.png-5cc5ee4e28ec8fce4c7eef9d0c9c8c15.ctex"]
+source_file="res://objetos/Estantes/filtrosAire.png"
+dest_files=["res://.godot/imported/filtrosAire.png-2bc19622909e4e3ef74e2b3088c64f73.ctex"]
 
 [params]
 
