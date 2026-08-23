@@ -26,7 +26,7 @@ offset_left = 20.0
 offset_top = 40.0
 offset_right = 400.0
 offset_bottom = 80.0
-text = "BIENVENIDO, BARRY"
+text = "BIENVENIDO"
 horizontal_alignment = 1
 
 [node name="Subtitulo" type="Label" parent="." unique_id=700000004]

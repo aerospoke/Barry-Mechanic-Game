@@ -55,11 +55,24 @@ const ESTILOS := {
 		"fondo": Color(0.35, 0.62, 0.82),
 		"alto_pared": 80,
 	},
+	"taller": {
+		"nombre": "Taller Mecanico",
+		"descripcion": "Piso de cemento y paredes altas, como un taller de verdad. 55x55.",
+		"ancho": 55,
+		"alto": 55,
+		"suelo_a": Color(0.58, 0.58, 0.60),
+		"suelo_b": Color(0.50, 0.50, 0.52),
+		"pared_izq": Color(0.32, 0.33, 0.36),
+		"pared_der": Color(0.40, 0.41, 0.44),
+		"borde": Color(0.15, 0.15, 0.16, 0.4),
+		"fondo": Color(0.08, 0.08, 0.09),
+		"alto_pared": 170,
+	},
 }
 
 # Orden fijo de las opciones en el menú: los diccionarios de GDScript conservan
 # el orden de inserción, pero depender de eso para la UI es frágil.
-const ORDEN := ["basica", "loft", "terraza"]
+const ORDEN := ["basica", "loft", "terraza", "taller"]
 
 const ALTO_PARED_POR_DEFECTO := 140
 

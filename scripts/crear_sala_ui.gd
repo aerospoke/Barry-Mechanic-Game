@@ -7,6 +7,7 @@ extends Control
 
 @onready var nombre_edit: LineEdit = $NombreEdit
 @onready var style_container: VBoxContainer = $StyleContainer
+@onready var titulo: Label = $Titulo
 
 const StatusLabel = preload("res://scripts/status_label.gd")
 
@@ -14,6 +15,11 @@ var status: Label
 
 func _ready() -> void:
 	status = StatusLabel.crear(self, Vector2(30.0, 620.0), 360.0)
+	# profile_name ya deberia estar cargado: login_ui.gd/registro_ui.gd llaman
+	# a load_profile() antes de mandar para aca. Si por lo que sea llegara
+	# vacio, se cae al genérico en vez de mostrar "BIENVENIDO, ".
+	var nombre := Supabase.profile_name.strip_edges()
+	titulo.text = "BIENVENIDO, %s" % nombre.to_upper() if nombre != "" else "BIENVENIDO"
 	_construir_opciones_sala()
 
 func _construir_opciones_sala() -> void:
