@@ -10,6 +10,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
+metadata/_edit_vertical_guides_ = [210.0, 22.0, 394.0]
 
 [node name="Fondo" type="ColorRect" parent="." unique_id=921211566]
 layout_mode = 1
@@ -18,131 +19,82 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.15, 0.1, 0.25, 1)
+color = Color(0.14901961, 0.101960786, 0.2509804, 1)
+
+[node name="Fondo2" type="ColorRect" parent="." unique_id=1844679768]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1.0
+offset_top = -1.0
+offset_right = 1.0
+offset_bottom = -706.2202
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.101960786, 0.06666667, 0.18039216, 1)
 
 [node name="Titulo" type="Label" parent="." unique_id=785579042]
 layout_mode = 0
-offset_left = 30.0
-offset_top = 30.0
-offset_right = 380.0
-offset_bottom = 80.0
-text = "BUSCAR TRABAJO"
+offset_left = -88.0
+offset_top = 22.0
+offset_right = 262.0
+offset_bottom = 72.0
+text = "Computadora"
 horizontal_alignment = 1
 
 [node name="BtnIniciar" type="Button" parent="." unique_id=1058858335]
 layout_mode = 0
-offset_left = 50.0
-offset_top = 150.0
-offset_right = 330.0
-offset_bottom = 220.0
-text = "Iniciar Busqueda"
-
-[node name="BtnPrecios" type="Button" parent="." unique_id=916109146]
-layout_mode = 0
-offset_left = 50.0
-offset_top = 280.0
-offset_right = 330.0
-offset_bottom = 350.0
-text = "Lista de Precios y Recompensas"
+offset_left = 22.0
+offset_top = 105.0
+offset_right = 248.0
+offset_bottom = 283.0
+text = "Buscar
+Trabajo"
 
 [node name="BtnCrearSala" type="Button" parent="." unique_id=916109147]
 layout_mode = 0
-offset_left = 50.0
-offset_top = 370.0
-offset_right = 330.0
-offset_bottom = 430.0
-text = "Crear Sala"
+offset_left = 25.0
+offset_top = 303.0
+offset_right = 397.0
+offset_bottom = 380.40958
+text = "Crear una sala"
+
+[node name="BtnCrearSala2" type="Button" parent="." unique_id=1930297776]
+layout_mode = 0
+offset_left = 21.0
+offset_top = 404.0
+offset_right = 142.0
+offset_bottom = 554.0
+text = "Guia 
+de juego"
+
+[node name="BtnCrearSala3" type="Button" parent="." unique_id=2118287201]
+layout_mode = 0
+offset_left = 166.0
+offset_top = 404.0
+offset_right = 394.0
+offset_bottom = 556.0
+text = "Desafios "
 
 [node name="BtnTienda" type="Button" parent="." unique_id=916109148]
 layout_mode = 0
-offset_left = 50.0
-offset_top = 460.0
-offset_right = 330.0
-offset_bottom = 530.0
-text = "Tienda de Repuestos"
+offset_left = 267.0
+offset_top = 105.0
+offset_right = 394.0
+offset_bottom = 281.0
+text = "Tienda"
 
 [node name="BtnVolver" type="Button" parent="." unique_id=1129686762]
 layout_mode = 0
-offset_left = 120.0
-offset_top = 550.0
-offset_right = 230.0
-offset_bottom = 600.0
-text = "Volver"
-
-[node name="PriceListPanel" type="Control" parent="." unique_id=1760108960]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="FondoPrecios" type="ColorRect" parent="PriceListPanel" unique_id=761282075]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.1, 0.08, 0.18, 1)
-
-[node name="TituloPrecios" type="Label" parent="PriceListPanel" unique_id=1728027369]
-layout_mode = 0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 390.0
-offset_bottom = 60.0
-text = "PRECIOS Y RECOMPENSAS"
-horizontal_alignment = 1
-
-[node name="HeaderRow" type="HBoxContainer" parent="PriceListPanel" unique_id=86799190]
-layout_mode = 0
-offset_left = 20.0
-offset_top = 75.0
-offset_right = 390.0
-offset_bottom = 100.0
-
-[node name="HeaderName" type="Label" parent="PriceListPanel/HeaderRow" unique_id=583725431]
-custom_minimum_size = Vector2(120, 0)
-layout_mode = 2
-text = "Trabajo"
-
-[node name="HeaderPrice" type="Label" parent="PriceListPanel/HeaderRow" unique_id=2074275589]
-custom_minimum_size = Vector2(70, 0)
-layout_mode = 2
-text = "Precio"
-
-[node name="HeaderPayment" type="Label" parent="PriceListPanel/HeaderRow" unique_id=2094275590]
-custom_minimum_size = Vector2(70, 0)
-layout_mode = 2
-text = "Pago"
-
-[node name="HeaderPoints" type="Label" parent="PriceListPanel/HeaderRow" unique_id=1492615911]
-custom_minimum_size = Vector2(70, 0)
-layout_mode = 2
-text = "Puntos"
-
-[node name="ScrollContainer" type="ScrollContainer" parent="PriceListPanel" unique_id=587630539]
-layout_mode = 0
-offset_left = 20.0
-offset_top = 110.0
-offset_right = 390.0
-offset_bottom = 440.0
-horizontal_scroll_mode = 0
-
-[node name="ItemContainer" type="VBoxContainer" parent="PriceListPanel/ScrollContainer" unique_id=294222991]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="BtnVolverPrecios" type="Button" parent="PriceListPanel" unique_id=489915070]
-layout_mode = 0
-offset_left = 120.0
-offset_top = 460.0
-offset_right = 230.0
-offset_bottom = 510.0
+offset_left = 22.0
+offset_top = 679.0
+offset_right = 394.0
+offset_bottom = 753.0
 text = "Volver"
 
 [node name="ShopPanel" type="Control" parent="." unique_id=916109149]
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -200,6 +152,7 @@ text = "Volver"
 [node name="HTTPRequestWorkList" type="HTTPRequest" parent="." unique_id=71325781]
 
 [node name="WorkSelectPanel" type="Control" parent="." unique_id=600112233]
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -254,6 +207,7 @@ offset_bottom = 510.0
 text = "Volver"
 
 [node name="RoomCreatePanel" type="Control" parent="." unique_id=600113000]
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -313,8 +267,8 @@ offset_left = 30.0
 offset_top = 270.0
 offset_right = 390.0
 offset_bottom = 315.0
-max_length = 24
 placeholder_text = "Mi sala"
+max_length = 24
 
 [node name="LabelEstilo" type="Label" parent="RoomCreatePanel" unique_id=600113005]
 layout_mode = 0

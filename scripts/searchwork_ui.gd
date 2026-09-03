@@ -3,7 +3,6 @@ extends Control
 const ShopCatalog = preload("res://scripts/shop_catalog.gd")
 
 @onready var btn_iniciar = $BtnIniciar
-@onready var btn_precios = $BtnPrecios
 @onready var btn_crear_sala = $BtnCrearSala
 @onready var btn_tienda = $BtnTienda
 @onready var btn_volver = $BtnVolver
@@ -15,9 +14,6 @@ const ShopCatalog = preload("res://scripts/shop_catalog.gd")
 @onready var room_status: Label = $RoomCreatePanel/StatusRoom
 @onready var btn_volver_room: Button = $RoomCreatePanel/BtnVolverRoom
 
-@onready var price_list_panel = $PriceListPanel
-@onready var item_container = $PriceListPanel/ScrollContainer/ItemContainer
-@onready var btn_volver_precios = $PriceListPanel/BtnVolverPrecios
 @onready var http_worklist = $HTTPRequestWorkList
 
 @onready var shop_panel: Control = $ShopPanel
@@ -42,18 +38,15 @@ const CIERRE_AUTOMATICO: float = 1.2
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	price_list_panel.visible = false
 	work_select_panel.visible = false
 	room_panel.visible = false
 	shop_panel.visible = false
 	btn_iniciar.pressed.connect(_on_iniciar_pressed)
-	btn_precios.pressed.connect(_on_precios_pressed)
 	btn_crear_sala.pressed.connect(_on_crear_sala_pressed)
 	btn_tienda.pressed.connect(_on_tienda_pressed)
 	btn_volver.pressed.connect(_on_volver_pressed)
 	btn_volver_room.pressed.connect(_on_volver_room_pressed)
 	_construir_opciones_sala()
-	btn_volver_precios.pressed.connect(_on_volver_precios_pressed)
 	btn_volver_work.pressed.connect(_on_volver_work_pressed)
 	btn_volver_tienda.pressed.connect(_on_volver_tienda_pressed)
 	http_worklist.request_completed.connect(_on_worklist_request_completed)
@@ -91,7 +84,6 @@ func open() -> void:
 
 func close() -> void:
 	visible = false
-	price_list_panel.visible = false
 	work_select_panel.visible = false
 	room_panel.visible = false
 	shop_panel.visible = false
@@ -103,15 +95,8 @@ func _on_iniciar_pressed() -> void:
 	work_select_panel.visible = true
 	_check_active_work()
 
-func _on_precios_pressed() -> void:
-	price_list_panel.visible = true
-	_fetch_work_list()
-
 func _on_volver_pressed() -> void:
 	close()
-
-func _on_volver_precios_pressed() -> void:
-	price_list_panel.visible = false
 
 func _on_volver_work_pressed() -> void:
 	work_select_panel.visible = false
@@ -334,38 +319,26 @@ func _fetch_work_list_for_select() -> void:
 
 func _on_worklist_request_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if response_code != 200:
-		_add_error_row("Error al cargar: %d" % response_code)
 		status_label.text = "Error al cargar trabajos"
 		return
 
 	var json = JSON.new()
 	if json.parse(body.get_string_from_utf8()) != OK:
-		_add_error_row("Error al leer datos")
 		status_label.text = "Error al leer datos"
 		return
 
 	var data = json.get_data()
 	if not data is Array or data.size() == 0:
-		_add_error_row("Sin trabajos disponibles")
 		status_label.text = "Sin trabajos disponibles"
 		return
 
-	if work_select_panel.visible:
-		for item in data:
-			_add_selectable_work_row(
-				str(item.get("id", "")),
-				str(item.get("name", "")),
-				str(item.get("payment", "")),
-				str(item.get("points", ""))
-			)
-	else:
-		for item in data:
-			_add_work_row(
-				str(item.get("name", "")),
-				str(item.get("price", "")),
-				str(item.get("payment", "")),
-				str(item.get("points", ""))
-			)
+	for item in data:
+		_add_selectable_work_row(
+			str(item.get("id", "")),
+			str(item.get("name", "")),
+			str(item.get("payment", "")),
+			str(item.get("points", ""))
+		)
 
 func _add_selectable_work_row(work_id: String, name: String, payment: String, points: String) -> void:
 	var btn = Button.new()
@@ -427,44 +400,3 @@ func _cerrar_con_retardo() -> void:
 	# Si el jugador ya cerró el menú a mano no hay nada que hacer.
 	if visible:
 		close()
-
-func _fetch_work_list() -> void:
-	for child in item_container.get_children():
-		child.queue_free()
-
-	if not Supabase.is_logged_in():
-		_add_error_row("Inicia sesion para ver precios")
-		return
-
-	Supabase.make_auth_request(http_worklist, "/rest/v1/WorkList?select=name,price,payment,points", HTTPClient.METHOD_GET)
-
-func _add_work_row(name: String, price: String, payment: String, points: String) -> void:
-	var hbox = HBoxContainer.new()
-	hbox.custom_minimum_size.y = 40
-
-	var lbl_name = Label.new()
-	lbl_name.text = name
-	lbl_name.custom_minimum_size.x = 120
-	hbox.add_child(lbl_name)
-
-	var lbl_price = Label.new()
-	lbl_price.text = "$" + price
-	lbl_price.custom_minimum_size.x = 70
-	hbox.add_child(lbl_price)
-
-	var lbl_payment = Label.new()
-	lbl_payment.text = "$" + payment
-	lbl_payment.custom_minimum_size.x = 70
-	hbox.add_child(lbl_payment)
-
-	var lbl_points = Label.new()
-	lbl_points.text = points + " pts"
-	lbl_points.custom_minimum_size.x = 70
-	hbox.add_child(lbl_points)
-
-	item_container.add_child(hbox)
-
-func _add_error_row(msg: String) -> void:
-	var lbl = Label.new()
-	lbl.text = msg
-	item_container.add_child(lbl)
