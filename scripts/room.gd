@@ -49,6 +49,15 @@ var _seleccionado: WorldObject = null
 
 const DISTANCIA_TOQUE := 90.0
 
+# Zona segura de pantalla para arrastrar objetos en modo edicion: recorta el
+# 20% de arriba (cartel de ayuda/perfil) y el 20% de abajo (joystick y boton
+# de accion, ver scenes/ui.tscn), dejando el ancho completo. En coordenadas
+# de viewport, no de mundo: se compara contra get_viewport().get_mouse_position().
+const ZONA_ENFOQUE := Rect2(
+	0.0, 780.0 * 0.2,
+	420.0, 780.0 * 0.6
+)
+
 func _ready() -> void:
 	var sala: Dictionary = Supabase.current_room
 	estilo = RoomStyles.get_estilo(str(sala.get("style", "basica")))
@@ -256,7 +265,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			_soltar_objeto(_arrastrando)
 			_arrastrando = null
 	elif (event is InputEventScreenDrag or event is InputEventMouseMotion) and _arrastrando != null:
-		_arrastrando.position = get_global_mouse_position()
+		_arrastrando.position = _posicion_mundo_clampeada()
+
+# Traduce el toque a mundo pasando primero por la zona segura de pantalla
+# (ZONA_ENFOQUE): si el dedo se va debajo del joystick/boton de accion, el
+# objeto se queda pegado al borde de la zona en vez de seguir al dedo hasta
+# ahi abajo.
+func _posicion_mundo_clampeada() -> Vector2:
+	var pantalla := get_viewport().get_mouse_position()
+	pantalla.x = clampf(pantalla.x, ZONA_ENFOQUE.position.x, ZONA_ENFOQUE.end.x)
+	pantalla.y = clampf(pantalla.y, ZONA_ENFOQUE.position.y, ZONA_ENFOQUE.end.y)
+	return get_viewport().canvas_transform.affine_inverse() * pantalla
 
 # Cualquiera de los objetos colocados sirve, no solo la PC: el que este mas
 # cerca del toque, dentro de un radio razonable.
