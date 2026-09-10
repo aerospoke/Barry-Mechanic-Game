@@ -21,6 +21,9 @@ var current_room: Dictionary = {}
 
 var active_work_id: String = ""
 var active_work_name: String = ""
+# Codigo interno del trabajo (WorkList.key), separado del nombre que se
+# muestra: lo usa movement_script.gd para saber que minijuego abrir.
+var active_work_key: String = ""
 var active_work_points: int = 0
 var active_work_payment: int = 0
 
@@ -69,6 +72,7 @@ func clear_session() -> void:
 	profile_loaded = false
 	active_work_id = ""
 	active_work_name = ""
+	active_work_key = ""
 	active_work_points = 0
 	active_work_payment = 0
 	rooms = []
@@ -180,6 +184,7 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 	profile_points = max(0, profile_points + points)
 	active_work_id = ""
 	active_work_name = ""
+	active_work_key = ""
 	active_work_payment = 0
 	active_work_points = 0
 

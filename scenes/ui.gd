@@ -137,6 +137,7 @@ func _on_active_work_request_completed(_result: int, response_code: int, _header
 		if not _fetching_work_details:
 			Supabase.active_work_id = ""
 			Supabase.active_work_name = ""
+			Supabase.active_work_key = ""
 			Supabase.active_work_payment = 0
 			Supabase.active_work_points = 0
 			label_work.text = "Sin trabajo activo"
@@ -145,6 +146,7 @@ func _on_active_work_request_completed(_result: int, response_code: int, _header
 	if _fetching_work_details:
 		var work = data[0]
 		Supabase.active_work_name = str(work.get("name", ""))
+		Supabase.active_work_key = str(work.get("key", ""))
 		Supabase.active_work_payment = int(work.get("payment", 0))
 		Supabase.active_work_points = int(work.get("points", 0))
 		_show_active_work()
@@ -155,5 +157,5 @@ func _on_active_work_request_completed(_result: int, response_code: int, _header
 			return
 		Supabase.active_work_id = str(work_id)
 		_fetching_work_details = true
-		var endpoint = "/rest/v1/WorkList?id=eq." + str(work_id) + "&select=name,payment,points"
+		var endpoint = "/rest/v1/WorkList?id=eq." + str(work_id) + "&select=name,payment,points,key"
 		Supabase.make_auth_request(http_active_work, endpoint, HTTPClient.METHOD_GET)

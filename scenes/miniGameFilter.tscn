@@ -1,0 +1,100 @@
+[gd_scene format=3 uid="uid://c4h8m3fxwta02"]
+
+[ext_resource type="Script" path="res://scenes/mini_game_filter.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://beixat01cyk7y" path="res://objetos/airFlow1.png" id="2_filtro"]
+[ext_resource type="Texture2D" uid="uid://c1onwmveayjyi" path="res://buttons_ui/arrow_down_normal.png" id="3_arrow_n"]
+[ext_resource type="Texture2D" uid="uid://b4qijw8fq8aw6" path="res://buttons_ui/arrow_down_pressed.png" id="4_arrow_p"]
+
+[node name="Node2D" type="Node2D" unique_id=884113602]
+script = ExtResource("1_script")
+
+[node name="Fondo" type="ColorRect" parent="." unique_id=884113603]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.08, 0.09, 1)
+
+[node name="FiltroCine" type="Sprite2D" parent="." unique_id=884113604]
+position = Vector2(210, 300)
+scale = Vector2(0.7, 0.7)
+texture = ExtResource("2_filtro")
+
+[node name="FiltroOscuro" type="ColorRect" parent="." unique_id=884113605]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="ContenedorJuego" type="Node2D" parent="." unique_id=884113606]
+
+[node name="FiltroSprite" type="Sprite2D" parent="ContenedorJuego" unique_id=884113607]
+position = Vector2(210, 150)
+scale = Vector2(0.45, 0.45)
+texture = ExtResource("2_filtro")
+
+[node name="LabelLimpieza" type="Label" parent="ContenedorJuego" unique_id=884113608]
+offset_left = 40.0
+offset_top = 260.0
+offset_right = 380.0
+offset_bottom = 288.0
+theme_override_font_sizes/font_size = 18
+text = "Limpieza: 0%"
+
+[node name="RielLimpieza" type="ColorRect" parent="ContenedorJuego" unique_id=884113609]
+offset_left = 40.0
+offset_top = 292.0
+offset_right = 380.0
+offset_bottom = 316.0
+color = Color(0.15, 0.15, 0.18, 1)
+
+[node name="RellenoLimpieza" type="ColorRect" parent="ContenedorJuego" unique_id=884113610]
+offset_left = 40.0
+offset_top = 292.0
+offset_right = 40.0
+offset_bottom = 316.0
+color = Color(0.4, 0.85, 0.45, 1)
+
+[node name="LabelPresion" type="Label" parent="ContenedorJuego" unique_id=884113611]
+offset_left = 40.0
+offset_top = 350.0
+offset_right = 380.0
+offset_bottom = 378.0
+theme_override_font_sizes/font_size = 18
+text = "Presion: 0%"
+
+[node name="RielPresion" type="ColorRect" parent="ContenedorJuego" unique_id=884113612]
+offset_left = 40.0
+offset_top = 382.0
+offset_right = 380.0
+offset_bottom = 406.0
+color = Color(0.15, 0.15, 0.18, 1)
+
+[node name="RellenoPresion" type="ColorRect" parent="ContenedorJuego" unique_id=884113613]
+offset_left = 40.0
+offset_top = 382.0
+offset_right = 40.0
+offset_bottom = 406.0
+color = Color(0.85, 0.4, 0.3, 1)
+
+[node name="LabelInstruccion" type="Label" parent="ContenedorJuego" unique_id=884113614]
+offset_left = 30.0
+offset_top = 450.0
+offset_right = 390.0
+offset_bottom = 500.0
+theme_override_font_sizes/font_size = 15
+horizontal_alignment = 1
+autowrap_mode = 3
+text = "Manten pulsado para soplar. Sueltalo antes de que la presion llegue al tope."
+
+[node name="buttonAction" type="TouchScreenButton" parent="ContenedorJuego" unique_id=884113615]
+position = Vector2(210, 640)
+scale = Vector2(2.865, 2.865)
+texture_normal = ExtResource("3_arrow_n")
+texture_pressed = ExtResource("4_arrow_p")
+action = "ui_accept"

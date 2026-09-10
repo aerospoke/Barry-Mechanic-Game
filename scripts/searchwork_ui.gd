@@ -314,7 +314,7 @@ func _fetch_work_list_for_select() -> void:
 	for child in work_item_container.get_children():
 		child.queue_free()
 
-	var endpoint = "/rest/v1/WorkList?select=id,name,price,payment,points"
+	var endpoint = "/rest/v1/WorkList?select=id,name,price,payment,points,key"
 	Supabase.make_auth_request(http_worklist, endpoint, HTTPClient.METHOD_GET)
 
 func _on_worklist_request_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
@@ -337,10 +337,11 @@ func _on_worklist_request_completed(_result: int, response_code: int, _headers: 
 			str(item.get("id", "")),
 			str(item.get("name", "")),
 			str(item.get("payment", "")),
-			str(item.get("points", ""))
+			str(item.get("points", "")),
+			str(item.get("key", ""))
 		)
 
-func _add_selectable_work_row(work_id: String, name: String, payment: String, points: String) -> void:
+func _add_selectable_work_row(work_id: String, name: String, payment: String, points: String, key: String) -> void:
 	var btn = Button.new()
 	btn.text = "%s  |  $%s  |  %s pts" % [name, payment, points]
 	btn.custom_minimum_size.y = 50
@@ -348,6 +349,7 @@ func _add_selectable_work_row(work_id: String, name: String, payment: String, po
 	btn.set_meta("work_name", name)
 	btn.set_meta("work_payment", int(payment))
 	btn.set_meta("work_points", int(points))
+	btn.set_meta("work_key", key)
 	btn.pressed.connect(_on_work_selected.bind(btn))
 	work_item_container.add_child(btn)
 	print("DEBUG work_id raw: '%s' | int: %d" % [work_id, int(work_id)])
@@ -358,6 +360,7 @@ func _on_work_selected(btn: Button) -> void:
 		"work_name": btn.get_meta("work_name"),
 		"work_payment": btn.get_meta("work_payment"),
 		"work_points": btn.get_meta("work_points"),
+		"work_key": btn.get_meta("work_key"),
 	}
 
 	status_label.text = "Aceptando trabajo..."
@@ -375,6 +378,7 @@ func _on_accept_work_completed(_result: int, response_code: int, _headers: Packe
 	if response_code == 201 or response_code == 200:
 		Supabase.active_work_id = str(_pending_work["work_id"])
 		Supabase.active_work_name = str(_pending_work["work_name"])
+		Supabase.active_work_key = str(_pending_work["work_key"])
 		Supabase.active_work_payment = int(_pending_work["work_payment"])
 		Supabase.active_work_points = int(_pending_work["work_points"])
 

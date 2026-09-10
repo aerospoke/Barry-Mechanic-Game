@@ -4,10 +4,13 @@ const SPEED = 310.0
 
 const ShopCatalog = preload("res://scripts/shop_catalog.gd")
 
-# Minijuego que se abre al llevar cada item al motor, y palabra clave que debe
-# tener el nombre del trabajo activo para que ese minijuego sea el correcto.
+# Minijuego que se abre al llevar cada item al motor, y codigo exacto que
+# debe tener el trabajo activo (columna WorkList.key, ver sql/worklist_key.sql)
+# para que ese minijuego sea el correcto.
 const MINIGAMES = {
-	"oils": {"escena": "res://scenes/miniGameOil.tscn", "clave": "aceite"},
+	"oils": {"escena": "res://scenes/miniGameOil.tscn", "clave": "change_oil"},
+	"keys": {"escena": "res://scenes/miniGameKeys.tscn", "clave": "key_fix"},
+	"filters": {"escena": "res://scenes/miniGameFilter.tscn", "clave": "change_air_filter"},
 }
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
@@ -195,7 +198,7 @@ func _intentar_minijuego() -> void:
 		return
 
 	var config = MINIGAMES[item_en_mano]
-	if not Supabase.active_work_name.to_lower().contains(config["clave"]):
+	if Supabase.active_work_key != config["clave"]:
 		print("Tu trabajo activo no es este: %s" % Supabase.active_work_name)
 		return
 

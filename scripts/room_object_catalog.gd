@@ -41,6 +41,19 @@ const OBJETOS := {
 		# los nombres de nodo tienen que ser unicos entre hermanos.
 		"pieza_gratis": "oils",
 	},
+	# Mismo patron que estante_aceite: el "kind" coincide con el "key" de
+	# shop_items (ver sql/shop_items_estantes.sql), asi que agregar_objeto_
+	# comprado() encuentra esta entrada directo con el key que manda la tienda.
+	"filters": {
+		"textura": preload("res://objetos/Estantes/filtrosAire.png"),
+		"escala": Vector2(0.3, 0.3),
+		"pieza_gratis": "filters",
+	},
+	"keys": {
+		"textura": preload("res://objetos/Estantes/cerrageria.png"),
+		"escala": Vector2(0.3, 0.3),
+		"pieza_gratis": "keys",
+	},
 }
 
 static func textura(kind: String) -> Texture2D:
