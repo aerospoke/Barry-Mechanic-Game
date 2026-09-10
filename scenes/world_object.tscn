@@ -24,6 +24,8 @@ rotation = -0.46182632
 shape = SubResource("RectangleShape2D_object")
 
 [node name="CuerpoSolido" type="StaticBody2D" parent="." unique_id=1587827347]
+collision_layer = 2
+collision_mask = 0
 scale = Vector2(8.4, 5.04)
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="CuerpoSolido" unique_id=653826613]

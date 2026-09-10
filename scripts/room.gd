@@ -29,6 +29,11 @@ var estilo: Dictionary = {}
 var ancho: int = 8
 var alto: int = 8
 
+# Caja (en coordenadas de mundo) que envuelve el piso de la sala, calculada
+# en _construir_limites(). La usa _posicion_mundo_clampeada para no dejar
+# arrastrar un objeto mas alla del mapa.
+var _limite_mundo: Rect2 = Rect2()
+
 # Objetos colocados en la sala (ver sql/room_objects.sql), instanciados de
 # forma dinamica en _cargar_objetos(). Ninguno viene predefinido en la
 # escena: asi un objeto nuevo no necesita tocar room.tscn, solo una entrada
@@ -48,6 +53,14 @@ var _arrastrando: WorldObject = null
 var _seleccionado: WorldObject = null
 
 const DISTANCIA_TOQUE := 90.0
+
+# Capas de colision: bit 1 = limite de la sala (Limites/Contorno), bit 2 =
+# muebles (CuerpoSolido de cada WorldObject, ver world_object.tscn). Barry
+# normalmente choca con ambos; en modo edicion se le saca el bit 2 para que
+# los muebles no lo empujen, pero se queda con el 1 para no poder salirse
+# caminando del piso de la sala (y con el la camara, que cuelga de el).
+const MASCARA_COLISION_NORMAL := 0b11
+const MASCARA_COLISION_LIMITES := 0b01
 
 # Zona segura de pantalla para arrastrar objetos en modo edicion: recorta el
 # 20% de arriba (cartel de ayuda/perfil) y el 20% de abajo (joystick y boton
@@ -137,12 +150,21 @@ func _dibujar_pared(base_ini: Vector2, base_fin: Vector2, altura: float, color: 
 # rombo completo en modo segmentos: una pared invisible, no un bloque macizo.
 func _construir_limites() -> void:
 	limites.build_mode = CollisionPolygon2D.BUILD_SEGMENTS
-	limites.polygon = PackedVector2Array([
+	var esquinas := PackedVector2Array([
 		tile_a_mundo(0, 0),
 		tile_a_mundo(ancho, 0),
 		tile_a_mundo(ancho, alto),
 		tile_a_mundo(0, alto),
 	])
+	limites.polygon = esquinas
+
+	# Caja que envuelve el rombo del piso, para no dejar arrastrar un objeto
+	# (ver _posicion_mundo_clampeada) mas alla del mapa. No es pixel-perfect
+	# con la forma isometrica exacta (dejaria pasar un poco por las cuatro
+	# puntas), pero alcanza para que nunca se vaya a la nada.
+	_limite_mundo = Rect2(esquinas[0], Vector2.ZERO)
+	for esquina in esquinas:
+		_limite_mundo = _limite_mundo.expand(esquina)
 
 # --- Objetos ---------------------------------------------------------------
 
@@ -230,12 +252,21 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 func activar_edicion() -> void:
 	editando = true
 	panel_edicion.visible = true
+	# Barry se hace invisible y deja de chocar con los muebles (bit 2, ver
+	# CuerpoSolido en world_object.tscn) mientras se edita: asi un objeto
+	# puede pasar tranquilo por donde el estaba parado. Sigue respondiendo al
+	# limite de la sala (bit 1) para que la camara, que cuelga de el, no se
+	# pueda ir caminando fuera del mapa mientras el panel esta abierto.
+	barry.visible = false
+	barry.collision_mask = MASCARA_COLISION_LIMITES
 
 func _salir_edicion() -> void:
 	editando = false
 	_arrastrando = null
 	_marcar_seleccionado(null)
 	panel_edicion.visible = false
+	barry.visible = true
+	barry.collision_mask = MASCARA_COLISION_NORMAL
 
 # Cambia cual objeto esta marcado (contorno + rebote), apagando el anterior.
 # Pasar null limpia la seleccion sin marcar ninguno nuevo.
@@ -270,12 +301,16 @@ func _unhandled_input(event: InputEvent) -> void:
 # Traduce el toque a mundo pasando primero por la zona segura de pantalla
 # (ZONA_ENFOQUE): si el dedo se va debajo del joystick/boton de accion, el
 # objeto se queda pegado al borde de la zona en vez de seguir al dedo hasta
-# ahi abajo.
+# ahi abajo. Despues se clampea otra vez, ya en mundo, contra el piso de la
+# sala (_limite_mundo) para que tampoco se pueda arrastrar mas alla del mapa.
 func _posicion_mundo_clampeada() -> Vector2:
 	var pantalla := get_viewport().get_mouse_position()
 	pantalla.x = clampf(pantalla.x, ZONA_ENFOQUE.position.x, ZONA_ENFOQUE.end.x)
 	pantalla.y = clampf(pantalla.y, ZONA_ENFOQUE.position.y, ZONA_ENFOQUE.end.y)
-	return get_viewport().canvas_transform.affine_inverse() * pantalla
+	var mundo := get_viewport().canvas_transform.affine_inverse() * pantalla
+	mundo.x = clampf(mundo.x, _limite_mundo.position.x, _limite_mundo.end.x)
+	mundo.y = clampf(mundo.y, _limite_mundo.position.y, _limite_mundo.end.y)
+	return mundo
 
 # Cualquiera de los objetos colocados sirve, no solo la PC: el que este mas
 # cerca del toque, dentro de un radio razonable.

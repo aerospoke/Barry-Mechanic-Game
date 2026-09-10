@@ -219,6 +219,8 @@ animations = [{
 }]
 
 [node name="Barry" type="CharacterBody2D" unique_id=1975180856]
+collision_layer = 1
+collision_mask = 3
 script = ExtResource("1_0e48y")
 
 [node name="ItemHandsPlayer" type="Sprite2D" parent="." unique_id=60600546]
