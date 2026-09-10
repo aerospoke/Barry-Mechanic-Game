@@ -8,6 +8,7 @@ extends Control
 @onready var label_points = $fondoOscuro/PanelPoints/LabelNick
 @onready var label_work = $fondoOscuro/PanelWork/LabelWork
 @onready var btn_editar_sala: Button = $fondoOscuro/BtnEditarSala
+@onready var btn_logout: Button = $fondoOscuro/BtnLogout
 
 @onready var http_profile = $HTTPRequestProfile
 @onready var http_active_work = $HTTPRequestActiveWork
@@ -24,6 +25,7 @@ func _ready() -> void:
 	# Solo tiene sentido dentro de una sala (room.gd expone activar_edicion());
 	# en el taller no hay nada que mover todavia.
 	btn_editar_sala.visible = _raiz_editable() != null
+	btn_logout.pressed.connect(_on_btn_logout_pressed)
 
 func _raiz_editable() -> Node:
 	var raiz := get_parent().get_parent()
@@ -38,6 +40,13 @@ func _on_btn_editar_sala_pressed() -> void:
 	# Cierra el panel de perfil y despausa, igual que un segundo toque al
 	# boton de Barry: el modo edicion necesita el juego corriendo.
 	_on_button_profile_pressed()
+
+func _on_btn_logout_pressed() -> void:
+	Supabase.clear_session()
+	# El panel de perfil pausa el arbol al abrirse; hay que despausar antes de
+	# cambiar de escena o el login arranca congelado.
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://scenes/login_ui.tscn")
 
 func _on_button_profile_pressed() -> void:
 	if fondo_oscuro.visible == true:
