@@ -10,7 +10,12 @@ var user_email: String = ""
 var profile_name: String = ""
 var profile_balance: int = 0
 var profile_points: int = 0
+var profile_is_gold: bool = false
 var profile_loaded: bool = false
+
+# Pago unico (ver sql/profiles_gold.sql): no hay suscripcion ni vencimiento,
+# solo un flag que se prende para siempre en profiles.is_gold.
+const PRECIO_MEMBRESIA_GOLD := 100000
 
 # Salas creadas por el jugador (estilo Habbo). Se guardan en la tabla `rooms`
 # (ver sql/rooms.sql); aquí vive la copia en memoria porque room.tscn
@@ -69,6 +74,7 @@ func clear_session() -> void:
 	profile_name = ""
 	profile_balance = 0
 	profile_points = 0
+	profile_is_gold = false
 	profile_loaded = false
 	active_work_id = ""
 	active_work_name = ""
@@ -113,7 +119,7 @@ func load_profile(recargar: bool = false) -> bool:
 		return false
 
 	var res = await _request_sync(
-		"/rest/v1/profiles?id=eq." + user_id + "&select=name,balance,points",
+		"/rest/v1/profiles?id=eq." + user_id + "&select=name,balance,points,is_gold",
 		HTTPClient.METHOD_GET
 	)
 	if res[0] != 200 or not res[1] is Array or res[1].is_empty():
@@ -124,6 +130,7 @@ func load_profile(recargar: bool = false) -> bool:
 	profile_name = str(profile.get("name", ""))
 	profile_balance = int(profile.get("balance", 0))
 	profile_points = int(profile.get("points", 0))
+	profile_is_gold = bool(profile.get("is_gold", false))
 
 	profile_loaded = true
 	return true
@@ -382,6 +389,26 @@ func buy_item(precio: int) -> bool:
 		return false
 
 	profile_balance -= precio
+	return true
+
+# Pago unico de la membresia Gold (ver PRECIO_MEMBRESIA_GOLD mas arriba y el
+# panel de detalles en searchwork_ui.gd). Mismo patron que buy_item, pero
+# ademas prende profiles.is_gold en la misma peticion.
+func buy_gold_membership() -> bool:
+	if not is_logged_in() or profile_is_gold or PRECIO_MEMBRESIA_GOLD > profile_balance:
+		return false
+
+	var res = await _request_sync(
+		"/rest/v1/profiles?id=eq." + user_id,
+		HTTPClient.METHOD_PATCH,
+		{"balance": profile_balance - PRECIO_MEMBRESIA_GOLD, "is_gold": true},
+		["Prefer: return=representation"]
+	)
+	if not _update_ok(res, "No se pudo comprar la membresia gold"):
+		return false
+
+	profile_balance -= PRECIO_MEMBRESIA_GOLD
+	profile_is_gold = true
 	return true
 
 func handle_response(response_code: int, body: PackedByteArray, success_callable: Callable, error_callable: Callable) -> void:

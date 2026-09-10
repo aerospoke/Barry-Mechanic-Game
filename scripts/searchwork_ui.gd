@@ -8,9 +8,13 @@ const ShopCatalog = preload("res://scripts/shop_catalog.gd")
 @onready var btn_volver = $BtnVolver
 
 @onready var room_panel: Control = $RoomCreatePanel
-@onready var room_nombre_edit: LineEdit = $RoomCreatePanel/NombreEdit
-@onready var room_style_container: VBoxContainer = $RoomCreatePanel/StyleContainer
+@onready var btn_mis_salas: Button = $RoomCreatePanel/BtnMisSalas
+@onready var room_list_scroll: ScrollContainer = $RoomCreatePanel/RoomListScroll
 @onready var room_list_container: VBoxContainer = $RoomCreatePanel/RoomListScroll/RoomListContainer
+@onready var label_nombre_sala: Label = $RoomCreatePanel/LabelNombre
+@onready var room_nombre_edit: LineEdit = $RoomCreatePanel/NombreEdit
+@onready var label_estilo_sala: Label = $RoomCreatePanel/LabelEstilo
+@onready var room_style_container: VBoxContainer = $RoomCreatePanel/StyleContainer
 @onready var room_status: Label = $RoomCreatePanel/StatusRoom
 @onready var btn_volver_room: Button = $RoomCreatePanel/BtnVolverRoom
 
@@ -19,7 +23,13 @@ const ShopCatalog = preload("res://scripts/shop_catalog.gd")
 @onready var shop_panel: Control = $ShopPanel
 @onready var shop_status: Label = $ShopPanel/StatusTienda
 @onready var shop_item_container: VBoxContainer = $ShopPanel/ScrollContainer/ItemContainer
+@onready var btn_membresia_gold: Button = $ShopPanel/BtnMembresiaGold
 @onready var btn_volver_tienda: Button = $ShopPanel/BtnVolverTienda
+
+@onready var gold_panel: Control = $GoldPanel
+@onready var status_gold: Label = $GoldPanel/StatusGold
+@onready var btn_comprar_gold: Button = $GoldPanel/BtnComprarGold
+@onready var btn_volver_gold: Button = $GoldPanel/BtnVolverGold
 
 @onready var work_select_panel = $WorkSelectPanel
 @onready var status_label = $WorkSelectPanel/StatusLabel
@@ -32,6 +42,16 @@ var game_controls: Array[CanvasItem] = []
 var _pending_work: Dictionary = {}
 var _barry: Node = null
 
+# Alto de RoomListScroll (ver searchwork_ui.tscn): al plegar "Mis salas" hay
+# que subir todo lo que va debajo esta misma distancia para cerrar el hueco,
+# ya que el panel usa posiciones fijas en vez de un contenedor que se
+# reacomode solo.
+const ALTURA_LISTA_SALAS: float = 135.0
+# Arranca plegada (ver searchwork_ui.tscn: RoomListScroll ya nace invisible y
+# todo lo de abajo ya nace corrido hacia arriba) para no arrancar mostrando
+# una lista larga apenas se abre el panel.
+var _lista_salas_colapsada: bool = true
+
 # Cuánto se deja leer el mensaje de confirmación antes de cerrar el menú solo.
 const CIERRE_AUTOMATICO: float = 1.2
 
@@ -41,14 +61,19 @@ func _ready() -> void:
 	work_select_panel.visible = false
 	room_panel.visible = false
 	shop_panel.visible = false
+	gold_panel.visible = false
 	btn_iniciar.pressed.connect(_on_iniciar_pressed)
 	btn_crear_sala.pressed.connect(_on_crear_sala_pressed)
 	btn_tienda.pressed.connect(_on_tienda_pressed)
 	btn_volver.pressed.connect(_on_volver_pressed)
 	btn_volver_room.pressed.connect(_on_volver_room_pressed)
+	btn_mis_salas.pressed.connect(_on_btn_mis_salas_pressed)
 	_construir_opciones_sala()
 	btn_volver_work.pressed.connect(_on_volver_work_pressed)
 	btn_volver_tienda.pressed.connect(_on_volver_tienda_pressed)
+	btn_membresia_gold.pressed.connect(_on_membresia_gold_pressed)
+	btn_comprar_gold.pressed.connect(_on_comprar_gold_pressed)
+	btn_volver_gold.pressed.connect(_on_volver_gold_pressed)
 	http_worklist.request_completed.connect(_on_worklist_request_completed)
 	http_active_work.request_completed.connect(_on_active_work_completed)
 	http_accept_work.request_completed.connect(_on_accept_work_completed)
@@ -87,6 +112,7 @@ func close() -> void:
 	work_select_panel.visible = false
 	room_panel.visible = false
 	shop_panel.visible = false
+	gold_panel.visible = false
 	get_tree().paused = false
 	for ctrl in game_controls:
 		ctrl.visible = true
@@ -196,13 +222,62 @@ func _on_comprar_pressed(key: String, precio: int, tipo: String, btn: Button) ->
 	shop_status.text = "Compraste %s. Saldo: %d" % [key, Supabase.profile_balance]
 	close()
 
+# --- Membresia Gold ---------------------------------------------------------
+
+func _on_membresia_gold_pressed() -> void:
+	shop_panel.visible = false
+	gold_panel.visible = true
+	_actualizar_estado_gold()
+
+func _on_volver_gold_pressed() -> void:
+	gold_panel.visible = false
+	shop_panel.visible = true
+
+# Refleja si ya es Gold (bloquea el boton) o si le falta saldo, igual que las
+# filas de la tienda con "ya_tiene_item"/precio > saldo.
+func _actualizar_estado_gold() -> void:
+	if Supabase.profile_is_gold:
+		status_gold.text = "Ya sos miembro Gold. ¡Gracias!"
+		btn_comprar_gold.disabled = true
+		return
+
+	btn_comprar_gold.disabled = Supabase.PRECIO_MEMBRESIA_GOLD > Supabase.profile_balance
+	status_gold.text = "Saldo: %d" % Supabase.profile_balance
+
+func _on_comprar_gold_pressed() -> void:
+	btn_comprar_gold.disabled = true
+	status_gold.text = "Comprando..."
+
+	var ok: bool = await Supabase.buy_gold_membership()
+	if not ok:
+		status_gold.text = "No se pudo completar la compra"
+		_actualizar_estado_gold()
+		return
+
+	status_gold.text = "¡Listo! Ya sos miembro Gold. Saldo: %d" % Supabase.profile_balance
+	close()
+
 # --- Salas -----------------------------------------------------------------
 
 func _on_crear_sala_pressed() -> void:
 	room_status.text = ""
 	room_nombre_edit.text = ""
 	room_panel.visible = true
+	if not _lista_salas_colapsada:
+		_on_btn_mis_salas_pressed()
 	_refrescar_mis_salas()
+
+# Pliega/despliega la lista de salas ya creadas. El panel usa posiciones
+# fijas (no un contenedor que se reacomode solo), asi que hay que correr a
+# mano todo lo que va debajo para que no quede un hueco vacio.
+func _on_btn_mis_salas_pressed() -> void:
+	_lista_salas_colapsada = not _lista_salas_colapsada
+	room_list_scroll.visible = not _lista_salas_colapsada
+	btn_mis_salas.text = ("▸ " if _lista_salas_colapsada else "▾ ") + "Mis salas"
+
+	var delta := -ALTURA_LISTA_SALAS if _lista_salas_colapsada else ALTURA_LISTA_SALAS
+	for nodo: Control in [label_nombre_sala, room_nombre_edit, label_estilo_sala, room_style_container, room_status]:
+		nodo.position.y += delta
 
 # Las salas ya creadas se listan encima de los estilos para poder volver a
 # entrar sin crear una nueva cada vez.
