@@ -41,6 +41,12 @@ var _objetos: Array[WorldObject] = []
 var editando: bool = false
 var _arrastrando: WorldObject = null
 
+# Objeto marcado (contorno + rebote, ver WorldObject.set_seleccionado).
+# Separado de _arrastrando a proposito: queda marcado despues de soltar el
+# toque, no solo mientras se esta arrastrando. Se cambia al tocar otro
+# objeto y se limpia al tocar el piso vacio o salir de edicion.
+var _seleccionado: WorldObject = null
+
 const DISTANCIA_TOQUE := 90.0
 
 func _ready() -> void:
@@ -219,7 +225,19 @@ func activar_edicion() -> void:
 func _salir_edicion() -> void:
 	editando = false
 	_arrastrando = null
+	_marcar_seleccionado(null)
 	panel_edicion.visible = false
+
+# Cambia cual objeto esta marcado (contorno + rebote), apagando el anterior.
+# Pasar null limpia la seleccion sin marcar ninguno nuevo.
+func _marcar_seleccionado(objeto: WorldObject) -> void:
+	if _seleccionado == objeto:
+		return
+	if is_instance_valid(_seleccionado):
+		_seleccionado.set_seleccionado(false)
+	_seleccionado = objeto
+	if is_instance_valid(_seleccionado):
+		_seleccionado.set_seleccionado(true)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not editando:
@@ -227,7 +245,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventScreenTouch or event is InputEventMouseButton:
 		if event.pressed:
-			_arrastrando = _objeto_en(get_global_mouse_position())
+			var tocado := _objeto_en(get_global_mouse_position())
+			# Tocar un objeto lo selecciona y arranca el arrastre en el mismo
+			# gesto (como antes); tocar el piso vacio solo limpia la
+			# seleccion. La marca (contorno + rebote) ya no se apaga al
+			# soltar: queda "preseleccionada" hasta tocar otra cosa.
+			_marcar_seleccionado(tocado)
+			_arrastrando = tocado
 		elif _arrastrando != null:
 			_soltar_objeto(_arrastrando)
 			_arrastrando = null
