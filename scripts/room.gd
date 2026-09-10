@@ -17,6 +17,7 @@ extends Node2D
 const ZOOM_MINIMO := 0.8
 
 const WorldObjectScene = preload("res://scenes/world_object.tscn")
+const ConfirmModal = preload("res://scripts/confirm_modal.gd")
 
 @onready var limites: CollisionPolygon2D = $Limites/Contorno
 @onready var barry: CharacterBody2D = $Barry
@@ -24,6 +25,7 @@ const WorldObjectScene = preload("res://scenes/world_object.tscn")
 @onready var interaction_zone: Node2D = $InteractionZone
 @onready var panel_edicion: Control = $CanvasLayer/PanelEdicion
 @onready var btn_listo_edicion: Button = $CanvasLayer/PanelEdicion/BtnListoEdicion
+@onready var btn_borrar_objeto: Button = $CanvasLayer/PanelEdicion/BtnBorrarObjeto
 
 var estilo: Dictionary = {}
 var ancho: int = 8
@@ -80,6 +82,7 @@ func _ready() -> void:
 	RenderingServer.set_default_clear_color(estilo["fondo"])
 
 	btn_listo_edicion.pressed.connect(_salir_edicion)
+	btn_borrar_objeto.pressed.connect(_on_btn_borrar_objeto_pressed)
 
 	_construir_limites()
 	_colocar_jugador()
@@ -278,6 +281,43 @@ func _marcar_seleccionado(objeto: WorldObject) -> void:
 	_seleccionado = objeto
 	if is_instance_valid(_seleccionado):
 		_seleccionado.set_seleccionado(true)
+	btn_borrar_objeto.disabled = _seleccionado == null
+
+# Confirma (sin reembolso, se lo avisa en el modal) y borra el objeto
+# marcado: primero en la base, y solo si eso sale bien lo saca de la sala.
+func _on_btn_borrar_objeto_pressed() -> void:
+	if not is_instance_valid(_seleccionado):
+		return
+
+	var objeto := _seleccionado
+	btn_borrar_objeto.disabled = true
+
+	var modal := ConfirmModal.crear(
+		self,
+		"Eliminar objeto",
+		"Esto lo saca de la sala para siempre. No se te devuelve nada de lo que pagaste en la tienda.",
+		"Si, eliminar"
+	)
+	var confirmado: bool = await modal.resuelto
+
+	if not confirmado:
+		btn_borrar_objeto.disabled = not is_instance_valid(_seleccionado)
+		return
+
+	var id := str(objeto.get_meta("room_object_id", ""))
+	if id != "":
+		var ok := await Supabase.delete_room_object(id)
+		if not ok:
+			# Se deja seleccionado para poder reintentar en vez de perderlo
+			# de la sala sin haberse borrado realmente de la base.
+			btn_borrar_objeto.disabled = false
+			return
+
+	_objetos.erase(objeto)
+	if _seleccionado == objeto:
+		_seleccionado = null
+	objeto.queue_free()
+	btn_borrar_objeto.disabled = true
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not editando:

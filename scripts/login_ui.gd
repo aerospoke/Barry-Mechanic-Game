@@ -18,6 +18,11 @@ func _ready() -> void:
 	# Entre el campo de contraseña (y=490) y el botón de entrar (y=574).
 	status_label = StatusLabel.crear(self, Vector2(40.0, 500.0), 340.0)
 	_agregar_ojo(password_input)
+
+	# Precarga de datos para pruebas rapidas. Sacar antes de compartir/subir
+	# el proyecto a algun lado publico.
+	username_input.text = "aerospoke"
+	password_input.text = "202020"
 	btn_login.pressed.connect(_on_btn_login_pressed)
 	# Al corregir los datos se borra el error anterior, que ya no aplica.
 	username_input.text_changed.connect(func(_t): status_label.limpiar())

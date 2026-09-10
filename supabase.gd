@@ -276,6 +276,18 @@ func save_room_object_position(object_id: String, pos: Vector2) -> bool:
 	)
 	return _update_ok(res, "No se pudo guardar la posicion del objeto")
 
+# Borra un objeto de la sala (modo edicion, ver room.gd _on_btn_borrar_
+# objeto_pressed). Sin reembolso: lo que se pago en la tienda no vuelve, esto
+# solo saca el mueble de la sala.
+func delete_room_object(object_id: String) -> bool:
+	var res = await _request_sync(
+		"/rest/v1/room_objects?id=eq." + object_id,
+		HTTPClient.METHOD_DELETE,
+		{},
+		["Prefer: return=representation"]
+	)
+	return _update_ok(res, "No se pudo borrar el objeto")
+
 # Se llama justo despues de tener sesion y perfil cargados (desde login o
 # desde un registro con autoconfirmacion). Decision binaria, sin pasar nunca
 # por el taller: sin ninguna sala se manda a crear la primera; con salas,
