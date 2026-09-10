@@ -255,6 +255,12 @@ func _on_comprar_gold_pressed() -> void:
 		return
 
 	status_gold.text = "¡Listo! Ya sos miembro Gold. Saldo: %d" % Supabase.profile_balance
+
+	# Saca el banner de la pared ya, sin esperar a salir y volver a entrar.
+	var sala = get_parent().get_parent()
+	if is_instance_valid(sala) and sala.has_method("actualizar_banner_gold"):
+		sala.actualizar_banner_gold()
+
 	close()
 
 # --- Salas -----------------------------------------------------------------

@@ -211,7 +211,12 @@ func create_room(nombre: String, estilo: String, es_principal: bool = false) -> 
 	var res = await _request_sync(
 		"/rest/v1/rooms",
 		HTTPClient.METHOD_POST,
-		{"owner": user_id, "name": nombre, "style": estilo, "is_main": es_principal},
+		{
+			"owner": user_id, "name": nombre, "style": estilo, "is_main": es_principal,
+			# Copia del estado Gold actual (ver sql/rooms_gold.sql): decide si
+			# la sala nace con el banner publicitario o sin el.
+			"owner_gold": profile_is_gold,
+		},
 		["Prefer: return=representation"]
 	)
 	if res[0] != 201 and res[0] != 200:
@@ -231,7 +236,7 @@ func load_rooms() -> bool:
 		return false
 
 	var res = await _request_sync(
-		"/rest/v1/rooms?owner=eq." + user_id + "&select=id,name,style,is_main,created_at&order=created_at.desc",
+		"/rest/v1/rooms?owner=eq." + user_id + "&select=id,name,style,is_main,owner_gold,gold_banner_t,created_at&order=created_at.desc",
 		HTTPClient.METHOD_GET
 	)
 	if res[0] != 200 or not res[1] is Array:
@@ -282,6 +287,18 @@ func save_room_object_position(object_id: String, pos: Vector2) -> bool:
 		["Prefer: return=representation"]
 	)
 	return _update_ok(res, "No se pudo guardar la posicion del objeto")
+
+# Guarda donde quedo la TV de "hazte Gold" despues de arrastrarla a lo largo
+# de la pared (ver sql/rooms_gold_banner_pos.sql y room.gd
+# _guardar_pos_banner_gold). "t" es 0.0-1.0 a lo largo de la pared.
+func save_gold_banner_pos(room_id: String, t: float) -> bool:
+	var res = await _request_sync(
+		"/rest/v1/rooms?id=eq." + room_id,
+		HTTPClient.METHOD_PATCH,
+		{"gold_banner_t": t},
+		["Prefer: return=representation"]
+	)
+	return _update_ok(res, "No se pudo guardar la posicion de la TV")
 
 # Borra un objeto de la sala (modo edicion, ver room.gd _on_btn_borrar_
 # objeto_pressed). Sin reembolso: lo que se pago en la tienda no vuelve, esto
@@ -409,6 +426,26 @@ func buy_gold_membership() -> bool:
 
 	profile_balance -= PRECIO_MEMBRESIA_GOLD
 	profile_is_gold = true
+
+	# Best-effort: las salas que ya tenia tambien pierden el banner. Si esto
+	# falla no se deshace la compra (ya se cobro y profiles.is_gold ya quedo
+	# en true); en el peor caso esas salas viejas se sincronizan la proxima
+	# vez que se guarden (o quedan con el banner hasta corregirlo a mano).
+	await _request_sync(
+		"/rest/v1/rooms?owner=eq." + user_id,
+		HTTPClient.METHOD_PATCH,
+		{"owner_gold": true}
+	)
+	for sala in rooms:
+		sala["owner_gold"] = true
+	# La compra solo se puede hacer parado en tu propia sala (todavia no
+	# existe visitar la de otro jugador), asi que current_room siempre es
+	# tuya aca. current_room ya suele ser el mismo Dictionary que el del
+	# loop de arriba (ver _on_sala_existente/create_room en searchwork_ui.gd:
+	# se asignan por referencia), pero esto no depende de esa coincidencia.
+	if not current_room.is_empty():
+		current_room["owner_gold"] = true
+
 	return true
 
 func handle_response(response_code: int, body: PackedByteArray, success_callable: Callable, error_callable: Callable) -> void:

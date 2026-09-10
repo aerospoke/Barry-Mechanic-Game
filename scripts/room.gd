@@ -19,6 +19,22 @@ const ZOOM_MINIMO := 0.8
 const WorldObjectScene = preload("res://scenes/world_object.tscn")
 const ConfirmModal = preload("res://scripts/confirm_modal.gd")
 
+# "Premio" que muestra la TV de hazte-Gold (ver _crear_banner_gold): uno al
+# azar por sala, elegido entre objetos sueltos de res://objetos (nada de
+# spritesheets ni el propio sprite de Barry).
+const OBJETOS_BANNER_GOLD := [
+	preload("res://objetos/coin.png"),
+	preload("res://objetos/trophiev2.png"),
+	preload("res://objetos/a3.png"),
+	preload("res://objetos/llantasIluminado.png"),
+	preload("res://objetos/light1.png"),
+	preload("res://objetos/oil2.png"),
+	preload("res://objetos/boxKeys.png"),
+	preload("res://objetos/boxFilters.png"),
+	preload("res://objetos/boxLights.png"),
+	preload("res://objetos/trash2.png"),
+]
+
 @onready var limites: CollisionPolygon2D = $Limites/Contorno
 @onready var barry: CharacterBody2D = $Barry
 @onready var camara: Camera2D = $Barry/CameraPlayer
@@ -41,6 +57,23 @@ var _limite_mundo: Rect2 = Rect2()
 # escena: asi un objeto nuevo no necesita tocar room.tscn, solo una entrada
 # en RoomObjectCatalog y filas en la tabla.
 var _objetos: Array[WorldObject] = []
+
+# Banner publicitario en la pared, ver _crear_banner_gold() /
+# actualizar_banner_gold(). Se oculta si Supabase.current_room["owner_gold"]
+# es true (ver sql/rooms_gold.sql).
+var _banner_gold: Node2D = null
+var _banner_gold_tam: Vector2 = Vector2.ZERO
+
+# Igual que _seleccionado pero para el banner: no es un WorldObject (no tiene
+# fila propia en room_objects, no se puede borrar), asi que se marca aparte
+# con solo el pulso, sin contorno ni boton de eliminar. Si se puede arrastrar,
+# pero solo a lo largo de la pared (ver _banner_gold_t/_mover_banner_gold),
+# no libremente como los objetos del piso.
+var _banner_gold_seleccionado: bool = false
+var _tween_banner_gold: Tween
+var _banner_gold_arrastrando: bool = false
+# Posicion a lo largo de la pared, 0.0-1.0 (ver sql/rooms_gold_banner_pos.sql).
+var _banner_gold_t: float = 0.5
 
 # Modo edicion: se activa desde el boton "Editar Sala" del panel de perfil
 # (ver ui.gd). Mientras esta activo, tocar y arrastrar un objeto lo mueve; al
@@ -88,6 +121,8 @@ func _ready() -> void:
 	_colocar_jugador()
 	queue_redraw()
 	_cargar_objetos()
+	_crear_banner_gold()
+	actualizar_banner_gold()
 
 func _exit_tree() -> void:
 	# El taller usa el color de fondo por defecto; si no se restaura, al volver
@@ -148,6 +183,135 @@ func _dibujar_pared(base_ini: Vector2, base_fin: Vector2, altura: float, color: 
 
 	# Remate superior: una franja más clara para que se lea el grosor del muro.
 	draw_line(base_ini + Vector2(0, -altura), base_fin + Vector2(0, -altura), color.lightened(0.25), 8.0)
+
+# "TV" de "hazte Gold" colgada en la pared izquierda (de (0,0) a (ancho,0)):
+# marco oscuro + pantalla. Puramente cosmetico/de venta: no existe otro
+# efecto de juego, se oculta o muestra segun actualizar_banner_gold().
+func _crear_banner_gold() -> void:
+	_banner_gold_t = clampf(float(Supabase.current_room.get("gold_banner_t", 0.5)), 0.0, 1.0)
+
+	var h := float(RoomStyles.alto_pared(estilo))
+
+	# Proporcional al alto del muro: una sala de paredes bajas (terraza) tiene
+	# una TV chica, una de paredes altas (loft) la tiene grande, pero en
+	# ambas ocupa la misma fraccion de la pared y deja margen arriba/abajo.
+	var alto_tv := h * 0.85
+	var ancho_tv := alto_tv * 1.5
+	_banner_gold_tam = Vector2(ancho_tv, alto_tv)
+	const GROSOR_MARCO := 10.0
+
+	_banner_gold = Node2D.new()
+	add_child(_banner_gold)
+	# Mismo z_index que Barry y los objetos (0, todos quedan encima del muro
+	# por como se dibuja), pero primero en la lista de hijos: a igualdad de
+	# z_index, Godot pinta a los hermanos en orden, asi que esto la deja
+	# siempre detras de Barry y de cualquier mueble en vez de tapar al
+	# personaje cuando pasa justo enfrente.
+	move_child(_banner_gold, 0)
+	_actualizar_transform_banner_gold()
+
+	var marco := ColorRect.new()
+	marco.color = Color(0.05, 0.05, 0.06)
+	marco.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marco.offset_left = -ancho_tv * 0.5
+	marco.offset_top = -alto_tv * 0.5
+	marco.offset_right = ancho_tv * 0.5
+	marco.offset_bottom = alto_tv * 0.5
+	_banner_gold.add_child(marco)
+
+	var pantalla := ColorRect.new()
+	pantalla.color = Color(0.95, 0.76, 0.15)
+	pantalla.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pantalla.offset_left = marco.offset_left + GROSOR_MARCO
+	pantalla.offset_top = marco.offset_top + GROSOR_MARCO
+	pantalla.offset_right = marco.offset_right - GROSOR_MARCO
+	pantalla.offset_bottom = marco.offset_bottom - GROSOR_MARCO
+	_banner_gold.add_child(pantalla)
+
+	# "Premio" al azar arriba, texto de venta abajo: el mismo objeto se ve
+	# distinto en cada sala/refresco, como un anuncio de verdad.
+	var divisoria := pantalla.offset_top + (pantalla.offset_bottom - pantalla.offset_top) * 0.6
+
+	var premio := TextureRect.new()
+	premio.texture = OBJETOS_BANNER_GOLD.pick_random()
+	premio.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	premio.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	premio.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	premio.offset_left = pantalla.offset_left + 6.0
+	premio.offset_top = pantalla.offset_top + 4.0
+	premio.offset_right = pantalla.offset_right - 6.0
+	premio.offset_bottom = divisoria
+	_banner_gold.add_child(premio)
+
+	var texto := Label.new()
+	texto.text = "¡DINERO GRATIS! 💵"
+	texto.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texto.offset_left = pantalla.offset_left
+	texto.offset_top = divisoria
+	texto.offset_right = pantalla.offset_right
+	texto.offset_bottom = pantalla.offset_bottom
+	texto.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	texto.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	texto.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	texto.add_theme_color_override("font_color", Color(0.15, 0.85, 0.25))
+	texto.add_theme_font_size_override("font_size", int(alto_tv * 0.11))
+	_banner_gold.add_child(texto)
+
+# Extremos de la pared donde cuelga la TV (de (0,0) a (ancho,0)).
+func _banner_gold_pared() -> Array:
+	return [tile_a_mundo(0, 0), tile_a_mundo(ancho, 0)]
+
+# Reconstruye el transform de la TV a partir de _banner_gold_t. Se llama al
+# crearla y en cada frame de arrastre (ver _mover_banner_gold).
+func _actualizar_transform_banner_gold() -> void:
+	var pared := _banner_gold_pared()
+	var base_ini: Vector2 = pared[0]
+	var base_fin: Vector2 = pared[1]
+	var h := float(RoomStyles.alto_pared(estilo))
+	var centro := base_ini.lerp(base_fin, _banner_gold_t) + Vector2(0, -h * 0.5)
+	# Transform a mano, no rotation: el muro (ver _dibujar_pared) no esta
+	# rotado, esta "estirado" — el borde horizontal sigue la baldosa pero el
+	# vertical es recto (Vector2(0, -altura), sin componente en x). Una
+	# rotacion gira los dos ejes por igual y flota "de perfil" en vez de
+	# quedar pegada a la pared. El eje Y tiene que apuntar para abajo (no
+	# Vector2.UP): es hacia donde crecen los offset_top/bottom, y con UP el
+	# contenido queda espejado.
+	var direccion_pared := (base_fin - base_ini).normalized()
+	_banner_gold.transform = Transform2D(direccion_pared, Vector2.DOWN, centro)
+
+# Arrastra la TV a lo largo de la pared: proyecta el toque sobre la linea de
+# la pared y lo pasa a "t" (0.0-1.0), recortado para que la TV nunca
+# sobresalga de ninguna punta.
+func _mover_banner_gold(mundo: Vector2) -> void:
+	var pared := _banner_gold_pared()
+	var base_ini: Vector2 = pared[0]
+	var base_fin: Vector2 = pared[1]
+	var largo := base_ini.distance_to(base_fin)
+	if largo <= 0.0:
+		return
+
+	var direccion := (base_fin - base_ini) / largo
+	var t := (mundo - base_ini).dot(direccion) / largo
+
+	var margen := (_banner_gold_tam.x * 0.5) / largo
+	_banner_gold_t = clampf(t, margen, 1.0 - margen) if margen < 0.5 else 0.5
+	_actualizar_transform_banner_gold()
+
+# Persiste donde quedo la TV al soltarla (ver _unhandled_input).
+func _guardar_pos_banner_gold() -> void:
+	var room_id := str(Supabase.current_room.get("id", ""))
+	if room_id == "":
+		return
+	Supabase.current_room["gold_banner_t"] = _banner_gold_t
+	await Supabase.save_gold_banner_pos(room_id, _banner_gold_t)
+
+# Lo llama searchwork_ui.gd (via call()) justo despues de comprar la
+# membresia, para que el banner desaparezca sin tener que salir y volver a
+# entrar a la sala. _ready() tambien lo llama para el estado inicial.
+func actualizar_banner_gold() -> void:
+	if not is_instance_valid(_banner_gold):
+		return
+	_banner_gold.visible = not bool(Supabase.current_room.get("owner_gold", false))
 
 # El jugador se mueve libre por el suelo, así que el límite es el contorno del
 # rombo completo en modo segmentos: una pared invisible, no un bloque macizo.
@@ -266,7 +430,9 @@ func activar_edicion() -> void:
 func _salir_edicion() -> void:
 	editando = false
 	_arrastrando = null
+	_banner_gold_arrastrando = false
 	_marcar_seleccionado(null)
+	_marcar_banner_gold_seleccionado(false)
 	panel_edicion.visible = false
 	barry.visible = true
 	barry.collision_mask = MASCARA_COLISION_NORMAL
@@ -274,6 +440,10 @@ func _salir_edicion() -> void:
 # Cambia cual objeto esta marcado (contorno + rebote), apagando el anterior.
 # Pasar null limpia la seleccion sin marcar ninguno nuevo.
 func _marcar_seleccionado(objeto: WorldObject) -> void:
+	# Solo una cosa marcada a la vez: elegir un objeto real (o limpiar tocando
+	# el piso vacio) apaga el banner tambien.
+	_marcar_banner_gold_seleccionado(false)
+
 	if _seleccionado == objeto:
 		return
 	if is_instance_valid(_seleccionado):
@@ -282,6 +452,40 @@ func _marcar_seleccionado(objeto: WorldObject) -> void:
 	if is_instance_valid(_seleccionado):
 		_seleccionado.set_seleccionado(true)
 	btn_borrar_objeto.disabled = _seleccionado == null
+
+# El banner no es un WorldObject (no tiene fila en room_objects: no se puede
+# arrastrar ni borrar), asi que solo se marca con el mismo pulso que usan los
+# objetos reales, sin contorno ni boton de eliminar.
+func _marcar_banner_gold_seleccionado(activo: bool) -> void:
+	if activo:
+		_marcar_seleccionado(null)
+
+	if _banner_gold_seleccionado == activo or not is_instance_valid(_banner_gold):
+		return
+	_banner_gold_seleccionado = activo
+
+	if is_instance_valid(_tween_banner_gold):
+		_tween_banner_gold.kill()
+
+	if activo:
+		_tween_banner_gold = create_tween()
+		_tween_banner_gold.set_trans(Tween.TRANS_SINE)
+		_tween_banner_gold.set_ease(Tween.EASE_IN_OUT)
+		_tween_banner_gold.set_loops()
+		_tween_banner_gold.tween_property(_banner_gold, "scale", Vector2(1.05, 1.05), 1.0)
+		_tween_banner_gold.tween_property(_banner_gold, "scale", Vector2.ONE, 1.0)
+	else:
+		_banner_gold.scale = Vector2.ONE
+
+# Test de punto dentro del rectangulo de la TV, pasando el toque a su espacio
+# local (deshace el transform con inclinacion de _crear_banner_gold). Un
+# simple radio no alcanza: la TV puede ser bastante mas grande que
+# DISTANCIA_TOQUE en salas de paredes altas.
+func _banner_gold_en(mundo: Vector2) -> bool:
+	if not is_instance_valid(_banner_gold) or not _banner_gold.visible:
+		return false
+	var local := _banner_gold.transform.affine_inverse() * mundo
+	return absf(local.x) <= _banner_gold_tam.x * 0.5 and absf(local.y) <= _banner_gold_tam.y * 0.5
 
 # Confirma (sin reembolso, se lo avisa en el modal) y borra el objeto
 # marcado: primero en la base, y solo si eso sale bien lo saca de la sala.
@@ -325,18 +529,35 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventScreenTouch or event is InputEventMouseButton:
 		if event.pressed:
-			var tocado := _objeto_en(get_global_mouse_position())
+			var mundo := get_global_mouse_position()
+
+			# La TV se arrastra distinto a un objeto de piso: solo a lo largo
+			# de la pared (ver _mover_banner_gold), no libremente.
+			if _banner_gold_en(mundo):
+				_marcar_banner_gold_seleccionado(true)
+				_banner_gold_arrastrando = true
+				_arrastrando = null
+				return
+
+			_banner_gold_arrastrando = false
+			var tocado := _objeto_en(mundo)
 			# Tocar un objeto lo selecciona y arranca el arrastre en el mismo
 			# gesto (como antes); tocar el piso vacio solo limpia la
 			# seleccion. La marca (contorno + rebote) ya no se apaga al
 			# soltar: queda "preseleccionada" hasta tocar otra cosa.
 			_marcar_seleccionado(tocado)
 			_arrastrando = tocado
+		elif _banner_gold_arrastrando:
+			_banner_gold_arrastrando = false
+			_guardar_pos_banner_gold()
 		elif _arrastrando != null:
 			_soltar_objeto(_arrastrando)
 			_arrastrando = null
-	elif (event is InputEventScreenDrag or event is InputEventMouseMotion) and _arrastrando != null:
-		_arrastrando.position = _posicion_mundo_clampeada()
+	elif event is InputEventScreenDrag or event is InputEventMouseMotion:
+		if _banner_gold_arrastrando:
+			_mover_banner_gold(get_global_mouse_position())
+		elif _arrastrando != null:
+			_arrastrando.position = _posicion_mundo_clampeada()
 
 # Traduce el toque a mundo pasando primero por la zona segura de pantalla
 # (ZONA_ENFOQUE): si el dedo se va debajo del joystick/boton de accion, el
