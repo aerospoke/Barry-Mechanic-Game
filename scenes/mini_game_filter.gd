@@ -7,13 +7,18 @@ extends Node2D
 # pantallas de carga se vean identicas.
 #
 # El desafio es un cambio de filtro real:
-#   1) Arrastrar el destornillador a cada tornillo de la tapa para aflojarlos.
+#   1) Arrastrar el destornillador a cada tornillo de la tapa: gira, para y
+#      se corre solo (queda "sacado" a un costado). Al terminar los dos, el
+#      destornillador vuelve solo a su lugar y aparece una mano señalando
+#      la tapa.
 #   2) Arrastrar la tapa para destapar la carcasa.
-#   3) Arrastrar el filtro viejo a la papelera.
+#   3) Arrastrar el filtro viejo a la basura.
 #   4) Arrastrar el filtro nuevo (desde su caja) a la carcasa.
 #   5) Automatico: a los 2s la tapa vuelve sola y los tornillos se acomodan
 #      uno por uno (el filtro nuevo queda tapado, ya no se ve).
-#   6) Arrastrar el destornillador de nuevo a cada tornillo para apretarlos.
+#   6) Arrastrar el destornillador de nuevo a cada tornillo para apretarlos
+#      (gira in-situ). Al terminar, el destornillador vuelve a su lugar y
+#      recien ahi se muestra el resultado.
 #
 # Cada arrastre que se suelta fuera de su destino cuenta como error (ver
 # scripts/draggable_2d.gd).
@@ -36,6 +41,7 @@ extends Node2D
 @onready var marca_papelera = $ContenedorJuego/MarcaPapelera
 @onready var marca_tornillo_izq = $ContenedorJuego/MarcaTornilloIzq
 @onready var marca_tornillo_der = $ContenedorJuego/MarcaTornilloDer
+@onready var mano_ayuda = $ContenedorJuego/ManoAyuda
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
 
@@ -53,7 +59,7 @@ const TUTORIAL := [
 	},
 	{
 		"titulo": "Arrastrar las piezas",
-		"texto": "Con los tornillos flojos, arrastra la tapa para destapar la carcasa.\n\nDespues arrastra el filtro viejo hasta la papelera, y el nuevo desde su caja hasta la carcasa.",
+		"texto": "Con los tornillos flojos, arrastra la tapa para destapar la carcasa.\n\nDespues arrastra el filtro viejo hasta la basura, y el nuevo desde su caja hasta la carcasa.",
 	},
 	{
 		"titulo": "Cuidado al soltar",
@@ -71,6 +77,9 @@ const CINE_SALIDA: float = 1.4
 
 # Espera entre poner el filtro nuevo y que arranque la animacion de cierre.
 const ESPERA_CIERRE_AUTOMATICO: float = 2.0
+
+# Pausa entre que el tornillo termina de girar y arranca a correrse solo.
+const PAUSA_ANTES_DE_CORRER: float = 0.5
 
 var escala_original: Vector2
 
@@ -99,6 +108,11 @@ var errores: int = 0
 var juego_terminado: bool = false
 var tutorial_activo: bool = false
 
+# Posicion de "casa" del destornillador, para que siempre vuelva ahi solo
+# cuando termina de usarse (aflojar los dos, o apretar los dos).
+var _destornillador_casa: Vector2
+var _tween_mano: Tween
+
 const TRAMOS_PRECISION := [
 	{"max_errores": 0, "pago": 0.5, "puntos": 3, "titulo": "¡Perfecto!", "detalle": "Ningun error."},
 	{"max_errores": 1, "pago": 0.25, "puntos": 2, "titulo": "Muy bien", "detalle": "Casi sin errores."},
@@ -122,9 +136,13 @@ func _ready() -> void:
 	_tornillo_izq_afuera = _tornillo_izq_puesto + Vector2(-70.0, -55.0)
 	_tornillo_der_puesto = tornillo_derecho.position
 	_tornillo_der_afuera = _tornillo_der_puesto + Vector2(70.0, -55.0)
+	_destornillador_casa = destornillador.global_position
+
+	mano_ayuda.visible = false
 
 	_configurar_estado_inicial()
 
+	tapa.agarrado.connect(_ocultar_mano)
 	tapa.soltado_en_destino.connect(_on_tapa_ok)
 	tapa.soltado_fuera.connect(_on_error)
 	filtro_viejo.soltado_en_destino.connect(_on_filtro_viejo_ok)
@@ -220,8 +238,9 @@ func _iniciar_paso(paso: Paso) -> void:
 			label_instruccion.text = "Arrastra la tapa hacia abajo para destaparla."
 			tapa.destino = marca_abierta
 			tapa.habilitado = true
+			_mostrar_mano_en(tapa.global_position + Vector2(0.0, 90.0))
 		Paso.SACAR_VIEJO:
-			label_instruccion.text = "Arrastra el filtro viejo hasta la papelera."
+			label_instruccion.text = "Arrastra el filtro viejo hasta la basura."
 			filtro_viejo.visible = true
 			filtro_viejo.habilitado = true
 		Paso.PONER_NUEVO:
@@ -237,7 +256,30 @@ func _iniciar_paso(paso: Paso) -> void:
 
 func _on_tapa_ok() -> void:
 	tapa.habilitado = false
+	_ocultar_mano()
 	_iniciar_paso(Paso.SACAR_VIEJO)
+
+# Mano de ayuda que señala la proxima pieza para arrastrar: rebota en el
+# lugar hasta que se agarra la pieza o se completa el paso. `pos` es el
+# centro deseado; el Label esta centrado en offsets, por eso se corrige por
+# la mitad de su tamaño (44x44) antes de posicionarlo.
+func _mostrar_mano_en(pos: Vector2) -> void:
+	var origen := pos - Vector2(22.0, 22.0)
+	mano_ayuda.position = origen
+	mano_ayuda.visible = true
+	mano_ayuda.modulate.a = 1.0
+
+	_tween_mano = create_tween()
+	_tween_mano.set_loops()
+	_tween_mano.set_trans(Tween.TRANS_SINE)
+	_tween_mano.set_ease(Tween.EASE_IN_OUT)
+	_tween_mano.tween_property(mano_ayuda, "position:y", origen.y + 25.0, 0.5)
+	_tween_mano.tween_property(mano_ayuda, "position:y", origen.y, 0.5)
+
+func _ocultar_mano() -> void:
+	if _tween_mano:
+		_tween_mano.kill()
+	mano_ayuda.visible = false
 
 func _on_filtro_viejo_ok() -> void:
 	filtro_viejo.habilitado = false
@@ -276,41 +318,58 @@ func _animacion_cierre_automatico() -> void:
 	await get_tree().create_timer(0.2).timeout
 	await _mover_tornillo(tornillo_derecho, _tornillo_der_puesto)
 
-func _mover_tornillo(tornillo: Label, destino_pos: Vector2) -> void:
+func _mover_tornillo(tornillo: Node2D, destino_pos: Vector2) -> void:
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_BACK)
 	tween.set_ease(Tween.EASE_OUT)
 	tween.tween_property(tornillo, "position", destino_pos, 0.35)
 	await tween.finished
 
-# Gira el tornillo un par de vueltas: -1 para aflojar (sentido antihorario),
-# 1 para apretar (sentido horario). Es solo cosmetico, no bloquea nada.
-func _girar_tornillo(tornillo: Label, sentido: float) -> void:
+# Gira el tornillo un par de vueltas y se detiene: -1 para aflojar (sentido
+# antihorario), 1 para apretar (sentido horario). Se espera a que termine de
+# girar antes de dejarlo correrse (ver _on_destornillador_ok).
+func _girar_tornillo(tornillo: Node2D, sentido: float) -> void:
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.tween_property(tornillo, "rotation", tornillo.rotation + sentido * TAU * 2.0, 0.4)
+	await tween.finished
 
 func _on_destornillador_ok() -> void:
 	var objetivo = destornillador.destino
 	var es_izquierdo: bool = objetivo == marca_tornillo_izq
-	var tornillo: Label = tornillo_izquierdo if es_izquierdo else tornillo_derecho
+	var tornillo: Node2D = tornillo_izquierdo if es_izquierdo else tornillo_derecho
 
+	# Primero gira y se detiene, espera un poco y recien ahi se corre solo:
+	# nunca las tres cosas a la vez.
 	if paso_actual == Paso.ABRIR_TORNILLOS:
-		_girar_tornillo(tornillo, -1.0)
-		_mover_tornillo(tornillo, _tornillo_izq_afuera if es_izquierdo else _tornillo_der_afuera)
+		await _girar_tornillo(tornillo, -1.0)
+		await get_tree().create_timer(PAUSA_ANTES_DE_CORRER).timeout
+		await _mover_tornillo(tornillo, _tornillo_izq_afuera if es_izquierdo else _tornillo_der_afuera)
 	elif paso_actual == Paso.CERRAR_TORNILLOS:
-		_girar_tornillo(tornillo, 1.0)
+		await _girar_tornillo(tornillo, 1.0)
 
 	tornillos_pendientes.erase(objetivo)
 
-	if tornillos_pendientes.is_empty():
-		destornillador.habilitado = false
-		if paso_actual == Paso.ABRIR_TORNILLOS:
-			_iniciar_paso(Paso.LEVANTAR_TAPA)
-		elif paso_actual == Paso.CERRAR_TORNILLOS:
-			_iniciar_paso(Paso.TERMINADO)
-	else:
+	if not tornillos_pendientes.is_empty():
 		destornillador.destino = tornillos_pendientes[0]
+		return
+
+	# Los dos tornillos listos: el destornillador vuelve solo a su lugar
+	# antes de habilitar el siguiente paso (o mostrar el resultado final).
+	destornillador.habilitado = false
+	await _volver_destornillador_a_casa()
+
+	if paso_actual == Paso.ABRIR_TORNILLOS:
+		_iniciar_paso(Paso.LEVANTAR_TAPA)
+	elif paso_actual == Paso.CERRAR_TORNILLOS:
+		_iniciar_paso(Paso.TERMINADO)
+
+func _volver_destornillador_a_casa() -> void:
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(destornillador, "global_position", _destornillador_casa, 0.5)
+	await tween.finished
 
 # Cualquier pieza que se suelta lejos de su destino cuenta como error, sin
 # importar cual sea: es siempre "intentaste mal ese paso".

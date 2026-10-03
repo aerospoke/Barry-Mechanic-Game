@@ -5,8 +5,22 @@
 [ext_resource type="Texture2D" uid="uid://csww2t4o2j7ml" path="res://enginesCars/engine1.png" id="3_engine"]
 [ext_resource type="Texture2D" uid="uid://b05knl32nanbh" path="res://objetos/work2.png" id="4_viejo"]
 [ext_resource type="Texture2D" uid="uid://b644auqvab41q" path="res://objetos/airflow2.png" id="5_nuevo"]
-[ext_resource type="Texture2D" uid="uid://dtc1ruteqe21r" path="res://objetos/boxFilters.png" id="6_caja"]
 [ext_resource type="Texture2D" uid="uid://cwu0yeqbdvter" path="res://objetos/Estantes/basura.png" id="7_papelera"]
+[ext_resource type="Texture2D" uid="uid://b0bdr1bllv7sr" path="res://objetos/tornilloX.png" id="8_tornillo"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_carcasa"]
+bg_color = Color(0.22, 0.22, 0.25, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tapa"]
+bg_color = Color(0.5, 0.5, 0.55, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
 
 [node name="Node2D" type="Node2D" unique_id=5000000001]
 script = ExtResource("1_script")
@@ -42,12 +56,12 @@ theme_override_font_sizes/font_size = 17
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="CarcasaBase" type="ColorRect" parent="ContenedorJuego" unique_id=5000000007]
+[node name="CarcasaBase" type="Panel" parent="ContenedorJuego" unique_id=5000000007]
 offset_left = 110.0
 offset_top = 200.0
 offset_right = 310.0
 offset_bottom = 320.0
-color = Color(0.22, 0.22, 0.25, 1)
+theme_override_styles/panel = SubResource("StyleBoxFlat_carcasa")
 
 [node name="RanuraFiltro" type="ColorRect" parent="ContenedorJuego" unique_id=5000000008]
 offset_left = 130.0
@@ -70,12 +84,12 @@ script = ExtResource("2_drag")
 radio_destino = 55.0
 radio_agarre = 70.0
 
-[node name="TapaVisual" type="ColorRect" parent="ContenedorJuego/Tapa" unique_id=5000000011]
+[node name="TapaVisual" type="Panel" parent="ContenedorJuego/Tapa" unique_id=5000000011]
 offset_left = -100.0
 offset_top = -70.0
 offset_right = 100.0
 offset_bottom = 70.0
-color = Color(0.5, 0.5, 0.55, 1)
+theme_override_styles/panel = SubResource("StyleBoxFlat_tapa")
 
 [node name="TapaLabel" type="Label" parent="ContenedorJuego/Tapa" unique_id=5000000012]
 offset_left = -60.0
@@ -87,56 +101,35 @@ horizontal_alignment = 1
 vertical_alignment = 1
 text = "TAPA"
 
-[node name="TornilloIzquierdo" type="Label" parent="ContenedorJuego" unique_id=5000000013]
-offset_left = 98.0
-offset_top = 183.0
-offset_right = 146.0
-offset_bottom = 231.0
-pivot_offset = Vector2(24, 24)
-theme_override_font_sizes/font_size = 28
-theme_override_colors/font_color = Color(0.75, 0.76, 0.8, 1)
-horizontal_alignment = 1
-vertical_alignment = 1
-mouse_filter = 2
-text = "✕"
+[node name="TornilloIzquierdo" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000013]
+position = Vector2(135, 216)
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("8_tornillo")
 
-[node name="TornilloDerecho" type="Label" parent="ContenedorJuego" unique_id=5000000014]
-offset_left = 274.0
-offset_top = 183.0
-offset_right = 322.0
-offset_bottom = 231.0
-pivot_offset = Vector2(24, 24)
-theme_override_font_sizes/font_size = 28
-theme_override_colors/font_color = Color(0.75, 0.76, 0.8, 1)
-horizontal_alignment = 1
-vertical_alignment = 1
-mouse_filter = 2
-text = "✕"
+[node name="TornilloDerecho" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000014]
+position = Vector2(285, 216)
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("8_tornillo")
 
 [node name="Destornillador" type="Node2D" parent="ContenedorJuego" unique_id=5000000021]
-position = Vector2(210, 700)
+position = Vector2(210, 650)
 script = ExtResource("2_drag")
 radio_destino = 45.0
-radio_agarre = 60.0
+radio_agarre = 75.0
 
 [node name="DestornilladorLabel" type="Label" parent="ContenedorJuego/Destornillador" unique_id=5000000022]
-offset_left = -26.0
-offset_top = -26.0
-offset_right = 26.0
-offset_bottom = 26.0
-theme_override_font_sizes/font_size = 36
+offset_left = -36.0
+offset_top = -36.0
+offset_right = 36.0
+offset_bottom = 36.0
+theme_override_font_sizes/font_size = 54
 horizontal_alignment = 1
 vertical_alignment = 1
 mouse_filter = 2
 text = "🪛"
 
-[node name="CajaNueva" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000015]
-position = Vector2(330, 560)
-scale = Vector2(0.55, 0.55)
-texture = ExtResource("6_caja")
-
 [node name="FiltroNuevo" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000016]
-position = Vector2(330, 560)
+position = Vector2(330, 650)
 scale = Vector2(0.45, 0.45)
 texture = ExtResource("5_nuevo")
 script = ExtResource("2_drag")
@@ -144,8 +137,9 @@ radio_destino = 55.0
 radio_agarre = 65.0
 
 [node name="Papelera" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000017]
-position = Vector2(90, 560)
+position = Vector2(90, 650)
 scale = Vector2(0.085, 0.085)
+offset = Vector2(43.5, -248.0)
 texture = ExtResource("7_papelera")
 
 [node name="MarcaRanura" type="Marker2D" parent="ContenedorJuego" unique_id=5000000018]
@@ -155,10 +149,21 @@ position = Vector2(210, 260)
 position = Vector2(210, 480)
 
 [node name="MarcaPapelera" type="Marker2D" parent="ContenedorJuego" unique_id=5000000020]
-position = Vector2(90, 560)
+position = Vector2(90, 650)
 
 [node name="MarcaTornilloIzq" type="Marker2D" parent="ContenedorJuego" unique_id=5000000023]
-position = Vector2(122, 207)
+position = Vector2(135, 216)
 
 [node name="MarcaTornilloDer" type="Marker2D" parent="ContenedorJuego" unique_id=5000000024]
-position = Vector2(298, 207)
+position = Vector2(285, 216)
+
+[node name="ManoAyuda" type="Label" parent="ContenedorJuego" unique_id=5000000025]
+offset_left = -22.0
+offset_top = -22.0
+offset_right = 22.0
+offset_bottom = 22.0
+theme_override_font_sizes/font_size = 40
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+text = "👇"

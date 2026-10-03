@@ -1,16 +1,17 @@
 extends Node2D
 
 # Componente generico para arrastrar un Node2D con mouse/touch (el proyecto
-# emula mouse desde touch, ver project.godot). Se agarra dentro de
-# `radio_agarre`, y al soltar SIEMPRE se acomoda con una animacion corta: si
-# quedo a `radio_destino` o menos de `destino`, se ajusta ahi y emite
-# `soltado_en_destino`; si no, vuelve a la ultima posicion valida y emite
-# `soltado_fuera`. Nunca se queda flotando donde se solto.
+# emula mouse desde touch, ver project.godot). Emite `agarrado` al tomarlo.
+# Se agarra dentro de `radio_agarre`, y al soltar SIEMPRE se acomoda con una
+# animacion corta: si quedo a `radio_destino` o menos de `destino`, se ajusta
+# ahi y emite `soltado_en_destino`; si no, vuelve a la ultima posicion valida
+# y emite `soltado_fuera`. Nunca se queda flotando donde se solto.
 #
 # `destino` se puede reasignar en tiempo de ejecucion (ej: primero arrastrar
 # hacia afuera, despues devolver al mismo lugar) para reusar la misma pieza
 # en dos pasos distintos de un minijuego.
 
+signal agarrado
 signal soltado_en_destino
 signal soltado_fuera
 
@@ -42,6 +43,7 @@ func _input(event: InputEvent) -> void:
 				_offset = global_position - event.position
 				z_index = 100
 				get_viewport().set_input_as_handled()
+				agarrado.emit()
 		elif _arrastrando:
 			_arrastrando = false
 			z_index = 0
