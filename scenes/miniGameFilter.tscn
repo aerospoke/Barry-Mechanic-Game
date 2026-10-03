@@ -1,100 +1,164 @@
 [gd_scene format=3 uid="uid://c4h8m3fxwta02"]
 
 [ext_resource type="Script" path="res://scenes/mini_game_filter.gd" id="1_script"]
-[ext_resource type="Texture2D" uid="uid://beixat01cyk7y" path="res://objetos/airFlow1.png" id="2_filtro"]
-[ext_resource type="Texture2D" uid="uid://c1onwmveayjyi" path="res://buttons_ui/arrow_down_normal.png" id="3_arrow_n"]
-[ext_resource type="Texture2D" uid="uid://b4qijw8fq8aw6" path="res://buttons_ui/arrow_down_pressed.png" id="4_arrow_p"]
+[ext_resource type="Script" path="res://scripts/draggable_2d.gd" id="2_drag"]
+[ext_resource type="Texture2D" uid="uid://csww2t4o2j7ml" path="res://enginesCars/engine1.png" id="3_engine"]
+[ext_resource type="Texture2D" uid="uid://b05knl32nanbh" path="res://objetos/work2.png" id="4_viejo"]
+[ext_resource type="Texture2D" uid="uid://b644auqvab41q" path="res://objetos/airflow2.png" id="5_nuevo"]
+[ext_resource type="Texture2D" uid="uid://dtc1ruteqe21r" path="res://objetos/boxFilters.png" id="6_caja"]
+[ext_resource type="Texture2D" uid="uid://cwu0yeqbdvter" path="res://objetos/Estantes/basura.png" id="7_papelera"]
 
-[node name="Node2D" type="Node2D" unique_id=884113602]
+[node name="Node2D" type="Node2D" unique_id=5000000001]
 script = ExtResource("1_script")
 
-[node name="Fondo" type="ColorRect" parent="." unique_id=884113603]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.08, 0.08, 0.09, 1)
-
-[node name="FiltroCine" type="Sprite2D" parent="." unique_id=884113604]
-position = Vector2(210, 300)
-scale = Vector2(0.7, 0.7)
-texture = ExtResource("2_filtro")
-
-[node name="FiltroOscuro" type="ColorRect" parent="." unique_id=884113605]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="Fondo" type="ColorRect" parent="." unique_id=5000000002]
+offset_left = -2.0
+offset_top = -7.0
+offset_right = 425.0
+offset_bottom = 785.0
 color = Color(0, 0, 0, 1)
 
-[node name="ContenedorJuego" type="Node2D" parent="." unique_id=884113606]
+[node name="FiltroCine" type="Sprite2D" parent="." unique_id=5000000003]
+position = Vector2(200, 434)
+scale = Vector2(0.28356484, 0.2835648)
+texture = ExtResource("3_engine")
 
-[node name="FiltroSprite" type="Sprite2D" parent="ContenedorJuego" unique_id=884113607]
-position = Vector2(210, 150)
-scale = Vector2(0.45, 0.45)
-texture = ExtResource("2_filtro")
+[node name="FiltroOscuro" type="ColorRect" parent="." unique_id=5000000004]
+offset_left = -25.0
+offset_top = -46.0
+offset_right = 402.0
+offset_bottom = 746.0
+scale = Vector2(1.0994278, 1.1553752)
+color = Color(0, 0, 0, 1)
 
-[node name="LabelLimpieza" type="Label" parent="ContenedorJuego" unique_id=884113608]
-offset_left = 40.0
-offset_top = 260.0
-offset_right = 380.0
-offset_bottom = 288.0
-theme_override_font_sizes/font_size = 18
-text = "Limpieza: 0%"
+[node name="ContenedorJuego" type="Node2D" parent="." unique_id=5000000005]
 
-[node name="RielLimpieza" type="ColorRect" parent="ContenedorJuego" unique_id=884113609]
-offset_left = 40.0
-offset_top = 292.0
-offset_right = 380.0
-offset_bottom = 316.0
-color = Color(0.15, 0.15, 0.18, 1)
-
-[node name="RellenoLimpieza" type="ColorRect" parent="ContenedorJuego" unique_id=884113610]
-offset_left = 40.0
-offset_top = 292.0
-offset_right = 40.0
-offset_bottom = 316.0
-color = Color(0.4, 0.85, 0.45, 1)
-
-[node name="LabelPresion" type="Label" parent="ContenedorJuego" unique_id=884113611]
-offset_left = 40.0
-offset_top = 350.0
-offset_right = 380.0
-offset_bottom = 378.0
-theme_override_font_sizes/font_size = 18
-text = "Presion: 0%"
-
-[node name="RielPresion" type="ColorRect" parent="ContenedorJuego" unique_id=884113612]
-offset_left = 40.0
-offset_top = 382.0
-offset_right = 380.0
-offset_bottom = 406.0
-color = Color(0.15, 0.15, 0.18, 1)
-
-[node name="RellenoPresion" type="ColorRect" parent="ContenedorJuego" unique_id=884113613]
-offset_left = 40.0
-offset_top = 382.0
-offset_right = 40.0
-offset_bottom = 406.0
-color = Color(0.85, 0.4, 0.3, 1)
-
-[node name="LabelInstruccion" type="Label" parent="ContenedorJuego" unique_id=884113614]
-offset_left = 30.0
-offset_top = 450.0
-offset_right = 390.0
-offset_bottom = 500.0
-theme_override_font_sizes/font_size = 15
+[node name="LabelInstruccion" type="Label" parent="ContenedorJuego" unique_id=5000000006]
+offset_left = 20.0
+offset_top = 40.0
+offset_right = 400.0
+offset_bottom = 100.0
+theme_override_font_sizes/font_size = 17
 horizontal_alignment = 1
 autowrap_mode = 3
-text = "Manten pulsado para soplar. Sueltalo antes de que la presion llegue al tope."
 
-[node name="buttonAction" type="TouchScreenButton" parent="ContenedorJuego" unique_id=884113615]
-position = Vector2(210, 640)
-scale = Vector2(2.865, 2.865)
-texture_normal = ExtResource("3_arrow_n")
-texture_pressed = ExtResource("4_arrow_p")
-action = "ui_accept"
+[node name="CarcasaBase" type="ColorRect" parent="ContenedorJuego" unique_id=5000000007]
+offset_left = 110.0
+offset_top = 200.0
+offset_right = 310.0
+offset_bottom = 320.0
+color = Color(0.22, 0.22, 0.25, 1)
+
+[node name="RanuraFiltro" type="ColorRect" parent="ContenedorJuego" unique_id=5000000008]
+offset_left = 130.0
+offset_top = 220.0
+offset_right = 290.0
+offset_bottom = 300.0
+color = Color(0.1, 0.1, 0.12, 1)
+
+[node name="FiltroViejo" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000009]
+position = Vector2(210, 260)
+scale = Vector2(0.45, 0.45)
+texture = ExtResource("4_viejo")
+script = ExtResource("2_drag")
+radio_destino = 55.0
+radio_agarre = 65.0
+
+[node name="Tapa" type="Node2D" parent="ContenedorJuego" unique_id=5000000010]
+position = Vector2(210, 260)
+script = ExtResource("2_drag")
+radio_destino = 55.0
+radio_agarre = 70.0
+
+[node name="TapaVisual" type="ColorRect" parent="ContenedorJuego/Tapa" unique_id=5000000011]
+offset_left = -100.0
+offset_top = -70.0
+offset_right = 100.0
+offset_bottom = 70.0
+color = Color(0.5, 0.5, 0.55, 1)
+
+[node name="TapaLabel" type="Label" parent="ContenedorJuego/Tapa" unique_id=5000000012]
+offset_left = -60.0
+offset_top = -14.0
+offset_right = 60.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "TAPA"
+
+[node name="TornilloIzquierdo" type="Label" parent="ContenedorJuego" unique_id=5000000013]
+offset_left = 98.0
+offset_top = 183.0
+offset_right = 146.0
+offset_bottom = 231.0
+pivot_offset = Vector2(24, 24)
+theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(0.75, 0.76, 0.8, 1)
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+text = "✕"
+
+[node name="TornilloDerecho" type="Label" parent="ContenedorJuego" unique_id=5000000014]
+offset_left = 274.0
+offset_top = 183.0
+offset_right = 322.0
+offset_bottom = 231.0
+pivot_offset = Vector2(24, 24)
+theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(0.75, 0.76, 0.8, 1)
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+text = "✕"
+
+[node name="Destornillador" type="Node2D" parent="ContenedorJuego" unique_id=5000000021]
+position = Vector2(210, 700)
+script = ExtResource("2_drag")
+radio_destino = 45.0
+radio_agarre = 60.0
+
+[node name="DestornilladorLabel" type="Label" parent="ContenedorJuego/Destornillador" unique_id=5000000022]
+offset_left = -26.0
+offset_top = -26.0
+offset_right = 26.0
+offset_bottom = 26.0
+theme_override_font_sizes/font_size = 36
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+text = "🪛"
+
+[node name="CajaNueva" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000015]
+position = Vector2(330, 560)
+scale = Vector2(0.55, 0.55)
+texture = ExtResource("6_caja")
+
+[node name="FiltroNuevo" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000016]
+position = Vector2(330, 560)
+scale = Vector2(0.45, 0.45)
+texture = ExtResource("5_nuevo")
+script = ExtResource("2_drag")
+radio_destino = 55.0
+radio_agarre = 65.0
+
+[node name="Papelera" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000017]
+position = Vector2(90, 560)
+scale = Vector2(0.085, 0.085)
+texture = ExtResource("7_papelera")
+
+[node name="MarcaRanura" type="Marker2D" parent="ContenedorJuego" unique_id=5000000018]
+position = Vector2(210, 260)
+
+[node name="MarcaAbierta" type="Marker2D" parent="ContenedorJuego" unique_id=5000000019]
+position = Vector2(210, 480)
+
+[node name="MarcaPapelera" type="Marker2D" parent="ContenedorJuego" unique_id=5000000020]
+position = Vector2(90, 560)
+
+[node name="MarcaTornilloIzq" type="Marker2D" parent="ContenedorJuego" unique_id=5000000023]
+position = Vector2(122, 207)
+
+[node name="MarcaTornilloDer" type="Marker2D" parent="ContenedorJuego" unique_id=5000000024]
+position = Vector2(298, 207)
