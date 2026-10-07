@@ -28,6 +28,7 @@ extends Node2D
 @onready var button_action: TouchScreenButton = $ContenedorJuego/buttonAction
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
+const Efectos = preload("res://scripts/efectos.gd")
 
 # Id en el catalogo `tutorials` (ver sql/tutorials_minigame_oil_v2.sql).
 # Es uno nuevo, no "minigame_oil": las reglas cambiaron y quien ya vio el
@@ -292,11 +293,11 @@ func _gota_atrapada() -> void:
 	tween.tween_property(embudo, "scale", Vector2.ONE, 0.1)
 
 	if combo > 0 and combo % 10 == 0:
-		_texto_flotante("¡Combo x%d!" % combo, Vector2(embudo.position.x, BOCA_EMBUDO_Y - 60), Color(1, 0.85, 0.3))
+		Efectos.texto_flotante(contenedor_juego, "¡Combo x%d!" % combo, Vector2(embudo.position.x, BOCA_EMBUDO_Y - 60), Color(1, 0.85, 0.3))
 
 	if not embudo_movil and nivel_motor >= NIVEL_EMBUDO_MOVIL:
 		embudo_movil = true
-		_texto_flotante("¡El embudo se mueve!", Vector2(210, 330), Color(0.5, 0.85, 1.0))
+		Efectos.texto_flotante(contenedor_juego, "¡El embudo se mueve!", Vector2(210, 330), Color(0.5, 0.85, 1.0))
 
 	_actualizar_ui()
 
@@ -308,6 +309,7 @@ func _mancha(nodo: Polygon2D) -> void:
 	manchas += 1
 	combo = 0
 	nodo.position.y = PISO_Y + randf_range(0.0, 12.0)
+	Efectos.nube(gotas_nodo, nodo.position, COLOR_ACEITE, 4, 18.0, 0.35)
 
 	var tween := create_tween()
 	tween.tween_property(nodo, "scale", Vector2(2.2, 0.5), 0.08)
@@ -335,26 +337,6 @@ func _actualizar_ui() -> void:
 
 	var alto := MEDIDOR_ALTO * nivel_motor / 100.0
 	medidor_relleno.offset_top = MEDIDOR_ABAJO - alto
-
-func _texto_flotante(texto: String, pos: Vector2, color: Color) -> void:
-	var label := Label.new()
-	label.text = texto
-	label.add_theme_font_size_override("font_size", 24)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color.BLACK)
-	label.add_theme_constant_override("outline_size", 6)
-	contenedor_juego.add_child(label)
-	label.position = pos - label.get_combined_minimum_size() / 2.0
-	label.pivot_offset = label.get_combined_minimum_size() / 2.0
-	label.scale = Vector2(0.5, 0.5)
-
-	var tween := create_tween()
-	tween.set_trans(Tween.TRANS_BACK)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.tween_property(label, "scale", Vector2.ONE, 0.25)
-	tween.tween_property(label, "position:y", label.position.y - 40.0, 0.8)
-	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.8)
-	tween.tween_callback(label.queue_free)
 
 func _flash_label(label: Label, color: Color) -> void:
 	label.modulate = color

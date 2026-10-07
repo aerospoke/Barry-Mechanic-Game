@@ -22,6 +22,10 @@ extends Node2D
 #
 # Cada arrastre que se suelta fuera de su destino cuenta como error (ver
 # scripts/draggable_2d.gd).
+#
+# Cada paso festeja con efectos (ver scripts/efectos.gd): textos que saltan,
+# polvo del filtro sucio, chispas, sacudidas y una racha de aciertos
+# seguidos sin errores.
 
 # --- NODOS DE LA CINEMÁTICA (identica a mini_game_oil.gd) ---
 @onready var engine_sprite = $FiltroCine
@@ -42,8 +46,19 @@ extends Node2D
 @onready var marca_tornillo_izq = $ContenedorJuego/MarcaTornilloIzq
 @onready var marca_tornillo_der = $ContenedorJuego/MarcaTornilloDer
 @onready var mano_ayuda = $ContenedorJuego/ManoAyuda
+@onready var papelera: Sprite2D = $ContenedorJuego/Papelera
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
+const Efectos = preload("res://scripts/efectos.gd")
+
+const COLOR_OK := Color(0.45, 1.0, 0.55)
+const COLOR_ERROR := Color(1.0, 0.4, 0.35)
+const COLOR_POLVO := Color(0.55, 0.45, 0.3, 0.8)
+const COLOR_CHISPA := Color(1.0, 0.9, 0.45)
+const COLOR_METAL := Color(0.8, 0.82, 0.86)
+
+# Aciertos seguidos sin errores; desde RACHA_MINIMA se muestra en pantalla.
+const RACHA_MINIMA := 3
 
 # Id en el catalogo `tutorials` (ver sql/tutorials_minigame_filter.sql).
 const ID_TUTORIAL := "minigame_filter"
@@ -105,6 +120,9 @@ var _tornillo_der_puesto: Vector2
 var _tornillo_der_afuera: Vector2
 
 var errores: int = 0
+var racha: int = 0
+# Polvo que larga el filtro viejo mientras esta a la vista (ver _soltar_polvo).
+var _tween_polvo: Tween
 var juego_terminado: bool = false
 var tutorial_activo: bool = false
 
@@ -145,6 +163,7 @@ func _ready() -> void:
 	tapa.agarrado.connect(_ocultar_mano)
 	tapa.soltado_en_destino.connect(_on_tapa_ok)
 	tapa.soltado_fuera.connect(_on_error)
+	filtro_viejo.agarrado.connect(func(): Efectos.nube(contenedor_juego, filtro_viejo.global_position, COLOR_POLVO, 8, 50.0))
 	filtro_viejo.soltado_en_destino.connect(_on_filtro_viejo_ok)
 	filtro_viejo.soltado_fuera.connect(_on_error)
 	filtro_nuevo.soltado_en_destino.connect(_on_filtro_nuevo_ok)
@@ -257,7 +276,23 @@ func _iniciar_paso(paso: Paso) -> void:
 func _on_tapa_ok() -> void:
 	tapa.habilitado = false
 	_ocultar_mano()
+	_acierto("¡Destapado!", tapa.global_position)
 	_iniciar_paso(Paso.SACAR_VIEJO)
+
+	# El filtro viejo aparece con un rebote y una nube de tierra: esta sucio.
+	Efectos.nube(contenedor_juego, filtro_viejo.global_position, COLOR_POLVO, 14, 70.0)
+	Efectos.rebote(filtro_viejo, filtro_viejo.scale)
+	Efectos.texto_flotante(contenedor_juego, "¡Que sucio!", filtro_viejo.global_position + Vector2(0, -70), COLOR_POLVO.lightened(0.4), 20)
+	_soltar_polvo()
+
+# Mientras el filtro viejo sigue en la carcasa larga polvito cada tanto.
+func _soltar_polvo() -> void:
+	_tween_polvo = create_tween()
+	_tween_polvo.set_loops()
+	_tween_polvo.tween_interval(0.7)
+	_tween_polvo.tween_callback(func():
+		Efectos.nube(contenedor_juego, filtro_viejo.global_position + Vector2(randf_range(-40, 40), -20), COLOR_POLVO, 3, 30.0, 0.8)
+	)
 
 # Mano de ayuda que señala la proxima pieza para arrastrar: rebota en el
 # lugar hasta que se agarra la pieza o se completa el paso. `pos` es el
@@ -284,10 +319,18 @@ func _ocultar_mano() -> void:
 func _on_filtro_viejo_ok() -> void:
 	filtro_viejo.habilitado = false
 	filtro_viejo.visible = false
+	if _tween_polvo:
+		_tween_polvo.kill()
+
+	Efectos.rebote(papelera, papelera.scale, Vector2(1.25, 0.75))
+	Efectos.nube(contenedor_juego, marca_papelera.global_position, COLOR_POLVO, 16, 70.0)
+	_acierto("¡A la basura!", marca_papelera.global_position + Vector2(40, -60))
 	_iniciar_paso(Paso.PONER_NUEVO)
 
 func _on_filtro_nuevo_ok() -> void:
 	filtro_nuevo.habilitado = false
+	Efectos.nube(contenedor_juego, filtro_nuevo.global_position, COLOR_CHISPA, 16, 80.0)
+	_acierto("¡Como nuevo!", filtro_nuevo.global_position + Vector2(0, -70))
 	label_instruccion.text = "Ajustando la tapa..."
 
 	await get_tree().create_timer(ESPERA_CIERRE_AUTOMATICO).timeout
@@ -314,16 +357,27 @@ func _animacion_cierre_automatico() -> void:
 	filtro_nuevo.visible = false
 	tapa.z_index = 0
 
+	# Tapa que cae de golpe: aplastado, temblor y polvito.
+	Efectos.rebote(tapa, Vector2.ONE, Vector2(1.1, 0.85))
+	Efectos.sacudir(contenedor_juego, 6.0)
+	Efectos.nube(contenedor_juego, tapa.global_position + Vector2(0, 60), COLOR_POLVO, 10, 60.0)
+	Efectos.texto_flotante(contenedor_juego, "¡Pum!", tapa.global_position, Color.WHITE, 28)
+	await get_tree().create_timer(0.3).timeout
+
 	await _mover_tornillo(tornillo_izquierdo, _tornillo_izq_puesto)
 	await get_tree().create_timer(0.2).timeout
 	await _mover_tornillo(tornillo_derecho, _tornillo_der_puesto)
 
+# El tornillo viaja en un saltito (sube y cae) en vez de deslizarse.
 func _mover_tornillo(tornillo: Node2D, destino_pos: Vector2) -> void:
+	var inicio := tornillo.position
+	var altura := 40.0
 	var tween := create_tween()
-	tween.set_trans(Tween.TRANS_BACK)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.tween_property(tornillo, "position", destino_pos, 0.35)
+	tween.tween_method(func(t: float):
+		tornillo.position = inicio.lerp(destino_pos, t) + Vector2(0, -sin(t * PI) * altura)
+	, 0.0, 1.0, 0.35)
 	await tween.finished
+	Efectos.rebote(tornillo, tornillo.scale)
 
 # Gira el tornillo un par de vueltas y se detiene: -1 para aflojar (sentido
 # antihorario), 1 para apretar (sentido horario). Se espera a que termine de
@@ -332,7 +386,14 @@ func _girar_tornillo(tornillo: Node2D, sentido: float) -> void:
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.tween_property(tornillo, "rotation", tornillo.rotation + sentido * TAU * 2.0, 0.4)
+
+	# El destornillador se menea mientras gira el tornillo.
+	var meneo := create_tween()
+	for angulo in [0.3 * sentido, -0.3 * sentido, 0.3 * sentido, -0.3 * sentido, 0.0]:
+		meneo.tween_property(destornillador, "rotation", angulo, 0.08)
+
 	await tween.finished
+	Efectos.nube(contenedor_juego, tornillo.global_position, COLOR_METAL, 6, 35.0, 0.4)
 
 func _on_destornillador_ok() -> void:
 	var objetivo = destornillador.destino
@@ -343,10 +404,13 @@ func _on_destornillador_ok() -> void:
 	# nunca las tres cosas a la vez.
 	if paso_actual == Paso.ABRIR_TORNILLOS:
 		await _girar_tornillo(tornillo, -1.0)
+		_acierto("¡Flojo!", tornillo.global_position + Vector2(0, -40))
 		await get_tree().create_timer(PAUSA_ANTES_DE_CORRER).timeout
 		await _mover_tornillo(tornillo, _tornillo_izq_afuera if es_izquierdo else _tornillo_der_afuera)
 	elif paso_actual == Paso.CERRAR_TORNILLOS:
 		await _girar_tornillo(tornillo, 1.0)
+		Efectos.nube(contenedor_juego, tornillo.global_position, COLOR_CHISPA, 8, 40.0, 0.4)
+		_acierto("¡Ajustado!", tornillo.global_position + Vector2(0, -40))
 
 	tornillos_pendientes.erase(objetivo)
 
@@ -377,7 +441,18 @@ func _on_error() -> void:
 	if juego_terminado:
 		return
 	errores += 1
+	racha = 0
 	_flash(label_instruccion, Color(1.0, 0.3, 0.2))
+	Efectos.texto_flotante(contenedor_juego, "¡Uy!", get_viewport().get_mouse_position(), COLOR_ERROR, 26)
+	Efectos.sacudir(contenedor_juego, 4.0, 0.2)
+
+# Festejo de cada paso bien hecho: texto que salta y, si ya van varios
+# seguidos sin errores, la racha.
+func _acierto(texto: String, pos: Vector2) -> void:
+	racha += 1
+	Efectos.texto_flotante(contenedor_juego, texto, pos, COLOR_OK)
+	if racha >= RACHA_MINIMA:
+		Efectos.texto_flotante(contenedor_juego, "¡Racha x%d!" % racha, pos + Vector2(0, 30), COLOR_CHISPA, 18)
 
 # Pulso corto de color para marcar el error, sin depender de sprites nuevos.
 func _flash(nodo: Label, color: Color) -> void:
@@ -389,6 +464,10 @@ func _flash(nodo: Label, color: Color) -> void:
 func _terminar_juego() -> void:
 	juego_terminado = true
 	label_instruccion.text = "¡Listo!"
+
+	Efectos.confeti(contenedor_juego, Vector2(210, 300), 40)
+	Efectos.texto_flotante(contenedor_juego, "¡Filtro cambiado!", Vector2(210, 380), COLOR_CHISPA, 30)
+	await get_tree().create_timer(1.2).timeout
 
 	var resultado := _evaluar_precision(errores)
 

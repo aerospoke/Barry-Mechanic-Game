@@ -13,7 +13,7 @@ extends Node2D
 
 # --- NODOS DEL MINIJUEGO ---
 @onready var contenedor_juego = $ContenedorJuego
-@onready var candado = $ContenedorJuego/Candado  # puerta del minijuego
+@onready var candado: Node2D = $ContenedorJuego/Candado  # chapa del minijuego
 @onready var label_pin = $ContenedorJuego/LabelPin
 @onready var label_fallos = $ContenedorJuego/LabelFallos
 @onready var zona_objetivo = $ContenedorJuego/ZonaObjetivo
@@ -29,6 +29,18 @@ var engine_textures = [
 var escala_original: Vector2
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
+const Efectos = preload("res://scripts/efectos.gd")
+
+const COLOR_OK := Color(0.45, 1.0, 0.55)
+const COLOR_ERROR := Color(1.0, 0.4, 0.35)
+const COLOR_CHISPA := Color(1.0, 0.9, 0.45)
+const COLOR_METAL := Color(0.8, 0.82, 0.86)
+
+# Si la aguja queda a menos de esta fraccion del ancho de la zona respecto de
+# su centro, el pin cuenta como "¡Perfecto!" (solo festejo, no cambia el pago).
+const MARGEN_PERFECTO := 0.2
+# Pines seguidos sin fallar; desde RACHA_MINIMA se muestra en pantalla.
+const RACHA_MINIMA := 2
 
 const COLOR_CROMO := Color(0.74, 0.76, 0.8)
 const COLOR_CILINDRO := Color(0.1, 0.1, 0.12)
@@ -98,6 +110,7 @@ const TRAMOS_PRECISION := [
 
 var pin_actual: int = 0
 var fallos: int = 0
+var racha: int = 0
 
 var aguja_pos: float = 0.0
 var aguja_dir: float = 1.0
@@ -327,15 +340,39 @@ func _intentar_pin() -> void:
 		pin_actual += 1
 		_avanzar_ganzua(pin_actual)
 		_flash(zona_objetivo, Color(0.4, 0.9, 0.45, 0.85))
+		_festejar_pin()
 		if pin_actual >= TOTAL_PINES:
 			_terminar_juego()
 		else:
 			_preparar_pin(pin_actual)
 	else:
 		fallos += 1
+		racha = 0
 		_sacudir_ganzua()
 		_flash(zona_objetivo, Color(0.9, 0.35, 0.35, 0.85))
 		label_fallos.text = "Fallos: %d" % fallos
+		Efectos.texto_flotante(contenedor_juego, "¡Uy!", candado.position + Vector2(0, -70), COLOR_ERROR, 26)
+		Efectos.sacudir(candado, 5.0, 0.2)
+
+# Chispas en el ojo de la cerradura, texto segun que tan centrado fue el
+# acierto y la racha de pines seguidos sin fallar.
+func _festejar_pin() -> void:
+	racha += 1
+	var centro_zona := zona_inicio + ancho_zona / 2.0
+	var perfecto := absf(aguja_pos - centro_zona) <= ancho_zona * MARGEN_PERFECTO
+
+	var pos := candado.position + Vector2(0, -70)
+	if perfecto:
+		Efectos.texto_flotante(contenedor_juego, "¡Perfecto!", pos, COLOR_CHISPA, 28)
+		Efectos.nube(contenedor_juego, candado.position, COLOR_CHISPA, 14, 70.0, 0.5)
+	else:
+		Efectos.texto_flotante(contenedor_juego, "¡Click!", pos, COLOR_OK)
+		Efectos.nube(contenedor_juego, candado.position, COLOR_METAL, 8, 45.0, 0.4)
+
+	Efectos.rebote(candado, candado.scale, Vector2(1.08, 0.94))
+
+	if racha >= RACHA_MINIMA:
+		Efectos.texto_flotante(contenedor_juego, "¡Racha x%d!" % racha, pos + Vector2(0, 32), COLOR_CHISPA, 18)
 
 func _preparar_pin(indice: int) -> void:
 	ancho_zona = max(ANCHO_ZONA_MIN, ANCHO_ZONA_INICIAL - indice * ANCHO_ZONA_PASO)
@@ -364,6 +401,13 @@ func _terminar_juego() -> void:
 	button_action.visible = false
 	_abrir_cerradura()
 	label_pin.text = "¡Cerradura abierta!"
+
+	# Festejo: espera a que gire el cilindro y tira confeti.
+	await get_tree().create_timer(0.45).timeout
+	Efectos.sacudir(candado, 6.0)
+	Efectos.confeti(contenedor_juego, candado.position, 40)
+	Efectos.texto_flotante(contenedor_juego, "¡Abierta!", candado.position + Vector2(0, 110), COLOR_CHISPA, 32)
+	await get_tree().create_timer(1.2).timeout
 
 	var resultado := _evaluar_precision(fallos)
 
