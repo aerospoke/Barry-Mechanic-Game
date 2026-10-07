@@ -3,16 +3,16 @@ extends "res://scripts/minijuego_base.gd"
 # Minijuego de reparacion electrica (estante de corriente), estilo hackeo de
 # GTA V: la corriente avanza sola como un laser por el circuito del carro,
 # desde la bateria (A) hasta el faro (B). El jugador no la frena: solo elige
-# hacia donde dobla (flechas, botones o deslizando el dedo). En los pasillos
-# dobla sola; en un cruce sin salida al frente, o si se mete en un callejon
-# sin salida, hace corto, cuenta como error y vuelve a arrancar desde A.
+# hacia donde dobla (flechas, botones o deslizando el dedo); nunca dobla
+# sola. Donde no puede seguir derecho se frena y espera; si se mete en un
+# callejon sin salida hace corto, cuenta como error y vuelve a A.
 #
 # Son NIVELES circuitos, cada uno mas grande y rapido. Los laberintos se
 # generan al azar (siempre tienen camino de A a B).
 
 const NIVELES := [
-	{"columnas": 5, "filas": 6, "velocidad": 2.6},
-	{"columnas": 6, "filas": 8, "velocidad": 3.2},
+	{"columnas": 5, "filas": 6, "velocidad": 1.3},
+	{"columnas": 6, "filas": 8, "velocidad": 1.7},
 ]
 
 const AREA := Rect2(30, 150, 360, 470)
@@ -26,6 +26,10 @@ const S := Vector2i(0, 1)
 const E := Vector2i(1, 0)
 const O := Vector2i(-1, 0)
 const DIRECCIONES := [N, E, S, O]
+
+# Si se pide doblar un poquito tarde (el laser ya salio del cruce pero no
+# paso de esta fraccion del tramo), igual dobla en ese cruce.
+const MARGEN_TARDE := 0.45
 
 # Distancia minima del deslizamiento del dedo para contar como direccion.
 const SWIPE_MINIMO := 30.0
@@ -45,6 +49,10 @@ var meta: Vector2i
 var celda_actual: Vector2i
 var direccion: Vector2i = Vector2i.ZERO
 var direccion_pedida: Vector2i = Vector2i.ZERO
+# Direccion con la que se entro a celda_actual (no se puede volver por ahi).
+var direccion_entrada: Vector2i = Vector2i.ZERO
+# Frenado en un cruce sin salida al frente, esperando que el jugador elija.
+var esperando: bool = false
 var avance: float = 0.0
 # Centros de las celdas ya recorridas; el rastro es esto + la cabeza.
 var recorrido: PackedVector2Array = PackedVector2Array()
@@ -72,7 +80,7 @@ func _init() -> void:
 		},
 		{
 			"titulo": "Cuidado con los cortos",
-			"texto": "Si choca contra una pared o se mete en un callejon sin salida, hace corto: cuenta como error y vuelve a la bateria.\n\nSon %d circuitos, cada uno mas rapido." % NIVELES.size(),
+			"texto": "Nunca dobla sola: donde no puede seguir derecho, se frena y espera que elijas. Pero si se mete en un callejon sin salida, hace corto: cuenta como error y vuelve a la bateria.\n\nSon %d circuitos, cada uno mas rapido." % NIVELES.size(),
 		},
 	]
 
@@ -212,12 +220,13 @@ func _centro(c: Vector2i) -> Vector2:
 
 # --- Laser -------------------------------------------------------------------
 
-# Vuelve a A. Si de A sale un solo camino arranca solo; si salen varios
-# espera a que el jugador elija (ver _process).
+# Vuelve a A y espera a que el jugador elija por donde salir (ver _process).
 func _reiniciar_laser() -> void:
 	celda_actual = inicio
-	var salidas: Array = abiertos[inicio]
-	direccion = salidas[0] if salidas.size() == 1 else Vector2i.ZERO
+	# Arranca quieto en A: la primera direccion siempre la elige el jugador.
+	direccion = Vector2i.ZERO
+	esperando = true
+	direccion_entrada = Vector2i.ZERO
 	direccion_pedida = Vector2i.ZERO
 	avance = 0.0
 	recorrido = PackedVector2Array([_centro(inicio)])
@@ -243,11 +252,20 @@ func _process(delta: float) -> void:
 	elif Input.is_action_just_pressed("right"):
 		_pedir(E)
 
-	if direccion == Vector2i.ZERO:
-		if abiertos[celda_actual].has(direccion_pedida):
+	if esperando:
+		if _salidas().has(direccion_pedida):
 			direccion = direccion_pedida
 			direccion_pedida = Vector2i.ZERO
+			esperando = false
+			label_instruccion.text = instruccion
 		return
+
+	# Pedido un poquito tarde: todavia cerca del cruce, dobla igual ahi.
+	if direccion_pedida != Vector2i.ZERO and direccion_pedida != direccion \
+			and avance < MARGEN_TARDE and _salidas().has(direccion_pedida):
+		direccion = direccion_pedida
+		direccion_pedida = Vector2i.ZERO
+		avance = 0.0
 
 	avance += velocidad * delta
 	var desde := _centro(celda_actual)
@@ -258,6 +276,7 @@ func _process(delta: float) -> void:
 	if avance >= 1.0:
 		avance = 0.0
 		celda_actual += direccion
+		direccion_entrada = direccion
 		recorrido.append(_centro(celda_actual))
 		if celda_actual == meta:
 			_nivel_completo()
@@ -271,20 +290,28 @@ func _actualizar_rastro() -> void:
 	rastro.points = puntos
 	rastro_brillo.points = puntos
 
-func _elegir_direccion() -> void:
+# Caminos posibles desde la celda actual, sin volver por donde se vino.
+func _salidas() -> Array:
 	var salidas: Array = abiertos[celda_actual].duplicate()
-	salidas.erase(-direccion)
+	salidas.erase(-direccion_entrada)
+	return salidas
+
+func _elegir_direccion() -> void:
+	var salidas := _salidas()
 
 	if direccion_pedida != Vector2i.ZERO and salidas.has(direccion_pedida):
 		direccion = direccion_pedida
 		direccion_pedida = Vector2i.ZERO
 	elif salidas.has(direccion):
 		pass
-	elif salidas.size() == 1:
-		# Pasillo con una sola curva: dobla solo.
-		direccion = salidas[0]
-	else:
+	elif salidas.is_empty():
+		# Callejon sin salida: corto.
 		_corto()
+	else:
+		# No puede seguir derecho (curva o cruce): se frena y espera que el
+		# jugador elija. Nunca dobla solo.
+		esperando = true
+		label_instruccion.text = "¡Elige por donde sigue!"
 
 func _corto() -> void:
 	corriendo = false

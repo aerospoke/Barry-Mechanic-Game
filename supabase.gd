@@ -430,7 +430,9 @@ func marcar_tutorial_visto(tutorial_id: String) -> void:
 # tienda simplemente se queda sin filas, no hay nada que romper.
 func load_shop_items() -> Array:
 	var res = await _request_sync(
-		"/rest/v1/shop_items?select=key,name,price,tipo&active=eq.true&order=key.asc",
+		# select=*: trae tambien "description" (ver sql/shop_items_descripcion.sql)
+		# sin romper la tienda si esa columna todavia no existe.
+		"/rest/v1/shop_items?select=*&active=eq.true&order=key.asc",
 		HTTPClient.METHOD_GET
 	)
 	if res[0] != 200 or not res[1] is Array:

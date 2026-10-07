@@ -22,7 +22,6 @@ const ShopCatalog = preload("res://scripts/shop_catalog.gd")
 
 @onready var shop_panel: Control = $ShopPanel
 @onready var shop_status: Label = $ShopPanel/StatusTienda
-@onready var shop_item_container: VBoxContainer = $ShopPanel/ScrollContainer/ItemContainer
 @onready var btn_membresia_gold: Button = $ShopPanel/BtnMembresiaGold
 @onready var btn_volver_tienda: Button = $ShopPanel/BtnVolverTienda
 
@@ -71,6 +70,7 @@ func _ready() -> void:
 	_construir_opciones_sala()
 	btn_volver_work.pressed.connect(_on_volver_work_pressed)
 	btn_volver_tienda.pressed.connect(_on_volver_tienda_pressed)
+	_construir_carrusel()
 	btn_membresia_gold.pressed.connect(_on_membresia_gold_pressed)
 	btn_comprar_gold.pressed.connect(_on_comprar_gold_pressed)
 	btn_volver_gold.pressed.connect(_on_volver_gold_pressed)
@@ -137,8 +137,8 @@ func _on_volver_tienda_pressed() -> void:
 	shop_panel.visible = false
 
 func _fetch_shop_items() -> void:
-	for child in shop_item_container.get_children():
-		child.queue_free()
+	_articulos.clear()
+	_mostrar_articulo(0, 0)
 
 	if not Supabase.is_logged_in():
 		shop_status.text = "Inicia sesion para comprar repuestos"
@@ -155,50 +155,230 @@ func _fetch_shop_items() -> void:
 		shop_status.text = "No se pudo cargar la tienda"
 		return
 
-	shop_status.text = "Saldo: %d" % Supabase.profile_balance
-	for item in items:
-		_add_shop_row(item)
+	shop_status.text = "Saldo: $%d" % Supabase.profile_balance
+	_articulos = items
+	_mostrar_articulo(0, 0)
 
-func _add_shop_row(item: Dictionary) -> void:
+# --- Tienda: carrusel ----------------------------------------------------
+# Un articulo a la vez, en grande, con flechas (o deslizando el dedo sobre la
+# imagen) para pasar al siguiente. Debajo, nombre, precio, descripcion
+# (shop_items.description) y el boton de comprar de ese articulo.
+
+# El articulo ocupa casi todo el ancho y un poco mas que el circulo, asi
+# "sale" del fondo. Las flechas quedan encima, a los costados.
+const CARRUSEL_IMAGEN := Rect2(15, 98, 390, 350)
+const SWIPE_MINIMO_TIENDA := 50.0
+const DESCRIPCION_PIEZA := "Repuesto para tus trabajos. Barry lo lleva en la mano hasta el carro."
+const DESCRIPCION_DECORACION := "Un estante para tu taller. Tocalo con las manos vacias para sacar repuestos gratis."
+
+# Radio del circulo de fondo, centrado con la imagen del articulo.
+const RADIO_FOCO := 165.0
+
+var _articulos: Array = []
+# Texturas ya recortadas a su parte visible (ver _recortar_visible).
+var _recortes: Dictionary = {}
+var _indice_articulo: int = 0
+var _carrusel_imagen: TextureRect
+var _carrusel_puntos: HBoxContainer
+var _carrusel_nombre: Label
+var _carrusel_precio: Label
+var _carrusel_descripcion: Label
+var _btn_comprar_articulo: Button
+var _btn_anterior: Button
+var _btn_siguiente: Button
+var _swipe_tienda_x: float = 0.0
+var _tween_carrusel: Tween
+
+func _construir_carrusel() -> void:
+	# Foco de luz detras del articulo.
+	var foco := Panel.new()
+	var estilo := StyleBoxFlat.new()
+	estilo.bg_color = Color(0.2, 0.17, 0.32)
+	estilo.set_corner_radius_all(int(RADIO_FOCO))
+	foco.add_theme_stylebox_override("panel", estilo)
+	foco.position = CARRUSEL_IMAGEN.get_center() - Vector2.ONE * RADIO_FOCO
+	foco.size = Vector2.ONE * RADIO_FOCO * 2.0
+	foco.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shop_panel.add_child(foco)
+
+	_carrusel_imagen = TextureRect.new()
+	_carrusel_imagen.position = CARRUSEL_IMAGEN.position
+	_carrusel_imagen.size = CARRUSEL_IMAGEN.size
+	_carrusel_imagen.pivot_offset = CARRUSEL_IMAGEN.size / 2.0
+	_carrusel_imagen.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_carrusel_imagen.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_carrusel_imagen.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_carrusel_imagen.mouse_filter = Control.MOUSE_FILTER_STOP
+	_carrusel_imagen.gui_input.connect(_on_carrusel_input)
+	shop_panel.add_child(_carrusel_imagen)
+
+	_btn_anterior = _boton_flecha("◀", Vector2(4, 241))
+	_btn_anterior.pressed.connect(func(): _mostrar_articulo(_indice_articulo - 1, -1))
+	_btn_siguiente = _boton_flecha("▶", Vector2(368, 241))
+	_btn_siguiente.pressed.connect(func(): _mostrar_articulo(_indice_articulo + 1, 1))
+
+	_carrusel_puntos = HBoxContainer.new()
+	_carrusel_puntos.alignment = BoxContainer.ALIGNMENT_CENTER
+	_carrusel_puntos.position = Vector2(20, 454)
+	_carrusel_puntos.size = Vector2(380, 14)
+	_carrusel_puntos.add_theme_constant_override("separation", 8)
+	shop_panel.add_child(_carrusel_puntos)
+
+	_carrusel_nombre = _label_tienda(Vector2(20, 472), Vector2(380, 32), 24, Color.WHITE)
+	_carrusel_precio = _label_tienda(Vector2(20, 503), Vector2(380, 28), 21, Color(1.0, 0.82, 0.3))
+	_carrusel_descripcion = _label_tienda(Vector2(30, 534), Vector2(360, 66), 15, Color(0.82, 0.82, 0.88))
+	_carrusel_descripcion.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_carrusel_descripcion.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+
+	_btn_comprar_articulo = Button.new()
+	_btn_comprar_articulo.position = Vector2(90, 604)
+	_btn_comprar_articulo.size = Vector2(240, 50)
+	_btn_comprar_articulo.add_theme_font_size_override("font_size", 20)
+	_btn_comprar_articulo.pressed.connect(_on_comprar_articulo_pressed)
+	shop_panel.add_child(_btn_comprar_articulo)
+
+func _boton_flecha(texto: String, pos: Vector2) -> Button:
+	var boton := Button.new()
+	boton.text = texto
+	boton.position = pos
+	boton.size = Vector2(48, 64)
+	boton.add_theme_font_size_override("font_size", 24)
+	shop_panel.add_child(boton)
+	return boton
+
+func _label_tienda(pos: Vector2, tam: Vector2, fuente: int, color: Color) -> Label:
+	var label := Label.new()
+	label.position = pos
+	label.size = tam
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", fuente)
+	label.add_theme_color_override("font_color", color)
+	shop_panel.add_child(label)
+	return label
+
+# Muestra el articulo `indice` (da la vuelta en los extremos). `direccion`
+# (-1/1) es hacia donde se desliza la imagen; 0 = sin animacion.
+func _mostrar_articulo(indice: int, direccion: int) -> void:
+	var hay := not _articulos.is_empty()
+	_btn_anterior.visible = _articulos.size() > 1
+	_btn_siguiente.visible = _articulos.size() > 1
+	_btn_comprar_articulo.visible = hay
+	if not hay:
+		_carrusel_imagen.texture = null
+		_carrusel_nombre.text = ""
+		_carrusel_precio.text = ""
+		_carrusel_descripcion.text = ""
+		_actualizar_puntos_carrusel()
+		return
+
+	_indice_articulo = posmod(indice, _articulos.size())
+	var item: Dictionary = _articulos[_indice_articulo]
 	var key := str(item.get("key", ""))
 	var precio := int(item.get("price", 0))
-	var tipo := str(item.get("tipo", "pieza"))
-	var es_decoracion := tipo == "decoracion"
+	var es_decoracion := str(item.get("tipo", "pieza")) == "decoracion"
 
-	var fila := HBoxContainer.new()
-	fila.custom_minimum_size.y = 60
-
-	var icono := TextureRect.new()
 	# Las piezas de trabajo tienen su icono en ShopCatalog (van a la mano de
-	# Barry); las decoraciones usan el mismo catalogo que las instancia en la
-	# sala (RoomObjectCatalog), asi el icono de la tienda es el mismo objeto
-	# que despues aparece colocado.
-	icono.texture = RoomObjectCatalog.textura(key) if es_decoracion else ShopCatalog.icono_tienda(key)
-	icono.custom_minimum_size = Vector2(48, 48)
-	icono.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-	icono.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	fila.add_child(icono)
+	# Barry); las decoraciones usan el catalogo que las instancia en la sala.
+	var textura: Texture2D = RoomObjectCatalog.textura(key) if es_decoracion else ShopCatalog.icono_tienda(key)
 
-	var lbl_nombre := Label.new()
-	lbl_nombre.text = str(item.get("name", key))
-	lbl_nombre.custom_minimum_size.x = 150
-	fila.add_child(lbl_nombre)
+	var descripcion := str(item.get("description", ""))
+	if descripcion == "" or descripcion == "<null>":
+		descripcion = DESCRIPCION_DECORACION if es_decoracion else DESCRIPCION_PIEZA
 
-	var lbl_precio := Label.new()
-	lbl_precio.text = "$%d" % precio
-	lbl_precio.custom_minimum_size.x = 60
-	fila.add_child(lbl_precio)
+	_carrusel_nombre.text = str(item.get("name", key))
+	_carrusel_precio.text = "$%d" % precio
+	_carrusel_descripcion.text = descripcion
+	_actualizar_puntos_carrusel()
 
-	var btn := Button.new()
-	btn.text = "Comprar"
 	# Una decoracion no ocupa la mano de Barry, asi que esa restriccion solo
 	# aplica a las piezas de trabajo.
 	var ya_tiene_item: bool = not es_decoracion and is_instance_valid(_barry) and bool(_barry.tiene_item)
-	btn.disabled = ya_tiene_item or precio > Supabase.profile_balance
-	btn.pressed.connect(_on_comprar_pressed.bind(key, precio, tipo, btn))
-	fila.add_child(btn)
+	if ya_tiene_item:
+		_btn_comprar_articulo.text = "Manos ocupadas"
+	elif precio > Supabase.profile_balance:
+		_btn_comprar_articulo.text = "Saldo insuficiente"
+	else:
+		_btn_comprar_articulo.text = "Comprar $%d" % precio
+	_btn_comprar_articulo.disabled = ya_tiene_item or precio > Supabase.profile_balance
 
-	shop_item_container.add_child(fila)
+	_animar_carrusel(_recortar_visible(textura), direccion)
+
+# Las imagenes de los estantes traen mucho margen transparente (el mueble
+# queda abajo y corrido), asi que se recortan a la parte con pixeles: el
+# dibujo queda centrado de verdad dentro del circulo.
+func _recortar_visible(textura: Texture2D) -> Texture2D:
+	if textura == null:
+		return null
+	if _recortes.has(textura):
+		return _recortes[textura]
+
+	var recorte: Texture2D = textura
+	var imagen := textura.get_image()
+	if imagen != null:
+		if imagen.is_compressed():
+			imagen.decompress()
+		var usado := imagen.get_used_rect()
+		if usado.size.x > 0 and usado.size.y > 0:
+			var atlas := AtlasTexture.new()
+			atlas.atlas = textura
+			atlas.region = Rect2(usado)
+			recorte = atlas
+	_recortes[textura] = recorte
+	return recorte
+
+# La imagen vieja sale hacia un lado y la nueva entra del otro con un rebote.
+func _animar_carrusel(textura: Texture2D, direccion: int) -> void:
+	if _tween_carrusel:
+		_tween_carrusel.kill()
+	var base := CARRUSEL_IMAGEN.position
+
+	if direccion == 0:
+		_carrusel_imagen.texture = textura
+		_carrusel_imagen.position = base
+		_carrusel_imagen.modulate.a = 1.0
+		_carrusel_imagen.scale = Vector2.ONE
+		return
+
+	_tween_carrusel = create_tween()
+	_tween_carrusel.tween_property(_carrusel_imagen, "position:x", base.x - direccion * 90.0, 0.1)
+	_tween_carrusel.parallel().tween_property(_carrusel_imagen, "modulate:a", 0.0, 0.1)
+	_tween_carrusel.tween_callback(func():
+		_carrusel_imagen.texture = textura
+		_carrusel_imagen.position.x = base.x + direccion * 90.0
+		_carrusel_imagen.scale = Vector2(0.85, 0.85)
+	)
+	_tween_carrusel.set_trans(Tween.TRANS_BACK)
+	_tween_carrusel.set_ease(Tween.EASE_OUT)
+	_tween_carrusel.tween_property(_carrusel_imagen, "position:x", base.x, 0.25)
+	_tween_carrusel.parallel().tween_property(_carrusel_imagen, "modulate:a", 1.0, 0.15)
+	_tween_carrusel.parallel().tween_property(_carrusel_imagen, "scale", Vector2.ONE, 0.25)
+
+func _actualizar_puntos_carrusel() -> void:
+	for punto in _carrusel_puntos.get_children():
+		punto.queue_free()
+	for i in _articulos.size():
+		var punto := ColorRect.new()
+		punto.custom_minimum_size = Vector2(10, 10)
+		punto.color = Color(1.0, 0.82, 0.3) if i == _indice_articulo else Color(0.4, 0.38, 0.5)
+		_carrusel_puntos.add_child(punto)
+
+# Deslizar el dedo sobre la imagen pasa de articulo.
+func _on_carrusel_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	if event.pressed:
+		_swipe_tienda_x = event.position.x
+		return
+	var delta: float = event.position.x - _swipe_tienda_x
+	if absf(delta) >= SWIPE_MINIMO_TIENDA:
+		var direccion := -1 if delta > 0 else 1
+		_mostrar_articulo(_indice_articulo + direccion, direccion)
+
+func _on_comprar_articulo_pressed() -> void:
+	if _articulos.is_empty():
+		return
+	var item: Dictionary = _articulos[_indice_articulo]
+	_on_comprar_pressed(str(item.get("key", "")), int(item.get("price", 0)), str(item.get("tipo", "pieza")), _btn_comprar_articulo)
 
 func _on_comprar_pressed(key: String, precio: int, tipo: String, btn: Button) -> void:
 	btn.disabled = true
