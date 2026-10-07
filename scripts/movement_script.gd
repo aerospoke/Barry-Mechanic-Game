@@ -11,6 +11,10 @@ const MINIGAMES = {
 	"oils": {"escena": "res://scenes/miniGameOil.tscn", "clave": "change_oil"},
 	"keys": {"escena": "res://scenes/miniGameKeys.tscn", "clave": "key_fix"},
 	"filters": {"escena": "res://scenes/miniGameFilter.tscn", "clave": "change_air_filter"},
+	"cables": {"escena": "res://scenes/miniGameCables.tscn", "clave": "electric_fix"},
+	"tools": {"escena": "res://scenes/miniGameHerramientas.tscn", "clave": "organize_tools"},
+	"air": {"escena": "res://scenes/miniGameInflar.tscn", "clave": "inflate_tires"},
+	"paint": {"escena": "res://scenes/miniGamePintura.tscn", "clave": "paint_job"},
 }
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
@@ -268,6 +272,7 @@ func recibir_item_comprado(key: String) -> void:
 	item_en_mano = key
 	item_hand.visible = true
 	item_hand.texture = ShopCatalog.icono_mano(key)
+	item_hand.scale = Vector2.ONE * ShopCatalog.escala_mano(key)
 
 func _intentar_minijuego() -> void:
 	if not MINIGAMES.has(item_en_mano):

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/mini_game_herramientas.gd" id="1_script"]
+
+[node name="Node2D" type="Node2D"]
+script = ExtResource("1_script")

@@ -61,6 +61,27 @@ const OBJETOS := {
 		"escala": Vector2(0.3, 0.3),
 		"pieza_gratis": "keys",
 	},
+	# Estantes nuevos: mismo patron (kind = key de shop_items = pieza que dan).
+	"cables": {
+		"textura": preload("res://objetos/Estantes/estanteCorriente.png"),
+		"escala": Vector2(0.3, 0.3),
+		"pieza_gratis": "cables",
+	},
+	"tools": {
+		"textura": preload("res://objetos/Estantes/bancoHerramientas.png"),
+		"escala": Vector2(0.3, 0.3),
+		"pieza_gratis": "tools",
+	},
+	"air": {
+		"textura": preload("res://objetos/Estantes/compresorAire.png"),
+		"escala": Vector2(0.3, 0.3),
+		"pieza_gratis": "air",
+	},
+	"paint": {
+		"textura": preload("res://objetos/Estantes/pinturas.png"),
+		"escala": Vector2(0.3, 0.3),
+		"pieza_gratis": "paint",
+	},
 }
 
 static func textura(kind: String) -> Texture2D:
