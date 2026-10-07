@@ -123,8 +123,8 @@ func _ready() -> void:
 	_construir_limites()
 	_colocar_jugador()
 	queue_redraw()
-	Supabase.active_work_changed.connect(_resaltar_estante_del_trabajo)
-	barry.connect("item_en_mano_cambiado", _resaltar_estante_del_trabajo)
+	Supabase.active_work_changed.connect(_actualizar_resaltados)
+	barry.connect("item_en_mano_cambiado", _actualizar_resaltados)
 	_cargar_objetos()
 	_crear_banner_gold()
 	actualizar_banner_gold()
@@ -377,7 +377,11 @@ func _cargar_objetos() -> void:
 				fila = creada
 		_instanciar_objeto(fila)
 
-	_resaltar_estante_del_trabajo()
+	# El nivel de la caneca viene del perfil; normalmente ya esta cargado
+	# (load_profile no repite la peticion), pero al entrar directo a la sala
+	# puede no estarlo todavia.
+	await Supabase.load_profile()
+	_actualizar_canecas()
 
 # Lo llama searchwork_ui.gd (via call()) cuando se compra una decoracion en
 # la tienda de la PC. Aparece cerca del centro; el jugador la reacomoda con
@@ -391,7 +395,7 @@ func agregar_objeto_comprado(kind: String) -> void:
 		if not creada.is_empty():
 			fila = creada
 	_instanciar_objeto(fila)
-	_resaltar_estante_del_trabajo()
+	_actualizar_canecas()
 	activar_edicion()
 
 func _instanciar_objeto(fila: Dictionary) -> void:
@@ -408,6 +412,8 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	var pieza_gratis := RoomObjectCatalog.pieza_gratis(kind)
 	if pieza_gratis != "":
 		objeto.set_meta("pieza_gratis", pieza_gratis)
+	if RoomObjectCatalog.es_reciclaje(kind):
+		objeto.set_meta("reciclaje", RoomObjectCatalog.altura_medidor(kind))
 
 	interaction_zone.add_child(objeto)
 	_objetos.append(objeto)
@@ -421,10 +427,22 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	# un metodo que no existe en esa clase base.
 	barry.call("conectar_objeto", objeto)
 
+# Medidor de las canecas con el nivel de basura del jugador (ver
+# Supabase.profile_trash). Llena, ademas se resalta (ver _actualizar_resaltados).
+func _actualizar_canecas() -> void:
+	var nivel: int = Supabase.profile_trash
+	var capacidad: int = Supabase.CAPACIDAD_BASURA
+	for objeto in _objetos:
+		if objeto.has_meta("reciclaje"):
+			var texto := "¡Llena!" if nivel >= capacidad else "%d/%d" % [nivel, capacidad]
+			objeto.set_medidor(float(nivel) / capacidad, texto, objeto.get_meta("reciclaje"))
+	_actualizar_resaltados()
+
 # Marca los estantes que dan la pieza que pide el trabajo activo (puede
-# haber mas de uno del mismo tipo) y apaga el resto. Sin trabajo activo, o
-# con la pieza ya en la mano de Barry, no queda ninguno marcado.
-func _resaltar_estante_del_trabajo() -> void:
+# haber mas de uno del mismo tipo) y las canecas llenas; apaga el resto. Sin
+# trabajo activo, o con la pieza ya en la mano de Barry, no queda ningun
+# estante marcado.
+func _actualizar_resaltados() -> void:
 	var pieza := ""
 	for item in BarryScript.MINIGAMES:
 		if BarryScript.MINIGAMES[item]["clave"] == Supabase.active_work_key:
@@ -434,8 +452,11 @@ func _resaltar_estante_del_trabajo() -> void:
 	if barry.get("item_en_mano") == pieza:
 		pieza = ""
 
+	var caneca_llena := Supabase.basura_llena()
 	for objeto in _objetos:
-		objeto.set_resaltado(pieza != "" and objeto.get_meta("pieza_gratis", "") == pieza)
+		var es_estante: bool = pieza != "" and objeto.get_meta("pieza_gratis", "") == pieza
+		var es_caneca: bool = caneca_llena and objeto.has_meta("reciclaje")
+		objeto.set_resaltado(es_estante or es_caneca)
 
 # --- Edicion de sala ---------------------------------------------------------
 

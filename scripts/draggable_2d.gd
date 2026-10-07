@@ -61,6 +61,15 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and _arrastrando:
 		global_position = event.position + _offset
 
+# Para piezas que se mueven solas (ej. la cinta del minijuego de reciclaje):
+# libre() dice si se la puede mover sin pelear con el arrastre o el acomodo,
+# y fijar_base() cambia el lugar al que vuelve si se suelta fuera.
+func libre() -> bool:
+	return not _arrastrando and not _acomodando
+
+func fijar_base(pos: Vector2) -> void:
+	_posicion_original = pos
+
 func _evaluar_soltado() -> void:
 	_acomodando = true
 	if destino and global_position.distance_to(destino.global_position) <= radio_destino:

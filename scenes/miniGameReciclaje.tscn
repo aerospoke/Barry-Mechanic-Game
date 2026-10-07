@@ -1,0 +1,51 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/mini_game_reciclaje.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://csww2t4o2j7ml" path="res://enginesCars/engine1.png" id="2_engine"]
+
+[node name="Node2D" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Fondo" type="ColorRect" parent="."]
+offset_right = 420.0
+offset_bottom = 780.0
+color = Color(0.08, 0.08, 0.09, 1)
+
+[node name="MotorCine" type="Sprite2D" parent="."]
+position = Vector2(200, 434)
+scale = Vector2(0.28356484, 0.2835648)
+texture = ExtResource("2_engine")
+
+[node name="FiltroOscuro" type="ColorRect" parent="."]
+offset_right = 420.0
+offset_bottom = 780.0
+color = Color(0, 0, 0, 1)
+
+[node name="ContenedorJuego" type="Node2D" parent="."]
+
+[node name="LabelInstruccion" type="Label" parent="ContenedorJuego"]
+offset_left = 20.0
+offset_top = 40.0
+offset_right = 400.0
+offset_bottom = 90.0
+theme_override_font_sizes/font_size = 17
+horizontal_alignment = 1
+autowrap_mode = 3
+text = "Arrastra cada residuo a su contenedor"
+
+[node name="LabelProgreso" type="Label" parent="ContenedorJuego"]
+offset_left = 20.0
+offset_top = 100.0
+offset_right = 220.0
+offset_bottom = 124.0
+theme_override_font_sizes/font_size = 15
+text = "Residuos: 0/12"
+
+[node name="LabelErrores" type="Label" parent="ContenedorJuego"]
+offset_left = 220.0
+offset_top = 100.0
+offset_right = 400.0
+offset_bottom = 124.0
+theme_override_font_sizes/font_size = 15
+horizontal_alignment = 2
+text = "Errores: 0"

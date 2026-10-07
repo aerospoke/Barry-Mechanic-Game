@@ -12,6 +12,12 @@ var profile_balance: int = 0
 var profile_points: int = 0
 var profile_is_gold: bool = false
 var profile_loaded: bool = false
+# Nivel de la caneca del taller (ver sql/profiles_trash.sql): sube 1 por
+# trabajo completado hasta CAPACIDAD_BASURA, y el minijuego de reciclaje lo
+# vuelve a 0.
+var profile_trash: int = 0
+
+const CAPACIDAD_BASURA := 5
 
 # Pago unico (ver sql/profiles_gold.sql): no hay suscripcion ni vencimiento,
 # solo un flag que se prende para siempre en profiles.is_gold.
@@ -83,6 +89,7 @@ func clear_session() -> void:
 	profile_balance = 0
 	profile_points = 0
 	profile_is_gold = false
+	profile_trash = 0
 	profile_loaded = false
 	active_work_id = ""
 	active_work_name = ""
@@ -127,7 +134,10 @@ func load_profile(recargar: bool = false) -> bool:
 		return false
 
 	var res = await _request_sync(
-		"/rest/v1/profiles?id=eq." + user_id + "&select=name,balance,points,is_gold",
+		# select=* en vez de nombrar columnas: si falta una columna nueva (ej.
+		# trash_level antes de correr su SQL) el perfil igual carga y esa usa
+		# su valor por defecto, en vez de romper el login entero.
+		"/rest/v1/profiles?id=eq." + user_id + "&select=*",
 		HTTPClient.METHOD_GET
 	)
 	if res[0] != 200 or not res[1] is Array or res[1].is_empty():
@@ -139,6 +149,7 @@ func load_profile(recargar: bool = false) -> bool:
 	profile_balance = int(profile.get("balance", 0))
 	profile_points = int(profile.get("points", 0))
 	profile_is_gold = bool(profile.get("is_gold", false))
+	profile_trash = int(profile.get("trash_level", 0))
 
 	profile_loaded = true
 	return true
@@ -187,6 +198,8 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 		{
 			"balance": max(0, profile_balance + payment),
 			"points": max(0, profile_points + points),
+			# Cada trabajo deja basura en el taller.
+			"trash_level": min(profile_trash + 1, CAPACIDAD_BASURA),
 		},
 		["Prefer: return=representation"]
 	)
@@ -197,6 +210,7 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 	# Mismo clamp que se mandó al servidor, si no la copia local se desincroniza.
 	profile_balance = max(0, profile_balance + payment)
 	profile_points = max(0, profile_points + points)
+	profile_trash = min(profile_trash + 1, CAPACIDAD_BASURA)
 	active_work_id = ""
 	active_work_name = ""
 	active_work_key = ""
@@ -204,6 +218,33 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 	active_work_points = 0
 
 	work_completed.emit(true, payment, points)
+	return true
+
+func basura_llena() -> bool:
+	return profile_trash >= CAPACIDAD_BASURA
+
+# Cierre del minijuego de reciclaje: vacia la caneca y abona la recompensa
+# en la misma peticion. Mismo clamp que complete_active_work.
+func completar_reciclaje(pago: int, puntos: int) -> bool:
+	if not is_logged_in() or not await load_profile():
+		return false
+
+	var res = await _request_sync(
+		"/rest/v1/profiles?id=eq." + user_id,
+		HTTPClient.METHOD_PATCH,
+		{
+			"balance": max(0, profile_balance + pago),
+			"points": max(0, profile_points + puntos),
+			"trash_level": 0,
+		},
+		["Prefer: return=representation"]
+	)
+	if not _update_ok(res, "No se pudo vaciar la caneca"):
+		return false
+
+	profile_balance = max(0, profile_balance + pago)
+	profile_points = max(0, profile_points + puntos)
+	profile_trash = 0
 	return true
 
 # --- Salas -----------------------------------------------------------------

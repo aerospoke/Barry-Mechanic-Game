@@ -30,7 +30,13 @@ const OBJETOS := {
 	"trash": {
 		"textura": preload("res://objetos/Estantes/basura.png"),
 		"escala": Vector2(0.3, 0.3),
-		# Sin nombre_nodo: decorativo, nunca tuvo comportamiento propio.
+		# Caneca del taller: muestra un medidor con Supabase.profile_trash y,
+		# llena, abre el minijuego de reciclaje al interactuar. Como los
+		# estantes, va por meta y no por nombre_nodo (puede haber varias).
+		"reciclaje": true,
+		# Altura del medidor sobre el origen del objeto, en pixeles: justo
+		# encima del borde de la caneca dibujada.
+		"altura_medidor": -190.0,
 	},
 	"estante_aceite": {
 		"textura": preload("res://objetos/Estantes/aceites.png"),
@@ -67,6 +73,12 @@ static func nombre_nodo(kind: String) -> String:
 
 static func pieza_gratis(kind: String) -> String:
 	return OBJETOS.get(kind, {}).get("pieza_gratis", "")
+
+static func es_reciclaje(kind: String) -> bool:
+	return OBJETOS.get(kind, {}).get("reciclaje", false)
+
+static func altura_medidor(kind: String) -> float:
+	return OBJETOS.get(kind, {}).get("altura_medidor", -150.0)
 
 # Forma de colision de cada "kind". Si trae "poligono_colision" a medida (ej.
 # la PC, calcada de su sprite) se usa esa. Si no, el default ya NO es un

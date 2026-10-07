@@ -18,6 +18,9 @@ const TutorialModal = preload("res://scripts/tutorial_modal.gd")
 const ICONO_AGARRAR := preload("res://objetos/mano.png")
 # Icono del boton de accion cerca de la PC: usar la computadora.
 const ICONO_PC := preload("res://objetos/network.png")
+# Minijuego que se abre al interactuar con una caneca llena.
+const ESCENA_RECICLAJE := "res://scenes/miniGameReciclaje.tscn"
+
 # Icono con una pieza en la mano y nada cerca: el boton la suelta.
 const ICONO_LUPA := preload("res://objetos/lupa.png")
 
@@ -68,6 +71,10 @@ var en_work_zone: bool = false
 # hay ninguno cerca.
 var en_pieza_gratis: String = ""
 
+# Parado junto a una caneca (ver RoomObjectCatalog "reciclaje"). Solo hace
+# algo si esta llena (Supabase.basura_llena()).
+var en_reciclaje: bool = false
+
 # Boton de accion de la UI (CanvasLayer/UI en room.tscn) y el icono que se
 # le pidio por ultima vez, para avisarle solo cuando cambia.
 var ui: Node = null
@@ -115,6 +122,9 @@ func conectar_objeto(objeto: Area2D) -> void:
 		var key: String = objeto.get_meta("pieza_gratis")
 		objeto.body_entered.connect(_on_pieza_gratis_entered.bind(key))
 		objeto.body_exited.connect(_on_pieza_gratis_exited.bind(key))
+	elif objeto.has_meta("reciclaje"):
+		objeto.body_entered.connect(_on_reciclaje_entered)
+		objeto.body_exited.connect(_on_reciclaje_exited)
 
 # "bienvenida" es el id en el catalogo `tutorials` (ver sql/tutorials.sql).
 const ID_TUTORIAL_BIENVENIDA := "bienvenida"
@@ -210,6 +220,8 @@ func _icono_contextual() -> Texture2D:
 		return RoomObjectCatalog.textura("car")
 	if en_pieza_gratis != "" and not tiene_item:
 		return ICONO_AGARRAR
+	if en_reciclaje and not tiene_item and Supabase.basura_llena():
+		return RoomObjectCatalog.textura("trash")
 	if tiene_item:
 		return ICONO_LUPA
 	return null
@@ -233,6 +245,11 @@ func interactuar() -> void:
 
 	if en_pieza_gratis != "" and not tiene_item:
 		recibir_item_comprado(en_pieza_gratis)
+		return
+
+	if en_reciclaje and not tiene_item and Supabase.basura_llena():
+		get_tree().paused = false
+		get_tree().change_scene_to_file(ESCENA_RECICLAJE)
 		return
 
 	if tiene_item:
@@ -287,3 +304,11 @@ func _on_pieza_gratis_entered(body: Node2D, key: String) -> void:
 func _on_pieza_gratis_exited(body: Node2D, key: String) -> void:
 	if body == self and en_pieza_gratis == key:
 		en_pieza_gratis = ""
+
+func _on_reciclaje_entered(body: Node2D) -> void:
+	if body == self:
+		en_reciclaje = true
+
+func _on_reciclaje_exited(body: Node2D) -> void:
+	if body == self:
+		en_reciclaje = false

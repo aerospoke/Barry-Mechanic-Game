@@ -142,6 +142,73 @@ func set_seleccionado(activo: bool) -> void:
 		if _resaltado:
 			_iniciar_resaltado()
 
+# Barrita de nivel sobre el objeto (ej. la caneca, ver room.gd). Se crea la
+# primera vez que se pide. `fraccion` va de 0 a 1; llena se pone roja y late.
+const MEDIDOR_ANCHO := 70.0
+const MEDIDOR_ALTO := 10.0
+
+var _medidor: Node2D
+var _medidor_relleno: ColorRect
+var _medidor_texto: Label
+var _tween_medidor: Tween
+
+func set_medidor(fraccion: float, texto: String, altura: float) -> void:
+	if Engine.is_editor_hint():
+		return
+	if _medidor == null:
+		_crear_medidor()
+	_medidor.position = Vector2(0, altura)
+
+	fraccion = clampf(fraccion, 0.0, 1.0)
+	_medidor_relleno.size.x = (MEDIDOR_ANCHO - 4.0) * fraccion
+	_medidor_texto.text = texto
+	if fraccion >= 1.0:
+		_medidor_relleno.color = Color(0.95, 0.3, 0.25)
+	elif fraccion >= 0.6:
+		_medidor_relleno.color = Color(0.95, 0.65, 0.2)
+	else:
+		_medidor_relleno.color = Color(0.4, 0.85, 0.45)
+
+	if is_instance_valid(_tween_medidor):
+		_tween_medidor.kill()
+	_medidor.scale = Vector2.ONE
+	if fraccion >= 1.0:
+		_tween_medidor = create_tween()
+		_tween_medidor.set_loops()
+		_tween_medidor.set_trans(Tween.TRANS_SINE)
+		_tween_medidor.tween_property(_medidor, "scale", Vector2(1.15, 1.15), 0.5)
+		_tween_medidor.tween_property(_medidor, "scale", Vector2.ONE, 0.5)
+
+func _crear_medidor() -> void:
+	_medidor = Node2D.new()
+	# Siempre encima: es informacion, no parte del mueble que se ordena por
+	# profundidad.
+	_medidor.z_index = 20
+	add_child(_medidor)
+
+	var fondo := ColorRect.new()
+	fondo.color = Color(0.08, 0.08, 0.1, 0.9)
+	fondo.position = Vector2(-MEDIDOR_ANCHO / 2.0, -MEDIDOR_ALTO / 2.0)
+	fondo.size = Vector2(MEDIDOR_ANCHO, MEDIDOR_ALTO)
+	fondo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_medidor.add_child(fondo)
+
+	_medidor_relleno = ColorRect.new()
+	_medidor_relleno.position = fondo.position + Vector2(2, 2)
+	_medidor_relleno.size = Vector2(0, MEDIDOR_ALTO - 4.0)
+	_medidor_relleno.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_medidor.add_child(_medidor_relleno)
+
+	_medidor_texto = Label.new()
+	_medidor_texto.add_theme_font_size_override("font_size", 13)
+	_medidor_texto.add_theme_color_override("font_outline_color", Color.BLACK)
+	_medidor_texto.add_theme_constant_override("outline_size", 4)
+	_medidor_texto.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_medidor_texto.position = Vector2(-MEDIDOR_ANCHO / 2.0, -MEDIDOR_ALTO / 2.0 - 20.0)
+	_medidor_texto.size = Vector2(MEDIDOR_ANCHO, 18)
+	_medidor_texto.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_medidor.add_child(_medidor_texto)
+
 func set_resaltado(activo: bool) -> void:
 	if Engine.is_editor_hint() or activo == _resaltado:
 		return
