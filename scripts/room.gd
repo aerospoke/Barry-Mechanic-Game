@@ -21,6 +21,14 @@ const ConfirmModal = preload("res://scripts/confirm_modal.gd")
 # Solo por su const MINIGAMES (pieza -> trabajo), para saber que estante
 # resaltar segun el trabajo activo.
 const BarryScript = preload("res://scripts/movement_script.gd")
+const PetPicker = preload("res://scripts/pet_picker.gd")
+const Efectos = preload("res://scripts/efectos.gd")
+
+# Capa de fisica de las mascotas: chocan con los limites (1) y los muebles
+# (2), pero Barry (que no tiene la capa 3 en su mascara) les pasa por encima
+# en vez de quedar trabado.
+const CAPA_MASCOTA := 0b100
+const MASCARA_MASCOTA := 0b11
 
 # "Premio" que muestra la TV de hazte-Gold (ver _crear_banner_gold): uno al
 # azar por sala, elegido entre objetos sueltos de res://objetos (nada de
@@ -89,6 +97,9 @@ var _arrastrando: WorldObject = null
 # toque, no solo mientras se esta arrastrando. Se cambia al tocar otro
 # objeto y se limpia al tocar el piso vacio o salir de edicion.
 var _seleccionado: WorldObject = null
+
+# Guacal recien comprado que todavia no eligio mascota (ver _salir_edicion).
+var _guacal_pendiente: WorldObject = null
 
 const DISTANCIA_TOQUE := 90.0
 
@@ -396,6 +407,10 @@ func agregar_objeto_comprado(kind: String) -> void:
 			fila = creada
 	_instanciar_objeto(fila)
 	_actualizar_canecas()
+	# Un guacal recien comprado pide elegir mascota apenas se termina de
+	# ubicarlo (ver _salir_edicion).
+	if RoomObjectCatalog.es_mascota(kind):
+		_guacal_pendiente = _objetos.back()
 	activar_edicion()
 
 func _instanciar_objeto(fila: Dictionary) -> void:
@@ -407,11 +422,14 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	objeto.escala_sprite = RoomObjectCatalog.escala(kind)
 	objeto.poligono_colision = RoomObjectCatalog.poligono_colision(kind)
 	objeto.position = Vector2(float(fila.get("x", 0.0)), float(fila.get("y", 0.0)))
+	objeto.posicion_sprite = RoomObjectCatalog.posicion_sprite(kind)
 	objeto.set_meta("room_object_id", str(fila.get("id", "")))
 
 	var pieza_gratis := RoomObjectCatalog.pieza_gratis(kind)
 	if pieza_gratis != "":
 		objeto.set_meta("pieza_gratis", pieza_gratis)
+	if RoomObjectCatalog.es_mascota(kind):
+		objeto.set_meta("guacal", true)
 	if RoomObjectCatalog.es_reciclaje(kind):
 		objeto.set_meta("reciclaje", RoomObjectCatalog.posicion_medidor(kind))
 
@@ -426,6 +444,64 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	# _colocar_jugador), asi que el chequeo estatico de GDScript rechazaria
 	# un metodo que no existe en esa clase base.
 	barry.call("conectar_objeto", objeto)
+
+	var variante := str(fila.get("variant", ""))
+	if objeto.has_meta("guacal") and PetCatalog.existe(variante):
+		_soltar_mascota(objeto, variante, false)
+
+# --- Mascotas ---------------------------------------------------------------
+
+# Abre "Elige la mascota del taller" para un guacal. Lo llama Barry al tocar
+# el guacal y la sala al terminar de ubicar uno recien comprado.
+func abrir_selector_mascota(guacal: WorldObject) -> void:
+	var actual := str(guacal.get_meta("mascota_id", ""))
+	var menu = PetPicker.crear(self, actual)
+	var elegida: String = await menu.elegido
+	if elegida == "" or elegida == actual or not is_instance_valid(guacal):
+		return
+
+	var id := str(guacal.get_meta("room_object_id", ""))
+	if id != "" and not await Supabase.save_room_object_variant(id, elegida):
+		return
+	_soltar_mascota(guacal, elegida, true)
+
+# La mascota sale del guacal (reemplaza a la anterior si habia una) y se
+# queda paseando por la sala.
+func _soltar_mascota(guacal: WorldObject, id: String, festejar: bool) -> void:
+	_quitar_mascota(guacal)
+
+	var mascota: CharacterBody2D = PetCatalog.escena(id).instantiate()
+	mascota.collision_layer = CAPA_MASCOTA
+	mascota.collision_mask = MASCARA_MASCOTA
+	# Los sprites de la mascota son chicos: se agranda todo menos el cuerpo
+	# fisico, y el dibujo se sube para que el origen quede en sus patas (la
+	# sala ordena por profundidad con ese punto).
+	var escala := PetCatalog.escala(id)
+	for hijo in mascota.get_children():
+		if hijo is Node2D:
+			hijo.scale *= escala
+		if hijo is AnimatedSprite2D:
+			hijo.position.y -= 14.0 * escala
+	# Delante del guacal, fuera de su base solida.
+	mascota.position = guacal.position + Vector2(0, 150)
+	interaction_zone.add_child(mascota)
+	guacal.set_meta("mascota_id", id)
+	guacal.set_meta("mascota_nodo", mascota)
+
+	if festejar:
+		mascota.scale = Vector2(0.2, 0.2)
+		var tween := mascota.create_tween()
+		tween.set_trans(Tween.TRANS_BACK)
+		tween.set_ease(Tween.EASE_OUT)
+		tween.tween_property(mascota, "scale", Vector2.ONE, 0.4)
+		Efectos.nube(interaction_zone, mascota.position, Color(1.0, 0.9, 0.45), 14, 70.0, 0.6)
+		Efectos.texto_flotante(interaction_zone, "¡Hola, %s!" % PetCatalog.nombre(id), mascota.position + Vector2(0, -90), Color(1.0, 0.85, 0.3), 26)
+
+func _quitar_mascota(guacal: WorldObject) -> void:
+	var anterior = guacal.get_meta("mascota_nodo", null)
+	if is_instance_valid(anterior):
+		anterior.queue_free()
+	guacal.remove_meta("mascota_nodo")
 
 # Medidor de las canecas con el nivel de basura del jugador (ver
 # Supabase.profile_trash). Llena, ademas se resalta (ver _actualizar_resaltados).
@@ -481,6 +557,11 @@ func _salir_edicion() -> void:
 	panel_edicion.visible = false
 	barry.visible = true
 	barry.collision_mask = MASCARA_COLISION_NORMAL
+
+	if is_instance_valid(_guacal_pendiente):
+		var guacal := _guacal_pendiente
+		_guacal_pendiente = null
+		abrir_selector_mascota(guacal)
 
 # Cambia cual objeto esta marcado (contorno + rebote), apagando el anterior.
 # Pasar null limpia la seleccion sin marcar ninguno nuevo.
@@ -562,6 +643,7 @@ func _on_btn_borrar_objeto_pressed() -> void:
 			btn_borrar_objeto.disabled = false
 			return
 
+	_quitar_mascota(objeto)
 	_objetos.erase(objeto)
 	if _seleccionado == objeto:
 		_seleccionado = null

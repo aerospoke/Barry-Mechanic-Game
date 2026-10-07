@@ -82,6 +82,11 @@ var en_pieza_gratis: String = ""
 # algo si esta llena (Supabase.basura_llena()).
 var en_reciclaje: bool = false
 
+# Guacal de la mascota junto al que esta parado Barry (o null): tocarlo abre
+# "Elige la mascota del taller" (ver room.gd abrir_selector_mascota).
+var en_guacal: Area2D = null
+var _iconos_mascota: Dictionary = {}
+
 # Boton de accion de la UI (CanvasLayer/UI en room.tscn) y el icono que se
 # le pidio por ultima vez, para avisarle solo cuando cambia.
 var ui: Node = null
@@ -129,6 +134,9 @@ func conectar_objeto(objeto: Area2D) -> void:
 		var key: String = objeto.get_meta("pieza_gratis")
 		objeto.body_entered.connect(_on_pieza_gratis_entered.bind(key))
 		objeto.body_exited.connect(_on_pieza_gratis_exited.bind(key))
+	elif objeto.has_meta("guacal"):
+		objeto.body_entered.connect(_on_guacal_entered.bind(objeto))
+		objeto.body_exited.connect(_on_guacal_exited.bind(objeto))
 	elif objeto.has_meta("reciclaje"):
 		objeto.body_entered.connect(_on_reciclaje_entered)
 		objeto.body_exited.connect(_on_reciclaje_exited)
@@ -227,6 +235,8 @@ func _icono_contextual() -> Texture2D:
 		return RoomObjectCatalog.textura("car")
 	if en_pieza_gratis != "" and not tiene_item:
 		return ICONO_AGARRAR
+	if is_instance_valid(en_guacal) and not tiene_item:
+		return _icono_mascota(str(en_guacal.get_meta("mascota_id", PetCatalog.POR_DEFECTO)))
 	if en_reciclaje and not tiene_item and Supabase.basura_llena():
 		return ICONO_RECICLAR
 	if tiene_item:
@@ -252,6 +262,10 @@ func interactuar() -> void:
 
 	if en_pieza_gratis != "" and not tiene_item:
 		recibir_item_comprado(en_pieza_gratis)
+		return
+
+	if is_instance_valid(en_guacal) and not tiene_item:
+		get_parent().call("abrir_selector_mascota", en_guacal)
 		return
 
 	if en_reciclaje and not tiene_item and Supabase.basura_llena():
@@ -320,3 +334,18 @@ func _on_reciclaje_entered(body: Node2D) -> void:
 func _on_reciclaje_exited(body: Node2D) -> void:
 	if body == self:
 		en_reciclaje = false
+
+func _on_guacal_entered(body: Node2D, guacal: Area2D) -> void:
+	if body == self:
+		en_guacal = guacal
+
+func _on_guacal_exited(body: Node2D, guacal: Area2D) -> void:
+	if body == self and en_guacal == guacal:
+		en_guacal = null
+
+# PetCatalog.icono() arma una textura nueva en cada llamada: se guarda una
+# por mascota para que el boton no crea que el icono cambio en cada frame.
+func _icono_mascota(id: String) -> Texture2D:
+	if not _iconos_mascota.has(id):
+		_iconos_mascota[id] = PetCatalog.icono(id)
+	return _iconos_mascota[id]

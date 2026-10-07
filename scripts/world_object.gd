@@ -65,6 +65,11 @@ class_name WorldObject
 
 # Posicion del sprite tal como esta en world_object.tscn (centro de la imagen).
 var _sprite_pos_escena: Vector2
+
+# Centro de la imagen para un objeto cuya textura no comparte el lienzo de
+# las de Estantes/ (ver "posicion_sprite" en RoomObjectCatalog). INF = usar
+# la de la escena.
+var posicion_sprite: Vector2 = Vector2.INF
 @onready var forma_solida: CollisionShape2D = $CuerpoSolido/CollisionShape2D
 
 # Contorno blanco + rebote de escala para marcar el objeto que se esta
@@ -91,7 +96,7 @@ var _resaltado: bool = false
 var _seleccionado: bool = false
 
 func _ready() -> void:
-	_sprite_pos_escena = sprite.position
+	_sprite_pos_escena = sprite.position if posicion_sprite == Vector2.INF else posicion_sprite
 	if not Engine.is_editor_hint():
 		# El objeto se ordena por profundidad (y_sort) desde el centro de su
 		# base, no desde su origen: ver _aplicar_escala.

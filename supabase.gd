@@ -302,7 +302,9 @@ func load_rooms() -> bool:
 # coloca los objetos por defecto.
 func load_room_objects(room_id: String) -> Array:
 	var res = await _request_sync(
-		"/rest/v1/room_objects?room_id=eq." + room_id + "&select=id,kind,x,y",
+		# select=*: trae tambien "variant" (ver sql/mascotas.sql) sin romper
+		# la carga si esa columna todavia no existe.
+		"/rest/v1/room_objects?room_id=eq." + room_id + "&select=*",
 		HTTPClient.METHOD_GET
 	)
 	if res[0] != 200 or not res[1] is Array:
@@ -336,6 +338,17 @@ func save_room_object_position(object_id: String, pos: Vector2) -> bool:
 		["Prefer: return=representation"]
 	)
 	return _update_ok(res, "No se pudo guardar la posicion del objeto")
+
+# Guarda la variante elegida de un objeto (ej. la mascota del guacal, ver
+# sql/mascotas.sql).
+func save_room_object_variant(object_id: String, variant: String) -> bool:
+	var res = await _request_sync(
+		"/rest/v1/room_objects?id=eq." + object_id,
+		HTTPClient.METHOD_PATCH,
+		{"variant": variant},
+		["Prefer: return=representation"]
+	)
+	return _update_ok(res, "No se pudo guardar la mascota")
 
 # Guarda donde quedo la TV de "hazte Gold" despues de arrastrarla a lo largo
 # de la pared (ver sql/rooms_gold_banner_pos.sql y room.gd

@@ -61,6 +61,16 @@ const OBJETOS := {
 		"escala": Vector2(0.3, 0.3),
 		"pieza_gratis": "keys",
 	},
+	# Guacal de la mascota: al colocarlo (o tocarlo) se elige que mascota vive
+	# en el (ver PetCatalog y room.gd). La eleccion va en room_objects.variant.
+	"guacal": {
+		"textura": preload("res://objetos/guacal.png"),
+		"escala": Vector2(0.55, 0.55),
+		# Imagen chica sin el margen de las de Estantes/: se apoya sobre la
+		# base del objeto en vez de flotar a la altura de un estante.
+		"posicion_sprite": Vector2(-12, 25),
+		"mascota": true,
+	},
 	# Estantes nuevos: mismo patron (kind = key de shop_items = pieza que dan).
 	"cables": {
 		"textura": preload("res://objetos/Estantes/estanteCorriente.png"),
@@ -95,6 +105,12 @@ static func nombre_nodo(kind: String) -> String:
 
 static func pieza_gratis(kind: String) -> String:
 	return OBJETOS.get(kind, {}).get("pieza_gratis", "")
+
+static func posicion_sprite(kind: String) -> Vector2:
+	return OBJETOS.get(kind, {}).get("posicion_sprite", Vector2.INF)
+
+static func es_mascota(kind: String) -> bool:
+	return OBJETOS.get(kind, {}).get("mascota", false)
 
 static func es_reciclaje(kind: String) -> bool:
 	return OBJETOS.get(kind, {}).get("reciclaje", false)
