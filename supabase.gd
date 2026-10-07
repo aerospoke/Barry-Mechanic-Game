@@ -28,11 +28,19 @@ var active_work_id: String = ""
 var active_work_name: String = ""
 # Codigo interno del trabajo (WorkList.key), separado del nombre que se
 # muestra: lo usa movement_script.gd para saber que minijuego abrir.
-var active_work_key: String = ""
+# Al cambiar avisa con active_work_changed (ver room.gd, que resalta el
+# estante de la pieza que pide el trabajo).
+var active_work_key: String = "":
+	set(value):
+		if value == active_work_key:
+			return
+		active_work_key = value
+		active_work_changed.emit()
 var active_work_points: int = 0
 var active_work_payment: int = 0
 
 signal work_completed(success: bool, payment: int, points: int)
+signal active_work_changed
 
 func is_logged_in() -> bool:
 	return access_token != ""

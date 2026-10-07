@@ -18,6 +18,9 @@ const ZOOM_MINIMO := 0.8
 
 const WorldObjectScene = preload("res://scenes/world_object.tscn")
 const ConfirmModal = preload("res://scripts/confirm_modal.gd")
+# Solo por su const MINIGAMES (pieza -> trabajo), para saber que estante
+# resaltar segun el trabajo activo.
+const BarryScript = preload("res://scripts/movement_script.gd")
 
 # "Premio" que muestra la TV de hazte-Gold (ver _crear_banner_gold): uno al
 # azar por sala, elegido entre objetos sueltos de res://objetos (nada de
@@ -120,6 +123,8 @@ func _ready() -> void:
 	_construir_limites()
 	_colocar_jugador()
 	queue_redraw()
+	Supabase.active_work_changed.connect(_resaltar_estante_del_trabajo)
+	barry.connect("item_en_mano_cambiado", _resaltar_estante_del_trabajo)
 	_cargar_objetos()
 	_crear_banner_gold()
 	actualizar_banner_gold()
@@ -372,6 +377,8 @@ func _cargar_objetos() -> void:
 				fila = creada
 		_instanciar_objeto(fila)
 
+	_resaltar_estante_del_trabajo()
+
 # Lo llama searchwork_ui.gd (via call()) cuando se compra una decoracion en
 # la tienda de la PC. Aparece cerca del centro; el jugador la reacomoda con
 # el modo de edicion (que se activa solo al comprar, ver ahi el porque).
@@ -384,6 +391,7 @@ func agregar_objeto_comprado(kind: String) -> void:
 		if not creada.is_empty():
 			fila = creada
 	_instanciar_objeto(fila)
+	_resaltar_estante_del_trabajo()
 	activar_edicion()
 
 func _instanciar_objeto(fila: Dictionary) -> void:
@@ -412,6 +420,22 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	# _colocar_jugador), asi que el chequeo estatico de GDScript rechazaria
 	# un metodo que no existe en esa clase base.
 	barry.call("conectar_objeto", objeto)
+
+# Marca los estantes que dan la pieza que pide el trabajo activo (puede
+# haber mas de uno del mismo tipo) y apaga el resto. Sin trabajo activo, o
+# con la pieza ya en la mano de Barry, no queda ninguno marcado.
+func _resaltar_estante_del_trabajo() -> void:
+	var pieza := ""
+	for item in BarryScript.MINIGAMES:
+		if BarryScript.MINIGAMES[item]["clave"] == Supabase.active_work_key:
+			pieza = item
+			break
+
+	if barry.get("item_en_mano") == pieza:
+		pieza = ""
+
+	for objeto in _objetos:
+		objeto.set_resaltado(pieza != "" and objeto.get_meta("pieza_gratis", "") == pieza)
 
 # --- Edicion de sala ---------------------------------------------------------
 

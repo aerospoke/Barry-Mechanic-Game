@@ -42,7 +42,16 @@ const TUTORIAL_BIENVENIDA := [
 ]
 
 var tiene_item: bool = false
-var item_en_mano: String = ""
+# Avisa con item_en_mano_cambiado al agarrar o soltar algo (ver room.gd,
+# que deja de resaltar el estante cuando Barry ya tiene la pieza del trabajo).
+var item_en_mano: String = "":
+	set(value):
+		if value == item_en_mano:
+			return
+		item_en_mano = value
+		item_en_mano_cambiado.emit()
+
+signal item_en_mano_cambiado
 var en_search_work: bool = false
 var en_work_zone: bool = false
 

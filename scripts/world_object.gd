@@ -74,7 +74,17 @@ const ShaderContorno := preload("res://scripts/outline.gdshader")
 # es lo mismo si el sprite esta escalado chico).
 const GROSOR_CONTORNO_PX := 3.0
 
+# Contorno pulsante para el estante que pide el trabajo activo (ver room.gd
+# _resaltar_estante_del_trabajo). Comparte shader con la seleccion de
+# edicion: mientras el objeto esta seleccionado manda la seleccion (contorno
+# fijo + rebote) y al soltarlo vuelve el resaltado.
+const COLOR_SELECCION := Color(1, 1, 1, 1)
+const COLOR_RESALTADO := Color(1, 1, 1, 1)
+
 var _tween_seleccion: Tween
+var _tween_resaltado: Tween
+var _resaltado: bool = false
+var _seleccionado: bool = false
 
 func _ready() -> void:
 	_aplicar_textura()
@@ -105,7 +115,10 @@ func set_seleccionado(activo: bool) -> void:
 	if is_instance_valid(_tween_seleccion):
 		_tween_seleccion.kill()
 
+	_seleccionado = activo
 	if activo:
+		_detener_resaltado()
+		sprite.material.set_shader_parameter("color_contorno", COLOR_SELECCION)
 		sprite.material.set_shader_parameter("activo", 1.0)
 
 		_tween_seleccion = create_tween()
@@ -117,6 +130,36 @@ func set_seleccionado(activo: bool) -> void:
 	else:
 		sprite.material.set_shader_parameter("activo", 0.0)
 		sprite.scale = escala_sprite
+		if _resaltado:
+			_iniciar_resaltado()
+
+func set_resaltado(activo: bool) -> void:
+	if Engine.is_editor_hint() or activo == _resaltado:
+		return
+	_resaltado = activo
+	if _seleccionado:
+		return
+	if activo:
+		_iniciar_resaltado()
+	else:
+		_detener_resaltado()
+		sprite.material.set_shader_parameter("activo", 0.0)
+
+func _iniciar_resaltado() -> void:
+	_detener_resaltado()
+	sprite.material.set_shader_parameter("color_contorno", COLOR_RESALTADO)
+	sprite.material.set_shader_parameter("activo", 1.0)
+
+	_tween_resaltado = create_tween()
+	_tween_resaltado.set_trans(Tween.TRANS_SINE)
+	_tween_resaltado.set_ease(Tween.EASE_IN_OUT)
+	_tween_resaltado.set_loops()
+	_tween_resaltado.tween_property(sprite.material, "shader_parameter/activo", 0.3, 0.7)
+	_tween_resaltado.tween_property(sprite.material, "shader_parameter/activo", 1.0, 0.7)
+
+func _detener_resaltado() -> void:
+	if is_instance_valid(_tween_resaltado):
+		_tween_resaltado.kill()
 
 func _aplicar_textura() -> void:
 	if is_instance_valid(sprite):
