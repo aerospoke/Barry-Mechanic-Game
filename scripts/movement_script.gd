@@ -14,6 +14,12 @@ const MINIGAMES = {
 }
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
+# Icono del boton de accion cerca de un estante: agarrar la pieza.
+const ICONO_AGARRAR := preload("res://objetos/mano.png")
+# Icono del boton de accion cerca de la PC: usar la computadora.
+const ICONO_PC := preload("res://objetos/network.png")
+# Icono con una pieza en la mano y nada cerca: el boton la suelta.
+const ICONO_LUPA := preload("res://objetos/lupa.png")
 
 # Explicación de la sala al entrar por primera vez en la sesión. Toda escena
 # jugable es una sala (no existe un "taller" aparte), así que esto se muestra
@@ -62,6 +68,13 @@ var en_work_zone: bool = false
 # hay ninguno cerca.
 var en_pieza_gratis: String = ""
 
+# Boton de accion de la UI (CanvasLayer/UI en room.tscn) y el icono que se
+# le pidio por ultima vez, para avisarle solo cuando cambia.
+var ui: Node = null
+var _icono_accion: Texture2D = null
+# El primer null tambien hay que mandarlo (para ocultar el boton al entrar).
+var _icono_inicializado: bool = false
+
 # Congela al jugador mientras el modal de bienvenida está en pantalla.
 var _en_tutorial: bool = false
 
@@ -76,6 +89,8 @@ func _ready() -> void:
 	var padre := get_parent()
 	if padre.has_node("CanvasLayer/SearchWorkUI"):
 		searchwork_ui = padre.get_node("CanvasLayer/SearchWorkUI")
+	if padre.has_node("CanvasLayer/UI"):
+		ui = padre.get_node("CanvasLayer/UI")
 
 	_mostrar_tutorial_bienvenida()
 
@@ -122,6 +137,8 @@ func _physics_process(_delta: float) -> void:
 
 	if _en_tutorial:
 		return
+
+	_actualizar_icono_accion()
 
 	if Input.is_action_just_pressed("ui_accept"):
 		interactuar()
@@ -182,6 +199,28 @@ func _quieto(nombre: String) -> void:
 		animation.play(nombre)
 	animation.frame = 0
 	animation.pause()
+
+# Mismo orden de prioridad que interactuar(): el icono muestra lo que va a
+# pasar si se pulsa el boton ahora. null = no hay nada que hacer y el boton
+# se oculta.
+func _icono_contextual() -> Texture2D:
+	if en_search_work and not tiene_item:
+		return ICONO_PC
+	if en_work_zone and tiene_item:
+		return RoomObjectCatalog.textura("car")
+	if en_pieza_gratis != "" and not tiene_item:
+		return ICONO_AGARRAR
+	if tiene_item:
+		return ICONO_LUPA
+	return null
+
+func _actualizar_icono_accion() -> void:
+	var icono := _icono_contextual()
+	if icono == _icono_accion and _icono_inicializado or ui == null:
+		return
+	_icono_inicializado = true
+	_icono_accion = icono
+	ui.call("set_icono_accion", icono)
 
 func interactuar() -> void:
 	if en_search_work and not tiene_item and searchwork_ui != null:
