@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dqkxwv2m8h4nc"]
 
 [ext_resource type="Script" path="res://scenes/mini_game_keys.gd" id="1_script"]
-[ext_resource type="Texture2D" uid="uid://cfavuu2gw35v2" path="res://buttons_ui/locked_normal.png" id="2_locked"]
+[ext_resource type="Texture2D" uid="uid://csww2t4o2j7ml" path="res://enginesCars/engine1.png" id="2_engine"]
 [ext_resource type="Texture2D" uid="uid://bnwimc50nnqwb" path="res://buttons_ui/buttonLupa_normal.png" id="3_lupa_n"]
 [ext_resource type="Texture2D" uid="uid://bfhnhsh8ycx7t" path="res://buttons_ui/buttonLupa_pressed.png" id="4_lupa_p"]
 
@@ -17,10 +17,10 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.08, 0.08, 0.09, 1)
 
-[node name="CandadoCine" type="Sprite2D" parent="." unique_id=771029386]
-position = Vector2(210, 300)
-scale = Vector2(4.5, 4.5)
-texture = ExtResource("2_locked")
+[node name="MotorCine" type="Sprite2D" parent="." unique_id=771029386]
+position = Vector2(200, 434)
+scale = Vector2(0.28356484, 0.2835648)
+texture = ExtResource("2_engine")
 
 [node name="FiltroOscuro" type="ColorRect" parent="." unique_id=771029387]
 layout_mode = 1
@@ -33,10 +33,9 @@ color = Color(0, 0, 0, 1)
 
 [node name="ContenedorJuego" type="Node2D" parent="." unique_id=771029388]
 
-[node name="Candado" type="Sprite2D" parent="ContenedorJuego" unique_id=771029389]
+[node name="Candado" type="Node2D" parent="ContenedorJuego" unique_id=771029389]
 position = Vector2(210, 150)
-scale = Vector2(4, 4)
-texture = ExtResource("2_locked")
+scale = Vector2(1.4, 1.4)
 
 [node name="LabelPin" type="Label" parent="ContenedorJuego" unique_id=771029390]
 offset_left = 60.0
