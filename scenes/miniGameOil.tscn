@@ -81,10 +81,6 @@ theme_override_font_sizes/font_size = 13
 horizontal_alignment = 1
 text = "MOTOR"
 
-[node name="Guia" type="Line2D" parent="ContenedorJuego" unique_id=344739131]
-width = 3.0
-default_color = Color(1, 1, 1, 0.25)
-
 [node name="Embudo" type="Node2D" parent="ContenedorJuego" unique_id=1762243933]
 position = Vector2(170, 568)
 

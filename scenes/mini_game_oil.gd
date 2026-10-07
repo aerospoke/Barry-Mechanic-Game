@@ -7,8 +7,7 @@ extends Node2D
 # El desafio es "atrapar gotas": la botella va y viene sola por arriba (como
 # la aguja de la cerradura) y mientras se mantiene pulsado el boton se
 # inclina y suelta gotas. Las que caen en el embudo llenan el motor; las que
-# no, manchan el piso. Una guia punteada marca donde caerian las gotas y se
-# pone verde cuando apunta al embudo. Al pasar la mitad el embudo tambien
+# no, manchan el piso. Al pasar la mitad el embudo tambien
 # empieza a moverse, y la botella acelera a medida que se llena el motor.
 # El puntaje final sale de cuantas manchas quedaron en el piso.
 
@@ -21,7 +20,6 @@ extends Node2D
 @onready var botella: Sprite2D = $ContenedorJuego/Botella
 @onready var pico: Marker2D = $ContenedorJuego/Botella/Pico
 @onready var embudo: Node2D = $ContenedorJuego/Embudo
-@onready var guia: Line2D = $ContenedorJuego/Guia
 @onready var gotas_nodo: Node2D = $ContenedorJuego/Gotas
 @onready var medidor_relleno: ColorRect = $ContenedorJuego/MedidorRelleno
 @onready var label_motor: Label = $ContenedorJuego/LabelMotor
@@ -43,7 +41,7 @@ const TUTORIAL := [
 	},
 	{
 		"titulo": "Verter",
-		"texto": "Manten pulsado el boton para inclinar la botella y soltar gotas.\n\nLa linea punteada te muestra donde van a caer: cuando se pone verde, estas apuntando al embudo.",
+		"texto": "Manten pulsado el boton para inclinar la botella y soltar gotas.\n\nLas gotas caen derecho desde el pico: apunta bien al embudo.",
 	},
 	{
 		"titulo": "No manches el piso",
@@ -73,8 +71,6 @@ var escala_original: Vector2
 
 # --- DESAFIO ---
 const COLOR_ACEITE := Color(0.85, 0.62, 0.15)
-const COLOR_GUIA := Color(1, 1, 1, 0.25)
-const COLOR_GUIA_OK := Color(0.4, 1.0, 0.5, 0.8)
 
 # Recorrido horizontal del pico de la botella (no de su centro: el pico
 # queda corrido a la izquierda cuando se inclina).
@@ -224,13 +220,8 @@ func _mover_botella(delta: float) -> void:
 		direccion_botella = 1.0
 
 	# Se posiciona la botella para que el pico (inclinado) quede en pico_x:
-	# asi la guia y las gotas coinciden con lo que se mueve en pantalla.
+	# asi las gotas salen de donde se ve el pico con lo que se mueve en pantalla.
 	botella.position.x = pico_x - _pico_inclinado().x
-
-	var x_guia := botella.position.x + _pico_inclinado().x
-	var apunta := absf(x_guia - embudo.position.x) <= RADIO_EMBUDO
-	guia.points = PackedVector2Array([Vector2(x_guia, botella.position.y + _pico_inclinado().y), Vector2(x_guia, BOCA_EMBUDO_Y)])
-	guia.default_color = COLOR_GUIA_OK if apunta else COLOR_GUIA
 
 # Desplazamiento del pico respecto del centro de la botella cuando esta
 # inclinada del todo, en coordenadas de pantalla.
@@ -375,7 +366,6 @@ func _flash_label(label: Label, color: Color) -> void:
 func _terminar_juego() -> void:
 	juego_terminado = true
 	button_action.visible = false
-	guia.visible = false
 	label_instruccion.text = "¡Motor lleno!"
 
 	# Las gotas que quedaban en el aire ya no cuentan.
