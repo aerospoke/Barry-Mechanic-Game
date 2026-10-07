@@ -34,9 +34,10 @@ const OBJETOS := {
 		# llena, abre el minijuego de reciclaje al interactuar. Como los
 		# estantes, va por meta y no por nombre_nodo (puede haber varias).
 		"reciclaje": true,
-		# Altura del medidor sobre el origen del objeto, en pixeles: justo
-		# encima del borde de la caneca dibujada.
-		"altura_medidor": -190.0,
+		# Posicion del medidor respecto del origen del objeto, en pixeles:
+		# centrado sobre la caneca dibujada (que no esta centrada en su
+		# imagen: queda corrida a la izquierda) y justo encima de su borde.
+		"posicion_medidor": Vector2(-15, -185),
 	},
 	"estante_aceite": {
 		"textura": preload("res://objetos/Estantes/aceites.png"),
@@ -77,8 +78,8 @@ static func pieza_gratis(kind: String) -> String:
 static func es_reciclaje(kind: String) -> bool:
 	return OBJETOS.get(kind, {}).get("reciclaje", false)
 
-static func altura_medidor(kind: String) -> float:
-	return OBJETOS.get(kind, {}).get("altura_medidor", -150.0)
+static func posicion_medidor(kind: String) -> Vector2:
+	return OBJETOS.get(kind, {}).get("posicion_medidor", Vector2(0, -150))
 
 # Forma de colision de cada "kind". Si trae "poligono_colision" a medida (ej.
 # la PC, calcada de su sprite) se usa esa. Si no, el default ya NO es un

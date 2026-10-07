@@ -152,12 +152,12 @@ var _medidor_relleno: ColorRect
 var _medidor_texto: Label
 var _tween_medidor: Tween
 
-func set_medidor(fraccion: float, texto: String, altura: float) -> void:
+func set_medidor(fraccion: float, texto: String, posicion: Vector2) -> void:
 	if Engine.is_editor_hint():
 		return
 	if _medidor == null:
 		_crear_medidor()
-	_medidor.position = Vector2(0, altura)
+	_medidor.position = posicion
 
 	fraccion = clampf(fraccion, 0.0, 1.0)
 	_medidor_relleno.size.x = (MEDIDOR_ANCHO - 4.0) * fraccion

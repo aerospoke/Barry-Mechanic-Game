@@ -21,6 +21,9 @@ const ICONO_PC := preload("res://objetos/network.png")
 # Minijuego que se abre al interactuar con una caneca llena.
 const ESCENA_RECICLAJE := "res://scenes/miniGameReciclaje.tscn"
 
+# Icono del boton de accion junto a una caneca llena.
+const ICONO_RECICLAR := preload("res://objetos/reciclaje.png")
+
 # Icono con una pieza en la mano y nada cerca: el boton la suelta.
 const ICONO_LUPA := preload("res://objetos/lupa.png")
 
@@ -221,7 +224,7 @@ func _icono_contextual() -> Texture2D:
 	if en_pieza_gratis != "" and not tiene_item:
 		return ICONO_AGARRAR
 	if en_reciclaje and not tiene_item and Supabase.basura_llena():
-		return RoomObjectCatalog.textura("trash")
+		return ICONO_RECICLAR
 	if tiene_item:
 		return ICONO_LUPA
 	return null

@@ -413,7 +413,7 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	if pieza_gratis != "":
 		objeto.set_meta("pieza_gratis", pieza_gratis)
 	if RoomObjectCatalog.es_reciclaje(kind):
-		objeto.set_meta("reciclaje", RoomObjectCatalog.altura_medidor(kind))
+		objeto.set_meta("reciclaje", RoomObjectCatalog.posicion_medidor(kind))
 
 	interaction_zone.add_child(objeto)
 	_objetos.append(objeto)
