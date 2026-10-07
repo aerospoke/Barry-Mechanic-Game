@@ -61,6 +61,10 @@ class_name WorldObject
 		_aplicar_forma_colision()
 
 @onready var sprite: Sprite2D = $Sprite2D
+@onready var base_solida: CollisionPolygon2D = $CuerpoSolido/CollisionPolygon2D
+
+# Posicion del sprite tal como esta en world_object.tscn (centro de la imagen).
+var _sprite_pos_escena: Vector2
 @onready var forma_solida: CollisionShape2D = $CuerpoSolido/CollisionShape2D
 
 # Contorno blanco + rebote de escala para marcar el objeto que se esta
@@ -87,6 +91,11 @@ var _resaltado: bool = false
 var _seleccionado: bool = false
 
 func _ready() -> void:
+	_sprite_pos_escena = sprite.position
+	if not Engine.is_editor_hint():
+		# El objeto se ordena por profundidad (y_sort) desde el centro de su
+		# base, no desde su origen: ver _aplicar_escala.
+		y_sort_enabled = true
 	_aplicar_textura()
 	_aplicar_escala()
 	_aplicar_forma_colision()
@@ -168,6 +177,27 @@ func _aplicar_textura() -> void:
 func _aplicar_escala() -> void:
 	if is_instance_valid(sprite):
 		sprite.scale = escala_sprite
+		_ubicar_sprite_en_base()
+
+# La sala ordena por profundidad (y_sort en room.tscn) y este nodo tambien
+# (ver _ready), asi que lo que cuenta es la posicion del Sprite2D. Se lo pone
+# en el centro de la base solida (lo que pisa el piso) y se compensa con
+# offset para que la imagen se siga viendo en el mismo lugar: asi Barry pasa
+# delante del mueble solo cuando sus pies estan por delante de esa base. De
+# paso, el rebote de seleccion crece desde la base en vez de desde el medio.
+func _ubicar_sprite_en_base() -> void:
+	if Engine.is_editor_hint() or not is_instance_valid(base_solida):
+		return
+	var base := _centro_base()
+	sprite.position = base
+	sprite.offset = (_sprite_pos_escena - base) / escala_sprite
+
+func _centro_base() -> Vector2:
+	var centro := Vector2.ZERO
+	for punto in base_solida.polygon:
+		centro += base_solida.get_global_transform() * punto
+	centro /= max(base_solida.polygon.size(), 1)
+	return get_global_transform().affine_inverse() * centro
 
 func _aplicar_forma_colision() -> void:
 	if not is_instance_valid(forma_solida):

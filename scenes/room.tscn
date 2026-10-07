@@ -7,6 +7,7 @@
 
 [node name="Room" type="Node2D"]
 texture_filter = 1
+y_sort_enabled = true
 script = ExtResource("1_room")
 
 [node name="Limites" type="StaticBody2D" parent="."]
@@ -17,6 +18,7 @@ build_mode = 1
 [node name="Barry" parent="." instance=ExtResource("2_barry")]
 
 [node name="InteractionZone" type="Node2D" parent="."]
+y_sort_enabled = true
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 

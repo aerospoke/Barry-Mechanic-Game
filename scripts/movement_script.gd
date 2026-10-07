@@ -41,6 +41,8 @@ const TUTORIAL_BIENVENIDA := [
 	},
 ]
 
+# El origen de Barry esta en sus pies (centro de CollisionPlayer en
+# barry.tscn): la sala ordena por profundidad con ese punto.
 var tiene_item: bool = false
 # Avisa con item_en_mano_cambiado al agarrar o soltar algo (ver room.gd,
 # que deja de resaltar el estante cuando Barry ya tiene la pieza del trabajo).
@@ -132,30 +134,39 @@ func _physics_process(_delta: float) -> void:
 			if dir.x > 0:
 				velocity.x = SPEED
 				_animar("right" + sufijo)
-				item_hand.position = Vector2(50, -30)
-				item_hand.z_index = 1
+				item_hand.position = Vector2(50, -54)
+				_mano_delante(true)
 			else:
 				velocity.x = -SPEED
 				_animar("left" + sufijo)
-				item_hand.position = Vector2(-50, -30)
-				item_hand.z_index = 1
+				item_hand.position = Vector2(-50, -54)
+				_mano_delante(true)
 		else:
 			if dir.y > 0:
 				velocity.y = SPEED
 				_animar("down" + sufijo)
-				item_hand.position = Vector2(5, -37)
-				item_hand.z_index = 1
+				item_hand.position = Vector2(5, -61)
+				_mano_delante(true)
 			else:
 				velocity.y = -SPEED
 				_animar("up" + sufijo)
-				item_hand.position = Vector2(0, -25)
-				item_hand.z_index = -1
+				item_hand.position = Vector2(0, -49)
+				_mano_delante(false)
 	else:
 		_quieto("down" + sufijo)
-		item_hand.position = Vector2(5, -35)
-		item_hand.z_index = 1
+		item_hand.position = Vector2(5, -59)
+		_mano_delante(true)
 
 	move_and_slide()
+
+# Pone la pieza en la mano delante o detras del sprite de Barry cambiando el
+# orden de los hijos, no su z_index: con la sala ordenada por profundidad
+# (y_sort en room.tscn) un z_index mayor la haria flotar encima de los
+# muebles aunque Barry este detras de ellos.
+func _mano_delante(delante: bool) -> void:
+	var destino := get_child_count() - 1 if delante else 0
+	if item_hand.get_index() != destino:
+		move_child(item_hand, destino)
 
 # Reproduce una animación de caminar solo si no era ya la que estaba sonando,
 # para no reiniciarla en cada frame.
