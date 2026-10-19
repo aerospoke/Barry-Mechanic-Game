@@ -25,6 +25,9 @@ const ICONO_PC := preload("res://objetos/network.png")
 # Minijuego que se abre al interactuar con una caneca llena.
 const ESCENA_RECICLAJE := "res://scenes/miniGameReciclaje.tscn"
 
+# Icono del boton de accion junto al equipo de sonido.
+const ICONO_RADIO := preload("res://objetos/radio.png")
+
 # Icono del boton de accion junto a una caneca llena.
 const ICONO_RECICLAR := preload("res://objetos/reciclaje.png")
 
@@ -85,6 +88,8 @@ var en_reciclaje: bool = false
 # Guacal de la mascota junto al que esta parado Barry (o null): tocarlo abre
 # "Elige la mascota del taller" (ver room.gd abrir_selector_mascota).
 var en_guacal: Area2D = null
+# Junto al equipo de sonido: tocarlo abre el panel de la musica.
+var en_radio: bool = false
 var _iconos_mascota: Dictionary = {}
 
 # Boton de accion de la UI (CanvasLayer/UI en room.tscn) y el icono que se
@@ -134,6 +139,9 @@ func conectar_objeto(objeto: Area2D) -> void:
 		var key: String = objeto.get_meta("pieza_gratis")
 		objeto.body_entered.connect(_on_pieza_gratis_entered.bind(key))
 		objeto.body_exited.connect(_on_pieza_gratis_exited.bind(key))
+	elif objeto.has_meta("radio"):
+		objeto.body_entered.connect(_on_radio_entered)
+		objeto.body_exited.connect(_on_radio_exited)
 	elif objeto.has_meta("guacal"):
 		objeto.body_entered.connect(_on_guacal_entered.bind(objeto))
 		objeto.body_exited.connect(_on_guacal_exited.bind(objeto))
@@ -235,6 +243,8 @@ func _icono_contextual() -> Texture2D:
 		return RoomObjectCatalog.textura("car")
 	if en_pieza_gratis != "" and not tiene_item:
 		return ICONO_AGARRAR
+	if en_radio and not tiene_item:
+		return ICONO_RADIO
 	if is_instance_valid(en_guacal) and not tiene_item:
 		return _icono_mascota(str(en_guacal.get_meta("mascota_id", PetCatalog.POR_DEFECTO)))
 	if en_reciclaje and not tiene_item and Supabase.basura_llena():
@@ -268,12 +278,17 @@ func interactuar() -> void:
 		get_parent().call("abrir_selector_mascota", en_guacal)
 		return
 
+	if en_radio and not tiene_item:
+		get_parent().call("abrir_radio")
+		return
+
 	if en_reciclaje and not tiene_item and Supabase.basura_llena():
 		get_tree().paused = false
 		get_tree().change_scene_to_file(ESCENA_RECICLAJE)
 		return
 
 	if tiene_item:
+		Sonido.efecto("soltar")
 		tiene_item = false
 		item_en_mano = ""
 		item_hand.visible = false
@@ -282,6 +297,7 @@ func interactuar() -> void:
 # (searchwork_ui.gd) al comprar, y tambien interactuar() al agarrar gratis
 # de un estante ya pagado (ver en_pieza_gratis mas arriba).
 func recibir_item_comprado(key: String) -> void:
+	Sonido.efecto("agarrar")
 	tiene_item = true
 	item_en_mano = key
 	item_hand.visible = true
@@ -349,3 +365,11 @@ func _icono_mascota(id: String) -> Texture2D:
 	if not _iconos_mascota.has(id):
 		_iconos_mascota[id] = PetCatalog.icono(id)
 	return _iconos_mascota[id]
+
+func _on_radio_entered(body: Node2D) -> void:
+	if body == self:
+		en_radio = true
+
+func _on_radio_exited(body: Node2D) -> void:
+	if body == self:
+		en_radio = false

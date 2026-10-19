@@ -166,6 +166,8 @@ func _bombear() -> void:
 	if not inflando:
 		return
 	presion += PRESION_POR_TOQUE * randf_range(0.8, 1.2)
+	# El aire suena mas agudo cuanto mas llena esta la llanta.
+	Sonido.efecto("aire", 0.8 + presion / PRESION_MAXIMA * 0.6, -4.0)
 	Efectos.nube(contenedor_juego, CENTRO_LLANTA + Vector2(TAMANO_LLANTA * 0.42, 0), Color(0.85, 0.95, 1.0, 0.8), 4, 35.0, 0.35)
 	if presion >= PRESION_MAXIMA:
 		_reventar()
@@ -199,6 +201,7 @@ func _actualizar_visual() -> void:
 
 func _reventar() -> void:
 	inflando = false
+	Sonido.efecto("pum")
 	Efectos.nube(contenedor_juego, CENTRO_LLANTA, Color(0.2, 0.2, 0.22), 24, 130.0, 0.6)
 	Efectos.sacudir(contenedor_juego, 10.0, 0.35)
 	Efectos.texto_flotante(contenedor_juego, "¡PUM!", CENTRO_LLANTA, Color.WHITE, 44)

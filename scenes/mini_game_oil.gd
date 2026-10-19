@@ -286,6 +286,8 @@ func _mover_gotas(delta: float) -> void:
 func _gota_atrapada() -> void:
 	nivel_motor = minf(100.0, nivel_motor + ACEITE_POR_GOTA)
 	combo += 1
+	# La gota suena mas aguda a medida que se llena el motor.
+	Sonido.efecto("gota", randf_range(0.95, 1.05) + nivel_motor / 250.0, -6.0)
 
 	# Pequeño "glup" del embudo en cada gota.
 	var tween := create_tween()
@@ -293,6 +295,7 @@ func _gota_atrapada() -> void:
 	tween.tween_property(embudo, "scale", Vector2.ONE, 0.1)
 
 	if combo > 0 and combo % 10 == 0:
+		Sonido.efecto("acierto")
 		Efectos.texto_flotante(contenedor_juego, "¡Combo x%d!" % combo, Vector2(embudo.position.x, BOCA_EMBUDO_Y - 60), Color(1, 0.85, 0.3))
 
 	if not embudo_movil and nivel_motor >= NIVEL_EMBUDO_MOVIL:
@@ -307,6 +310,7 @@ func _gota_atrapada() -> void:
 # La gota se aplasta en el piso y se desvanece de a poco.
 func _mancha(nodo: Polygon2D) -> void:
 	manchas += 1
+	Sonido.efecto_variado("splash", 0.15)
 	combo = 0
 	nodo.position.y = PISO_Y + randf_range(0.0, 12.0)
 	Efectos.nube(gotas_nodo, nodo.position, COLOR_ACEITE, 4, 18.0, 0.35)
@@ -349,6 +353,7 @@ func _terminar_juego() -> void:
 	juego_terminado = true
 	button_action.visible = false
 	label_instruccion.text = "¡Motor lleno!"
+	Sonido.efecto("victoria")
 
 	# Las gotas que quedaban en el aire ya no cuentan.
 	for gota in gotas:

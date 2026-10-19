@@ -70,6 +70,24 @@ var _sprite_pos_escena: Vector2
 # las de Estantes/ (ver "posicion_sprite" en RoomObjectCatalog). INF = usar
 # la de la escena.
 var posicion_sprite: Vector2 = Vector2.INF
+
+# Mueble girado (espejado de izquierda a derecha). En isometrico "girar" un
+# mueble es mostrar su otra cara, y con una sola imagen eso es espejarla:
+# se espejan juntos la imagen, la base solida y la zona de interaccion
+# alrededor del origen del objeto (ver _aplicar_volteo). Se guarda en
+# room_objects.volteado (ver sql/room_objects_volteado.sql).
+var volteado: bool = false:
+	set(value):
+		volteado = value
+		if is_node_ready():
+			_aplicar_volteo()
+
+@onready var zona_interaccion: CollisionShape2D = $CollisionShape2D
+# Formas de la escena sin espejar, para poder volver atras al desgirar.
+var _base_poligono_original: PackedVector2Array
+var _zona_pos_original: Vector2
+var _zona_rot_original: float
+var _medidor_pos_original: Vector2
 @onready var forma_solida: CollisionShape2D = $CuerpoSolido/CollisionShape2D
 
 # Contorno blanco + rebote de escala para marcar el objeto que se esta
@@ -97,12 +115,16 @@ var _seleccionado: bool = false
 
 func _ready() -> void:
 	_sprite_pos_escena = sprite.position if posicion_sprite == Vector2.INF else posicion_sprite
+	_base_poligono_original = base_solida.polygon
+	_zona_pos_original = zona_interaccion.position
+	_zona_rot_original = zona_interaccion.rotation
 	if not Engine.is_editor_hint():
 		# El objeto se ordena por profundidad (y_sort) desde el centro de su
 		# base, no desde su origen: ver _aplicar_escala.
 		y_sort_enabled = true
 	_aplicar_textura()
 	_aplicar_escala()
+	_aplicar_volteo()
 	_aplicar_forma_colision()
 
 	if not Engine.is_editor_hint():
@@ -139,11 +161,11 @@ func set_seleccionado(activo: bool) -> void:
 		_tween_seleccion.set_trans(Tween.TRANS_SINE)
 		_tween_seleccion.set_ease(Tween.EASE_IN_OUT)
 		_tween_seleccion.set_loops()
-		_tween_seleccion.tween_property(sprite, "scale", escala_sprite * 1.08, 1.0)
-		_tween_seleccion.tween_property(sprite, "scale", escala_sprite, 1.0)
+		_tween_seleccion.tween_property(sprite, "scale", _escala_visual() * 1.08, 1.0)
+		_tween_seleccion.tween_property(sprite, "scale", _escala_visual(), 1.0)
 	else:
 		sprite.material.set_shader_parameter("activo", 0.0)
-		sprite.scale = escala_sprite
+		sprite.scale = _escala_visual()
 		if _resaltado:
 			_iniciar_resaltado()
 
@@ -162,7 +184,8 @@ func set_medidor(fraccion: float, texto: String, posicion: Vector2) -> void:
 		return
 	if _medidor == null:
 		_crear_medidor()
-	_medidor.position = posicion
+	_medidor_pos_original = posicion
+	_medidor.position = _espejar(posicion)
 
 	fraccion = clampf(fraccion, 0.0, 1.0)
 	_medidor_relleno.size.x = (MEDIDOR_ANCHO - 4.0) * fraccion
@@ -248,8 +271,39 @@ func _aplicar_textura() -> void:
 
 func _aplicar_escala() -> void:
 	if is_instance_valid(sprite):
-		sprite.scale = escala_sprite
+		sprite.scale = _escala_visual()
 		_ubicar_sprite_en_base()
+
+# Escala del sprite con el signo del volteo: escalar x en negativo espeja la
+# imagen (y su offset) alrededor de sprite.position.
+func _escala_visual() -> Vector2:
+	return escala_sprite * Vector2(-1.0 if volteado else 1.0, 1.0)
+
+func _espejar(punto: Vector2) -> Vector2:
+	return Vector2(-punto.x, punto.y) if volteado else punto
+
+# Espeja (o devuelve a la normalidad) todo lo que depende del lado: la base
+# solida que choca con Barry, la zona de interaccion, el medidor y la imagen.
+func _aplicar_volteo() -> void:
+	if Engine.is_editor_hint() or not is_instance_valid(base_solida):
+		return
+
+	var poligono := PackedVector2Array()
+	for punto in _base_poligono_original:
+		poligono.append(_espejar(punto))
+	if volteado:
+		# Espejar invierte el sentido de giro de los vertices; se reordena
+		# para que el poligono siga siendo valido para la fisica.
+		poligono.reverse()
+	base_solida.polygon = poligono
+
+	zona_interaccion.position = _espejar(_zona_pos_original)
+	zona_interaccion.rotation = -_zona_rot_original if volteado else _zona_rot_original
+
+	if _medidor != null:
+		_medidor.position = _espejar(_medidor_pos_original)
+
+	_aplicar_escala()
 
 # La sala ordena por profundidad (y_sort en room.tscn) y este nodo tambien
 # (ver _ready), asi que lo que cuenta es la posicion del Sprite2D. Se lo pone
@@ -262,7 +316,9 @@ func _ubicar_sprite_en_base() -> void:
 		return
 	var base := _centro_base()
 	sprite.position = base
-	sprite.offset = (_sprite_pos_escena - base) / escala_sprite
+	# El centro de la imagen tambien se espeja; el offset se divide por la
+	# escala con signo para que, al multiplicarse por ella, caiga ahi.
+	sprite.offset = (_espejar(_sprite_pos_escena) - base) / _escala_visual()
 
 func _centro_base() -> Vector2:
 	var centro := Vector2.ZERO

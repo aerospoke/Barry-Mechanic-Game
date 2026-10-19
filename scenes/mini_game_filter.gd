@@ -322,6 +322,7 @@ func _on_filtro_viejo_ok() -> void:
 	if _tween_polvo:
 		_tween_polvo.kill()
 
+	Sonido.efecto("tirar")
 	Efectos.rebote(papelera, papelera.scale, Vector2(1.25, 0.75))
 	Efectos.nube(contenedor_juego, marca_papelera.global_position, COLOR_POLVO, 16, 70.0)
 	_acierto("¡A la basura!", marca_papelera.global_position + Vector2(40, -60))
@@ -358,6 +359,7 @@ func _animacion_cierre_automatico() -> void:
 	tapa.z_index = 0
 
 	# Tapa que cae de golpe: aplastado, temblor y polvito.
+	Sonido.efecto("encajar", 0.8)
 	Efectos.rebote(tapa, Vector2.ONE, Vector2(1.1, 0.85))
 	Efectos.sacudir(contenedor_juego, 6.0)
 	Efectos.nube(contenedor_juego, tapa.global_position + Vector2(0, 60), COLOR_POLVO, 10, 60.0)
@@ -387,6 +389,7 @@ func _girar_tornillo(tornillo: Node2D, sentido: float) -> void:
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.tween_property(tornillo, "rotation", tornillo.rotation + sentido * TAU * 2.0, 0.4)
 
+	Sonido.efecto_variado("click")
 	# El destornillador se menea mientras gira el tornillo.
 	var meneo := create_tween()
 	for angulo in [0.3 * sentido, -0.3 * sentido, 0.3 * sentido, -0.3 * sentido, 0.0]:
@@ -442,6 +445,7 @@ func _on_error() -> void:
 		return
 	errores += 1
 	racha = 0
+	Sonido.efecto("error")
 	_flash(label_instruccion, Color(1.0, 0.3, 0.2))
 	Efectos.texto_flotante(contenedor_juego, "¡Uy!", get_viewport().get_mouse_position(), COLOR_ERROR, 26)
 	Efectos.sacudir(contenedor_juego, 4.0, 0.2)
@@ -450,6 +454,7 @@ func _on_error() -> void:
 # seguidos sin errores, la racha.
 func _acierto(texto: String, pos: Vector2) -> void:
 	racha += 1
+	Sonido.efecto("acierto", 1.0 + minf(racha - 1, 6) * 0.05)
 	Efectos.texto_flotante(contenedor_juego, texto, pos, COLOR_OK)
 	if racha >= RACHA_MINIMA:
 		Efectos.texto_flotante(contenedor_juego, "¡Racha x%d!" % racha, pos + Vector2(0, 30), COLOR_CHISPA, 18)
@@ -466,6 +471,7 @@ func _terminar_juego() -> void:
 	label_instruccion.text = "¡Listo!"
 
 	Efectos.confeti(contenedor_juego, Vector2(210, 300), 40)
+	Sonido.efecto("victoria")
 	Efectos.texto_flotante(contenedor_juego, "¡Filtro cambiado!", Vector2(210, 380), COLOR_CHISPA, 30)
 	await get_tree().create_timer(1.2).timeout
 

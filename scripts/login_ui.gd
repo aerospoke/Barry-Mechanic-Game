@@ -4,6 +4,9 @@ extends Control
 @onready var username_input = $UsernameInput 
 @onready var password_input = $PasswordInput
 @onready var btn_login = $BtnLogin
+@onready var btn_registro: Button = $BtnRedirectRegister
+@onready var tarjeta: Panel = $Tarjeta
+@onready var titulo: Label = $Titulo
 
 @onready var http_request = $HTTPRequest
 @onready var http_get_email = $HTTPRequest_GetEmail
@@ -14,9 +17,19 @@ const StatusLabel = preload("res://scripts/status_label.gd")
 
 var status_label: Label
 
+# Mismos colores que la tienda (searchwork_ui) y los modales.
+const COLOR_FONDO := Color(0.1, 0.08, 0.18)
+const COLOR_TARJETA := Color(0.15, 0.13, 0.25)
+const COLOR_CAMPO := Color(0.08, 0.07, 0.14)
+const COLOR_BORDE := Color(0.32, 0.28, 0.45)
+const COLOR_DORADO := Color(1.0, 0.82, 0.3)
+const COLOR_TEXTO := Color(0.92, 0.92, 0.96)
+const COLOR_TEXTO_SUAVE := Color(0.7, 0.68, 0.8)
+
 func _ready() -> void:
-	# Entre el campo de contraseña (y=490) y el botón de entrar (y=574).
-	status_label = StatusLabel.crear(self, Vector2(40.0, 500.0), 340.0)
+	_aplicar_estilos()
+	# Entre el campo de contraseña (termina en y=510) y el botón (y=576).
+	status_label = StatusLabel.crear(self, Vector2(40.0, 512.0), 340.0)
 	_agregar_ojo(password_input)
 
 	# Precarga de datos para pruebas rapidas. Sacar antes de compartir/subir
@@ -29,6 +42,64 @@ func _ready() -> void:
 	password_input.text_changed.connect(func(_t): status_label.limpiar())
 	http_request.request_completed.connect(_on_request_completed)
 	http_get_email.request_completed.connect(_on_get_email_completed)
+
+# --- Estilo -------------------------------------------------------------------
+
+func _aplicar_estilos() -> void:
+
+	tarjeta.add_theme_stylebox_override("panel", _caja(COLOR_TARJETA, COLOR_BORDE, 18, 2))
+
+	titulo.add_theme_font_size_override("font_size", 22)
+	titulo.add_theme_color_override("font_color", COLOR_DORADO)
+
+	for label in [$"Label - username", $"Label - password"]:
+		label.add_theme_font_size_override("font_size", 15)
+		label.add_theme_color_override("font_color", COLOR_TEXTO_SUAVE)
+
+	for campo in [username_input, password_input]:
+		var normal := _caja(COLOR_CAMPO, COLOR_BORDE, 12, 2)
+		normal.content_margin_left = 14
+		normal.content_margin_right = 14
+		var foco: StyleBoxFlat = normal.duplicate()
+		foco.border_color = COLOR_DORADO
+		campo.add_theme_stylebox_override("normal", normal)
+		campo.add_theme_stylebox_override("focus", foco)
+		campo.add_theme_font_size_override("font_size", 18)
+		campo.add_theme_color_override("font_color", COLOR_TEXTO)
+		campo.add_theme_color_override("font_placeholder_color", Color(COLOR_TEXTO_SUAVE, 0.5))
+		campo.add_theme_color_override("caret_color", COLOR_DORADO)
+
+	# Boton principal: dorado con texto oscuro, se oscurece al apretarlo.
+	btn_login.add_theme_stylebox_override("normal", _caja(COLOR_DORADO, COLOR_DORADO.darkened(0.3), 14, 0, 4))
+	btn_login.add_theme_stylebox_override("hover", _caja(COLOR_DORADO.lightened(0.1), COLOR_DORADO.darkened(0.3), 14, 0, 4))
+	btn_login.add_theme_stylebox_override("pressed", _caja(COLOR_DORADO.darkened(0.15), COLOR_DORADO.darkened(0.3), 14, 0, 1))
+	btn_login.add_theme_stylebox_override("disabled", _caja(COLOR_DORADO.darkened(0.45), COLOR_DORADO.darkened(0.5), 14, 0, 4))
+	btn_login.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	for estado in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		btn_login.add_theme_color_override(estado, Color(0.15, 0.1, 0.05))
+	btn_login.add_theme_font_size_override("font_size", 21)
+
+	# Registro: enlace de texto, sin caja.
+	for estado in ["normal", "hover", "pressed", "focus"]:
+		btn_registro.add_theme_stylebox_override(estado, StyleBoxEmpty.new())
+	btn_registro.add_theme_color_override("font_color", COLOR_TEXTO_SUAVE)
+	btn_registro.add_theme_color_override("font_hover_color", COLOR_DORADO)
+	btn_registro.add_theme_color_override("font_pressed_color", COLOR_DORADO)
+	btn_registro.add_theme_font_size_override("font_size", 16)
+
+func _caja(fondo: Color, borde: Color, radio: int, grosor_borde: int, sombra_abajo: int = 0) -> StyleBoxFlat:
+	var caja := StyleBoxFlat.new()
+	caja.bg_color = fondo
+	caja.border_color = borde
+	caja.set_border_width_all(grosor_borde)
+	if sombra_abajo > 0:
+		# "Borde" grueso solo abajo: da relieve de boton apretable.
+		caja.border_width_bottom = sombra_abajo
+		caja.border_color = borde
+	caja.set_corner_radius_all(radio)
+	caja.content_margin_top = 8
+	caja.content_margin_bottom = 8
+	return caja
 
 # Coloca el botón de ojo dentro del campo, pegado al borde derecho. Se ancla
 # en vez de posicionarse a mano para que siga al campo si cambia de tamaño.
@@ -45,11 +116,11 @@ func _agregar_ojo(campo: LineEdit) -> void:
 
 	# Deja hueco a la derecha para que el texto no pase por debajo del ojo.
 	campo.add_theme_constant_override("minimum_character_width", 0)
-	var estilo := campo.get_theme_stylebox("normal").duplicate()
-	if estilo is StyleBox:
+	# Cada estado por separado, para no perder el borde dorado del foco.
+	for estado in ["normal", "focus"]:
+		var estilo: StyleBox = campo.get_theme_stylebox(estado).duplicate()
 		estilo.content_margin_right = lado + 10.0
-		campo.add_theme_stylebox_override("normal", estilo)
-		campo.add_theme_stylebox_override("focus", estilo)
+		campo.add_theme_stylebox_override(estado, estilo)
 
 func _on_btn_redirect_register_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/registro_ui.tscn")

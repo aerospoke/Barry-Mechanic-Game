@@ -12,6 +12,8 @@ extends Control
 
 @onready var button_action: TouchScreenButton = $buttonAction
 
+const AjustesSonido = preload("res://scripts/ajustes_sonido.gd")
+
 @onready var http_profile = $HTTPRequestProfile
 @onready var http_active_work = $HTTPRequestActiveWork
 
@@ -50,6 +52,7 @@ func _ready() -> void:
 	# en el taller no hay nada que mover todavia.
 	btn_editar_sala.visible = _raiz_editable() != null
 	btn_logout.pressed.connect(_on_btn_logout_pressed)
+	$fondoOscuro/BtnSonido.pressed.connect(func(): AjustesSonido.crear(self))
 
 	_escala_boton = button_action.scale
 	_posicion_boton = button_action.position

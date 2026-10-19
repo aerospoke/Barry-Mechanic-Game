@@ -22,6 +22,9 @@ const ConfirmModal = preload("res://scripts/confirm_modal.gd")
 # resaltar segun el trabajo activo.
 const BarryScript = preload("res://scripts/movement_script.gd")
 const PetPicker = preload("res://scripts/pet_picker.gd")
+const VentanaPared = preload("res://scripts/ventana_pared.gd")
+const RadioEquipo = preload("res://scripts/radio_equipo.gd")
+const RadioPanel = preload("res://scripts/radio_panel.gd")
 const Efectos = preload("res://scripts/efectos.gd")
 
 # Capa de fisica de las mascotas: chocan con los limites (1) y los muebles
@@ -53,6 +56,7 @@ const OBJETOS_BANNER_GOLD := [
 @onready var panel_edicion: Control = $CanvasLayer/PanelEdicion
 @onready var btn_listo_edicion: Button = $CanvasLayer/PanelEdicion/BtnListoEdicion
 @onready var btn_borrar_objeto: Button = $CanvasLayer/PanelEdicion/BtnBorrarObjeto
+@onready var btn_girar_objeto: Button = $CanvasLayer/PanelEdicion/BtnGirarObjeto
 
 var estilo: Dictionary = {}
 var ancho: int = 8
@@ -101,6 +105,13 @@ var _seleccionado: WorldObject = null
 # Guacal recien comprado que todavia no eligio mascota (ver _salir_edicion).
 var _guacal_pendiente: WorldObject = null
 
+# Objetos de pared (ventanas). Van aparte de _objetos: no son WorldObject,
+# se arrastran a lo largo de las paredes y no se giran.
+var _ventanas: Array = []
+var _ventana_seleccionada: VentanaPared = null
+var _ventana_arrastrando: VentanaPared = null
+var _tween_ventana: Tween
+
 const DISTANCIA_TOQUE := 90.0
 
 # Capas de colision: bit 1 = limite de la sala (Limites/Contorno), bit 2 =
@@ -130,6 +141,7 @@ func _ready() -> void:
 
 	btn_listo_edicion.pressed.connect(_salir_edicion)
 	btn_borrar_objeto.pressed.connect(_on_btn_borrar_objeto_pressed)
+	btn_girar_objeto.pressed.connect(_on_btn_girar_objeto_pressed)
 
 	_construir_limites()
 	_colocar_jugador()
@@ -400,6 +412,9 @@ func _cargar_objetos() -> void:
 func agregar_objeto_comprado(kind: String) -> void:
 	var room_id := str(Supabase.current_room.get("id", ""))
 	var pos := tile_a_mundo(ancho / 2, alto / 2 - 3) + Vector2(0, RoomStyles.TILE_H * 0.5)
+	if RoomObjectCatalog.es_de_pared(kind):
+		# Al medio de la primera pared (x = t, y = pared).
+		pos = Vector2(0.5, 0)
 	var fila := {"id": "", "kind": kind, "x": pos.x, "y": pos.y}
 	if room_id != "":
 		var creada := await Supabase.create_room_object(room_id, kind, pos)
@@ -412,9 +427,14 @@ func agregar_objeto_comprado(kind: String) -> void:
 	if RoomObjectCatalog.es_mascota(kind):
 		_guacal_pendiente = _objetos.back()
 	activar_edicion()
+	if RoomObjectCatalog.es_de_pared(kind) and not _ventanas.is_empty():
+		_marcar_ventana(_ventanas.back())
 
 func _instanciar_objeto(fila: Dictionary) -> void:
 	var kind := str(fila.get("kind", ""))
+	if RoomObjectCatalog.es_de_pared(kind):
+		_instanciar_ventana(fila)
+		return
 	var objeto: WorldObject = WorldObjectScene.instantiate()
 	var nombre := RoomObjectCatalog.nombre_nodo(kind)
 	objeto.name = nombre if nombre != "" else "Objeto_%d" % _objetos.size()
@@ -423,6 +443,8 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	objeto.poligono_colision = RoomObjectCatalog.poligono_colision(kind)
 	objeto.position = Vector2(float(fila.get("x", 0.0)), float(fila.get("y", 0.0)))
 	objeto.posicion_sprite = RoomObjectCatalog.posicion_sprite(kind)
+	# null (columna sin correr su SQL) cuenta como no girado.
+	objeto.volteado = fila.get("volteado") == true
 	objeto.set_meta("room_object_id", str(fila.get("id", "")))
 
 	var pieza_gratis := RoomObjectCatalog.pieza_gratis(kind)
@@ -430,11 +452,17 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 		objeto.set_meta("pieza_gratis", pieza_gratis)
 	if RoomObjectCatalog.es_mascota(kind):
 		objeto.set_meta("guacal", true)
+	if RoomObjectCatalog.es_radio(kind):
+		objeto.set_meta("radio", true)
 	if RoomObjectCatalog.es_reciclaje(kind):
 		objeto.set_meta("reciclaje", RoomObjectCatalog.posicion_medidor(kind))
 
 	interaction_zone.add_child(objeto)
 	_objetos.append(objeto)
+
+	# Solo suena un equipo por sala: si hay varios, los demas son adorno.
+	if objeto.has_meta("radio") and not _hay_radio_sonando():
+		objeto.add_child(RadioEquipo.new())
 
 	# Barry decide que conectar segun el nombre reservado (PC, auto) o la meta
 	# "pieza_gratis" (estantes); un objeto puramente decorativo no tiene
@@ -448,6 +476,106 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	var variante := str(fila.get("variant", ""))
 	if objeto.has_meta("guacal") and PetCatalog.existe(variante):
 		_soltar_mascota(objeto, variante, false)
+
+# --- Ventanas (objetos de pared) -------------------------------------------
+
+# Las dos paredes de la sala, como pares [inicio, fin] de su base. La 0 es
+# la misma donde cuelga la TV Gold.
+func _paredes() -> Array:
+	return [
+		[tile_a_mundo(0, 0), tile_a_mundo(ancho, 0)],
+		[tile_a_mundo(0, 0), tile_a_mundo(0, alto)],
+	]
+
+func _instanciar_ventana(fila: Dictionary) -> void:
+	var h := float(RoomStyles.alto_pared(estilo))
+	var ventana := VentanaPared.new()
+	# Proporcional al alto del muro, como la TV.
+	ventana.configurar(Vector2(h * 0.55, h * 0.5))
+	ventana.t = clampf(float(fila.get("x", 0.5)), 0.0, 1.0)
+	ventana.pared = clampi(int(fila.get("y", 0)), 0, 1)
+	ventana.set_meta("room_object_id", str(fila.get("id", "")))
+	add_child(ventana)
+	_colocar_ventana(ventana)
+	_ventanas.append(ventana)
+
+# Mismo transform "pegado a la pared" que la TV (ver
+# _actualizar_transform_banner_gold): eje x a lo largo de la pared, eje y
+# recto hacia abajo.
+func _colocar_ventana(ventana: VentanaPared) -> void:
+	var pared: Array = _paredes()[ventana.pared]
+	var h := float(RoomStyles.alto_pared(estilo))
+	var centro: Vector2 = pared[0].lerp(pared[1], ventana.t) + Vector2(0, -h * 0.55)
+	var direccion: Vector2 = (pared[1] - pared[0]).normalized()
+	ventana.transform = Transform2D(direccion, Vector2.DOWN, centro)
+
+# Arrastre: la ventana va a la pared mas cercana al dedo y se desliza a lo
+# largo de ella, sin sobresalir de las puntas.
+func _mover_ventana(ventana: VentanaPared, mundo: Vector2) -> void:
+	var h := float(RoomStyles.alto_pared(estilo))
+	var mejor_dist := INF
+	var paredes := _paredes()
+	for i in paredes.size():
+		var ini: Vector2 = paredes[i][0]
+		var fin: Vector2 = paredes[i][1]
+		var largo := ini.distance_to(fin)
+		if largo <= 0.0:
+			continue
+		var margen: float = (ventana.tam.x * 0.5) / largo
+		var t := clampf((mundo - ini).dot((fin - ini) / largo) / largo, margen, 1.0 - margen)
+		var punto := ini.lerp(fin, t) + Vector2(0, -h * 0.55)
+		var dist := punto.distance_to(mundo)
+		if dist < mejor_dist:
+			mejor_dist = dist
+			ventana.pared = i
+			ventana.t = t
+	_colocar_ventana(ventana)
+
+func _ventana_en(mundo: Vector2) -> VentanaPared:
+	for ventana in _ventanas:
+		if ventana.contiene(mundo):
+			return ventana
+	return null
+
+# Marca (brillo pulsante) la ventana elegida en modo edicion. Elegir una
+# ventana desmarca muebles y TV, y viceversa (ver _marcar_seleccionado).
+func _marcar_ventana(ventana: VentanaPared) -> void:
+	if ventana != null:
+		_marcar_seleccionado(null)
+		_marcar_banner_gold_seleccionado(false)
+	if ventana == _ventana_seleccionada:
+		return
+
+	if is_instance_valid(_tween_ventana):
+		_tween_ventana.kill()
+	if is_instance_valid(_ventana_seleccionada):
+		_ventana_seleccionada.modulate = Color.WHITE
+	_ventana_seleccionada = ventana
+
+	if ventana != null:
+		_tween_ventana = create_tween().set_loops()
+		_tween_ventana.tween_property(ventana, "modulate", Color(1.35, 1.35, 1.35), 0.6)
+		_tween_ventana.tween_property(ventana, "modulate", Color.WHITE, 0.6)
+		btn_borrar_objeto.disabled = false
+		btn_girar_objeto.disabled = true
+
+func _guardar_ventana(ventana: VentanaPared) -> void:
+	var id := str(ventana.get_meta("room_object_id", ""))
+	if id != "":
+		Supabase.save_room_object_position(id, Vector2(ventana.t, ventana.pared))
+
+# --- Equipo de sonido -------------------------------------------------------
+
+func _hay_radio_sonando() -> bool:
+	for objeto in _objetos:
+		for hijo in objeto.get_children():
+			if hijo is RadioEquipo:
+				return true
+	return false
+
+# Lo llama Barry al tocar el equipo de sonido.
+func abrir_radio() -> void:
+	RadioPanel.crear(self)
 
 # --- Mascotas ---------------------------------------------------------------
 
@@ -495,6 +623,7 @@ func _soltar_mascota(guacal: WorldObject, id: String, festejar: bool) -> void:
 		tween.set_ease(Tween.EASE_OUT)
 		tween.tween_property(mascota, "scale", Vector2.ONE, 0.4)
 		Efectos.nube(interaction_zone, mascota.position, Color(1.0, 0.9, 0.45), 14, 70.0, 0.6)
+		Sonido.efecto("miau")
 		Efectos.texto_flotante(interaction_zone, "¡Hola, %s!" % PetCatalog.nombre(id), mascota.position + Vector2(0, -90), Color(1.0, 0.85, 0.3), 26)
 
 func _quitar_mascota(guacal: WorldObject) -> void:
@@ -551,6 +680,7 @@ func activar_edicion() -> void:
 func _salir_edicion() -> void:
 	editando = false
 	_arrastrando = null
+	_ventana_arrastrando = null
 	_banner_gold_arrastrando = false
 	_marcar_seleccionado(null)
 	_marcar_banner_gold_seleccionado(false)
@@ -566,6 +696,7 @@ func _salir_edicion() -> void:
 # Cambia cual objeto esta marcado (contorno + rebote), apagando el anterior.
 # Pasar null limpia la seleccion sin marcar ninguno nuevo.
 func _marcar_seleccionado(objeto: WorldObject) -> void:
+	_marcar_ventana(null)
 	# Solo una cosa marcada a la vez: elegir un objeto real (o limpiar tocando
 	# el piso vacio) apaga el banner tambien.
 	_marcar_banner_gold_seleccionado(false)
@@ -578,6 +709,7 @@ func _marcar_seleccionado(objeto: WorldObject) -> void:
 	if is_instance_valid(_seleccionado):
 		_seleccionado.set_seleccionado(true)
 	btn_borrar_objeto.disabled = _seleccionado == null
+	btn_girar_objeto.disabled = _seleccionado == null
 
 # El banner no es un WorldObject (no tiene fila en room_objects: no se puede
 # arrastrar ni borrar), asi que solo se marca con el mismo pulso que usan los
@@ -613,9 +745,33 @@ func _banner_gold_en(mundo: Vector2) -> bool:
 	var local := _banner_gold.transform.affine_inverse() * mundo
 	return absf(local.x) <= _banner_gold_tam.x * 0.5 and absf(local.y) <= _banner_gold_tam.y * 0.5
 
+# Gira (espeja) el mueble marcado con un pequeño "giro" de animacion y lo
+# guarda. Ver WorldObject.volteado.
+func _on_btn_girar_objeto_pressed() -> void:
+	if not is_instance_valid(_seleccionado):
+		return
+	var objeto := _seleccionado
+
+	# Se aplasta de costado, se espeja en el medio y vuelve: parece que gira.
+	var tween := create_tween()
+	tween.tween_property(objeto, "scale", Vector2(0.05, 1.0), 0.1)
+	tween.tween_callback(func():
+		objeto.volteado = not objeto.volteado
+		# El rebote de seleccion usa la escala con el signo del volteo.
+		objeto.set_seleccionado(true)
+	)
+	tween.tween_property(objeto, "scale", Vector2.ONE, 0.12)
+
+	var id := str(objeto.get_meta("room_object_id", ""))
+	if id != "":
+		Supabase.update_room_object(id, {"volteado": not objeto.volteado})
+
 # Confirma (sin reembolso, se lo avisa en el modal) y borra el objeto
 # marcado: primero en la base, y solo si eso sale bien lo saca de la sala.
 func _on_btn_borrar_objeto_pressed() -> void:
+	if is_instance_valid(_ventana_seleccionada):
+		_borrar_ventana(_ventana_seleccionada)
+		return
 	if not is_instance_valid(_seleccionado):
 		return
 
@@ -650,6 +806,28 @@ func _on_btn_borrar_objeto_pressed() -> void:
 	objeto.queue_free()
 	btn_borrar_objeto.disabled = true
 
+func _borrar_ventana(ventana: VentanaPared) -> void:
+	btn_borrar_objeto.disabled = true
+	var modal := ConfirmModal.crear(
+		self,
+		"Eliminar ventana",
+		"Esto la saca de la sala para siempre. No se te devuelve nada de lo que pagaste en la tienda.",
+		"Si, eliminar"
+	)
+	var confirmado: bool = await modal.resuelto
+	if not confirmado:
+		btn_borrar_objeto.disabled = false
+		return
+
+	var id := str(ventana.get_meta("room_object_id", ""))
+	if id != "" and not await Supabase.delete_room_object(id):
+		btn_borrar_objeto.disabled = false
+		return
+
+	_marcar_ventana(null)
+	_ventanas.erase(ventana)
+	ventana.queue_free()
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not editando:
 		return
@@ -667,6 +845,15 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 
 			_banner_gold_arrastrando = false
+
+			# Las ventanas tambien van por la pared, como la TV.
+			var ventana := _ventana_en(mundo)
+			if ventana != null:
+				_marcar_ventana(ventana)
+				_ventana_arrastrando = ventana
+				_arrastrando = null
+				return
+
 			var tocado := _objeto_en(mundo)
 			# Tocar un objeto lo selecciona y arranca el arrastre en el mismo
 			# gesto (como antes); tocar el piso vacio solo limpia la
@@ -677,12 +864,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _banner_gold_arrastrando:
 			_banner_gold_arrastrando = false
 			_guardar_pos_banner_gold()
+		elif _ventana_arrastrando != null:
+			_guardar_ventana(_ventana_arrastrando)
+			_ventana_arrastrando = null
 		elif _arrastrando != null:
 			_soltar_objeto(_arrastrando)
 			_arrastrando = null
 	elif event is InputEventScreenDrag or event is InputEventMouseMotion:
 		if _banner_gold_arrastrando:
 			_mover_banner_gold(get_global_mouse_position())
+		elif _ventana_arrastrando != null:
+			_mover_ventana(_ventana_arrastrando, get_global_mouse_position())
 		elif _arrastrando != null:
 			_arrastrando.position = _posicion_mundo_clampeada()
 

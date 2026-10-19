@@ -52,6 +52,7 @@ static func nube(padre: Node, pos: Vector2, color: Color, cantidad: int = 10, di
 
 # Confeti de colores para festejar el final.
 static func confeti(padre: Node, pos: Vector2, cantidad: int = 30) -> void:
+	Sonido.efecto("confeti")
 	var colores := [Color(1, 0.85, 0.3), Color(0.4, 0.9, 0.5), Color(0.4, 0.75, 1), Color(1, 0.5, 0.6)]
 	for i in cantidad:
 		nube(padre, pos, colores.pick_random(), 1, 160.0, 1.0)

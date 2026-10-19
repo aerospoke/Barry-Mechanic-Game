@@ -315,6 +315,7 @@ func _elegir_direccion() -> void:
 
 func _corto() -> void:
 	corriendo = false
+	Sonido.efecto("chispazo")
 	Efectos.nube(contenedor_juego, cabeza.position, COLOR_CHISPA, 16, 60.0, 0.5)
 	error("¡Corto!", cabeza.position + Vector2(0, -40))
 	await get_tree().create_timer(0.6).timeout

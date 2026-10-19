@@ -165,6 +165,7 @@ func terminar() -> void:
 	juego_activo = false
 	label_instruccion.text = texto_final
 
+	Sonido.efecto("victoria")
 	Efectos.confeti(contenedor_juego, Vector2(ANCHO / 2.0, 360), 40)
 	Efectos.texto_flotante(contenedor_juego, texto_final, Vector2(ANCHO / 2.0, 380), COLOR_CHISPA, 30)
 	await get_tree().create_timer(1.2).timeout
@@ -175,6 +176,8 @@ func terminar() -> void:
 	label_instruccion.text = "Guardando..."
 	var ok: bool = await Supabase.complete_active_work(resultado["bono_pago"], resultado["bono_puntos"])
 	label_instruccion.text = ""
+	if ok:
+		Sonido.efecto("moneda")
 
 	var modal = TutorialModal.crear(self, [_pagina_resultado(ok, payment, points, resultado)])
 	await modal.terminado
@@ -217,6 +220,8 @@ func _pagina_resultado(ok: bool, payment: int, points: int, resultado: Dictionar
 # Paso bien hecho: texto que salta y, si van varios seguidos, la racha.
 func acierto(texto: String, pos: Vector2) -> void:
 	racha += 1
+	# Cada acierto de la racha suena un poquito mas agudo.
+	Sonido.efecto("acierto", 1.0 + minf(racha - 1, 6) * 0.05)
 	Efectos.texto_flotante(contenedor_juego, texto, pos, COLOR_OK)
 	if racha >= RACHA_MINIMA:
 		Efectos.texto_flotante(contenedor_juego, "¡Racha x%d!" % racha, pos + Vector2(0, 30), COLOR_CHISPA, 18)
@@ -224,6 +229,7 @@ func acierto(texto: String, pos: Vector2) -> void:
 # Error: suma, corta la racha, avisa y sacude la pantalla.
 func error(texto: String, pos: Vector2) -> void:
 	errores += 1
+	Sonido.efecto("error")
 	racha = 0
 	Efectos.texto_flotante(contenedor_juego, texto, pos, COLOR_ERROR, 24)
 	Efectos.sacudir(contenedor_juego, 4.0, 0.2)

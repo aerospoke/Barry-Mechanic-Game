@@ -348,6 +348,7 @@ func _intentar_pin() -> void:
 	else:
 		fallos += 1
 		racha = 0
+		Sonido.efecto("error")
 		_sacudir_ganzua()
 		_flash(zona_objetivo, Color(0.9, 0.35, 0.35, 0.85))
 		label_fallos.text = "Fallos: %d" % fallos
@@ -358,11 +359,13 @@ func _intentar_pin() -> void:
 # acierto y la racha de pines seguidos sin fallar.
 func _festejar_pin() -> void:
 	racha += 1
+	Sonido.efecto_variado("click", 0.1)
 	var centro_zona := zona_inicio + ancho_zona / 2.0
 	var perfecto := absf(aguja_pos - centro_zona) <= ancho_zona * MARGEN_PERFECTO
 
 	var pos := candado.position + Vector2(0, -70)
 	if perfecto:
+		Sonido.efecto("acierto", 1.1)
 		Efectos.texto_flotante(contenedor_juego, "¡Perfecto!", pos, COLOR_CHISPA, 28)
 		Efectos.nube(contenedor_juego, candado.position, COLOR_CHISPA, 14, 70.0, 0.5)
 	else:
@@ -400,12 +403,14 @@ func _terminar_juego() -> void:
 	juego_terminado = true
 	button_action.visible = false
 	_abrir_cerradura()
+	Sonido.efecto("abrir")
 	label_pin.text = "¡Cerradura abierta!"
 
 	# Festejo: espera a que gire el cilindro y tira confeti.
 	await get_tree().create_timer(0.45).timeout
 	Efectos.sacudir(candado, 6.0)
 	Efectos.confeti(contenedor_juego, candado.position, 40)
+	Sonido.efecto("victoria")
 	Efectos.texto_flotante(contenedor_juego, "¡Abierta!", candado.position + Vector2(0, 110), COLOR_CHISPA, 32)
 	await get_tree().create_timer(1.2).timeout
 

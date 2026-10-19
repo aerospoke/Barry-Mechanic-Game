@@ -71,6 +71,21 @@ const OBJETOS := {
 		"posicion_sprite": Vector2(-12, 25),
 		"mascota": true,
 	},
+	# Equipo de sonido: la musica de la sala sale de aca (ver
+	# radio_equipo.gd). Se consigue gratis en la tienda.
+	"radio": {
+		"textura": preload("res://objetos/radio.png"),
+		"escala": Vector2(0.6, 0.6),
+		"posicion_sprite": Vector2(-12, 25),
+		"radio": true,
+	},
+	# Ventana estilo Habbo: va colgada en la pared, no en el piso (ver
+	# scripts/ventana_pared.gd y room.gd _instanciar_ventana). La textura es
+	# solo el icono de la tienda: en la sala se dibuja con nubes animadas.
+	"ventana": {
+		"textura": preload("res://objetos/ventana.png"),
+		"pared": true,
+	},
 	# Estantes nuevos: mismo patron (kind = key de shop_items = pieza que dan).
 	"cables": {
 		"textura": preload("res://objetos/Estantes/estanteCorriente.png"),
@@ -108,6 +123,12 @@ static func pieza_gratis(kind: String) -> String:
 
 static func posicion_sprite(kind: String) -> Vector2:
 	return OBJETOS.get(kind, {}).get("posicion_sprite", Vector2.INF)
+
+static func es_radio(kind: String) -> bool:
+	return OBJETOS.get(kind, {}).get("radio", false)
+
+static func es_de_pared(kind: String) -> bool:
+	return OBJETOS.get(kind, {}).get("pared", false)
 
 static func es_mascota(kind: String) -> bool:
 	return OBJETOS.get(kind, {}).get("mascota", false)

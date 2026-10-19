@@ -339,6 +339,16 @@ func save_room_object_position(object_id: String, pos: Vector2) -> bool:
 	)
 	return _update_ok(res, "No se pudo guardar la posicion del objeto")
 
+# Cambia campos sueltos de un objeto de la sala (ej. {"volteado": true}).
+func update_room_object(object_id: String, campos: Dictionary) -> bool:
+	var res = await _request_sync(
+		"/rest/v1/room_objects?id=eq." + object_id,
+		HTTPClient.METHOD_PATCH,
+		campos,
+		["Prefer: return=representation"]
+	)
+	return _update_ok(res, "No se pudo guardar el objeto")
+
 # Guarda la variante elegida de un objeto (ej. la mascota del guacal, ver
 # sql/mascotas.sql).
 func save_room_object_variant(object_id: String, variant: String) -> bool:

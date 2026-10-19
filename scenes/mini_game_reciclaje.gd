@@ -366,10 +366,12 @@ func _on_residuo_ok(residuo: Draggable) -> void:
 	tween.parallel().tween_property(residuo, "scale", Vector2(0.2, 0.2), 0.2)
 	tween.tween_callback(residuo.queue_free)
 
+	Sonido.efecto_variado("tirar")
 	Efectos.rebote(cuerpo, Vector2.ONE, Vector2(1.15, 0.85))
 	Efectos.nube(contenedor_juego, cuerpo.global_position, CONTENEDORES[id]["color"].lightened(0.3), 10, 50.0, 0.5)
 
 	racha += 1
+	Sonido.efecto("acierto", 1.0 + minf(racha - 1, 6) * 0.05)
 	Efectos.texto_flotante(contenedor_juego, "¡Bien!", cuerpo.global_position + Vector2(0, -50), COLOR_OK)
 	if racha >= RACHA_MINIMA:
 		Efectos.texto_flotante(contenedor_juego, "¡Racha x%d!" % racha, cuerpo.global_position + Vector2(0, -80), COLOR_CHISPA, 18)
@@ -400,6 +402,7 @@ func _escapo(residuo: Node2D) -> void:
 
 func _error(texto: String, pos: Vector2) -> void:
 	errores += 1
+	Sonido.efecto("error")
 	racha = 0
 	Efectos.texto_flotante(contenedor_juego, texto, pos, COLOR_ERROR, 24)
 	Efectos.sacudir(contenedor_juego, 4.0, 0.2)
@@ -424,6 +427,7 @@ func _terminar_juego() -> void:
 	label_instruccion.text = "¡Taller limpio!"
 
 	Efectos.confeti(contenedor_juego, Vector2(210, 400), 40)
+	Sonido.efecto("victoria")
 	Efectos.texto_flotante(contenedor_juego, "¡Todo reciclado!", Vector2(210, 420), COLOR_CHISPA, 30)
 	await get_tree().create_timer(1.2).timeout
 

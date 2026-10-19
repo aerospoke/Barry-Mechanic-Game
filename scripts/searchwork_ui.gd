@@ -286,7 +286,7 @@ func _mostrar_articulo(indice: int, direccion: int) -> void:
 		descripcion = DESCRIPCION_DECORACION if es_decoracion else DESCRIPCION_PIEZA
 
 	_carrusel_nombre.text = str(item.get("name", key))
-	_carrusel_precio.text = "$%d" % precio
+	_carrusel_precio.text = "¡GRATIS!" if precio == 0 else "$%d" % precio
 	_carrusel_descripcion.text = descripcion
 	_actualizar_puntos_carrusel()
 
@@ -297,6 +297,8 @@ func _mostrar_articulo(indice: int, direccion: int) -> void:
 		_btn_comprar_articulo.text = "Manos ocupadas"
 	elif precio > Supabase.profile_balance:
 		_btn_comprar_articulo.text = "Saldo insuficiente"
+	elif precio == 0:
+		_btn_comprar_articulo.text = "Llevar gratis"
 	else:
 		_btn_comprar_articulo.text = "Comprar $%d" % precio
 	_btn_comprar_articulo.disabled = ya_tiene_item or precio > Supabase.profile_balance
@@ -389,6 +391,7 @@ func _on_comprar_pressed(key: String, precio: int, tipo: String, btn: Button) ->
 		shop_status.text = "No se pudo completar la compra"
 		btn.disabled = false
 		return
+	Sonido.efecto("moneda")
 
 	if tipo == "decoracion":
 		# La sala instancia el objeto y ya te deja en modo edicion para que lo

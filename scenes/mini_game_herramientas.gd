@@ -138,6 +138,7 @@ func _on_colgada(pieza: Dictionary) -> void:
 	var silueta: Sprite2D = pieza["silueta"]
 	herramienta.habilitado = false
 	pieza["lista"] = true
+	Sonido.efecto_variado("encajar")
 
 	# Encaja: crece al tamaño de la silueta y la silueta desaparece.
 	var sprite: Sprite2D = herramienta.get_child(0)

@@ -38,6 +38,7 @@ var label_rayones: Label
 var pintando: bool = false
 var error_en_trazo: bool = false
 var ultima_mancha: Vector2 = Vector2.INF
+var _ultimo_spray_ms: int = 0
 
 func _init() -> void:
 	id_tutorial = "minigame_pintura"
@@ -189,6 +190,12 @@ func _rociar(punto: Vector2) -> void:
 	if ultima_mancha != Vector2.INF and ultima_mancha.distance_to(punto) < PASO_BROCHA:
 		return
 	ultima_mancha = punto
+
+	# Spray: uno cada tanto, no en cada mancha (serian decenas por segundo).
+	var ahora := Time.get_ticks_msec()
+	if ahora - _ultimo_spray_ms > 110:
+		_ultimo_spray_ms = ahora
+		Sonido.efecto_variado("spray", 0.15)
 
 	var mancha := circulo(RADIO_BROCHA * randf_range(0.8, 1.0), color_carro, 12)
 	mancha.position = punto
