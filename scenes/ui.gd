@@ -55,6 +55,7 @@ func _ready() -> void:
 	btn_logout.pressed.connect(_on_btn_logout_pressed)
 	$fondoOscuro/BtnSonido.pressed.connect(func(): AjustesSonido.crear(self))
 	$fondoOscuro/BtnVestidor.pressed.connect(_abrir_vestidor)
+	_modernizar_perfil()
 
 	_escala_boton = button_action.scale
 	_posicion_boton = button_action.position
@@ -132,6 +133,44 @@ func _on_btn_editar_sala_pressed() -> void:
 	# Cierra el panel de perfil y despausa, igual que un segundo toque al
 	# boton de Barry: el modo edicion necesita el juego corriendo.
 	_on_button_profile_pressed()
+
+# Panel de Barry con el mismo estilo que la computadora (EstiloUI): fondo
+# morado, tarjetas de informacion a lo ancho y botones grandes. Las
+# posiciones vienen de ui.tscn; aca solo se ensanchan y se estilizan.
+func _modernizar_perfil() -> void:
+	fondo_oscuro.theme = EstiloUI.tema()
+	fondo_oscuro.color = Color(EstiloUI.FONDO, 0.97)
+
+	var titulo := Label.new()
+	titulo.text = "Barry"
+	titulo.position = Vector2(30, 40)
+	titulo.size = Vector2(370, 34)
+	EstiloUI.titulo(titulo, 26)
+	fondo_oscuro.add_child(titulo)
+
+	var ancho := 370.0
+	var y := 90.0
+	for nombre in ["PanelProfile", "PanelMoney", "PanelPoints", "PanelWork"]:
+		var panel: Control = fondo_oscuro.get_node(nombre)
+		panel.position = Vector2(30, y)
+		panel.size = Vector2(ancho, 64)
+		y += 74.0
+		# El titulo de cada tarjeta, mas tenue; el dato, grande.
+		for hijo in panel.get_children():
+			if hijo is Label:
+				var es_titulo: bool = hijo.position.y < 20
+				hijo.add_theme_color_override("font_color", EstiloUI.TEXTO_SUAVE if es_titulo else EstiloUI.TEXTO)
+				hijo.add_theme_font_size_override("font_size", 14 if es_titulo else 18)
+				hijo.size.x = ancho - hijo.position.x - 12
+
+	y += 10.0
+	for nombre in ["BtnEditarSala", "BtnVestidor", "BtnSonido", "BtnLogout"]:
+		var boton: Button = fondo_oscuro.get_node(nombre)
+		boton.position = Vector2(30, y)
+		boton.size = Vector2(ancho, 54)
+		y += 64.0
+	EstiloUI.boton_primario($fondoOscuro/BtnVestidor)
+	EstiloUI.boton_secundario(btn_logout)
 
 # Cierra el panel de perfil (que pausa la sala) y abre el vestidor: asi al
 # elegir traje Barry puede festejar con la sala andando.

@@ -670,6 +670,25 @@ OBJETOS = [
     ("llanta_parada", "Llanta de exhibicion", 30, "Llanta con rin brillante para exhibir.", llanta_parada, {}),
 ]
 
+# Categoria de cada objeto en la tienda (pestanas de arriba).
+CATEGORIAS = {
+    "Muebles": ["sofa_rojo", "sofa_azul", "sillon_cuero", "mesa_centro", "banco_madera", "taburete", "nevera",
+                "maquina_cafe", "dispensador", "maquina_snacks", "arcade", "caja_registradora"],
+    "Piso": ["tapete_rojo", "tapete_azul", "tapete_cuadros", "alfombra_taller", "lineas_parqueo", "paso_cebra", "mancha_aceite"],
+    "Calle": ["tope_parqueo", "cono", "barrera", "senal_pare", "delineador", "reja", "reja_malla"],
+    "Taller": ["pallet", "escalera", "barril_azul", "barril_rojo", "barril_verde", "pila_llantas", "caja_herramientas",
+               "bidon", "extintor", "gato_hidraulico", "motor_soporte", "llanta_parada"],
+    "Luces": ["lampara_pie", "foco_trabajo", "poste_luz", "neon_rayo", "farol"],
+    "Trofeos": ["trofeo_oro", "trofeo_plata", "trofeo_bronce", "copa_campeon", "placa_mes", "vitrina_medallas"],
+    "Especiales": ["bandera"],
+}
+
+def categoria(kind):
+    for nombre, kinds in CATEGORIAS.items():
+        if kind in kinds:
+            return nombre
+    return "Muebles"
+
 # Posicion del sprite en la sala (ver RoomObjectCatalog "posicion_sprite"):
 # la base del lienzo (Lienzo.piso) cae sobre la base del objeto en la sala.
 ESCALA_SALA = 0.5
@@ -705,6 +724,7 @@ def main():
             dibujo().guardar(kind)
         entrada.append('\t\t"textura": preload("res://objetos/ambiente/%s.png"),' % kind)
         entrada.append('\t\t"escala": Vector2(%s, %s),' % (ESCALA_SALA, ESCALA_SALA))
+        entrada.append('\t\t"categoria": "%s",' % categoria(kind))
         px, py = posicion_sprite(alto)
         entrada.append('\t\t"posicion_sprite": Vector2(%d, %d),' % (px, py))
         if op.get("piso"):

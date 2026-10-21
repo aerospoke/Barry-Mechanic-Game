@@ -192,6 +192,18 @@ static func _datos(kind: String) -> Dictionary:
 		return OBJETOS[kind]
 	return ObjetosAmbiente.OBJETOS.get(kind, {})
 
+# Pestana de la tienda donde aparece. Los objetos de ambientacion la traen
+# en su catalogo; los de aca se deducen.
+static func categoria(kind: String) -> String:
+	var datos := _datos(kind)
+	if datos.has("categoria"):
+		return datos["categoria"]
+	if kind.begins_with("planta_"):
+		return "Plantas"
+	if datos.get("pieza_gratis", "") != "":
+		return "Estantes"
+	return "Especiales"
+
 # Se pisa (tapetes, lineas): se dibuja debajo de todo y no choca.
 static func es_de_piso(kind: String) -> bool:
 	return _datos(kind).get("piso", false)
