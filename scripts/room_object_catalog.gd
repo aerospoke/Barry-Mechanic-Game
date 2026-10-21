@@ -183,41 +183,62 @@ const OBJETOS := {
 	},
 }
 
+# Objetos de ambientacion (sofas, luces, banderas...): catalogo generado por
+# herramientas_dev/dibujar_objetos.py. Se busca ahi lo que no esta aca.
+const ObjetosAmbiente = preload("res://scripts/objetos_ambiente.gd")
+
+static func _datos(kind: String) -> Dictionary:
+	if OBJETOS.has(kind):
+		return OBJETOS[kind]
+	return ObjetosAmbiente.OBJETOS.get(kind, {})
+
+# Se pisa (tapetes, lineas): se dibuja debajo de todo y no choca.
+static func es_de_piso(kind: String) -> bool:
+	return _datos(kind).get("piso", false)
+
+# Luces que se prenden y apagan: textura de prendida (null = no es luz).
+static func textura_encendida(kind: String) -> Texture2D:
+	return _datos(kind).get("textura_on")
+
+# Objetos con varias versiones a elegir (banderas): {id: {nombre, textura}}.
+static func variantes(kind: String) -> Dictionary:
+	return _datos(kind).get("variantes", {})
+
 static func textura(kind: String) -> Texture2D:
-	return OBJETOS.get(kind, {}).get("textura")
+	return _datos(kind).get("textura")
 
 static func escala(kind: String) -> Vector2:
-	return OBJETOS.get(kind, {}).get("escala", Vector2(0.35, 0.35))
+	return _datos(kind).get("escala", Vector2(0.35, 0.35))
 
 static func nombre_nodo(kind: String) -> String:
-	return OBJETOS.get(kind, {}).get("nombre_nodo", "")
+	return _datos(kind).get("nombre_nodo", "")
 
 static func pieza_gratis(kind: String) -> String:
-	return OBJETOS.get(kind, {}).get("pieza_gratis", "")
+	return _datos(kind).get("pieza_gratis", "")
 
 static func posicion_sprite(kind: String) -> Vector2:
-	return OBJETOS.get(kind, {}).get("posicion_sprite", Vector2.INF)
+	return _datos(kind).get("posicion_sprite", Vector2.INF)
 
 static func es_radio(kind: String) -> bool:
-	return OBJETOS.get(kind, {}).get("radio", false)
+	return _datos(kind).get("radio", false)
 
 static func es_radio_pro(kind: String) -> bool:
-	return OBJETOS.get(kind, {}).get("radio_pro", false)
+	return _datos(kind).get("radio_pro", false)
 
 static func se_balancea(kind: String) -> bool:
-	return OBJETOS.get(kind, {}).get("balanceo", false)
+	return _datos(kind).get("balanceo", false)
 
 static func es_de_pared(kind: String) -> bool:
-	return OBJETOS.get(kind, {}).get("pared", false)
+	return _datos(kind).get("pared", false)
 
 static func es_mascota(kind: String) -> bool:
-	return OBJETOS.get(kind, {}).get("mascota", false)
+	return _datos(kind).get("mascota", false)
 
 static func es_reciclaje(kind: String) -> bool:
-	return OBJETOS.get(kind, {}).get("reciclaje", false)
+	return _datos(kind).get("reciclaje", false)
 
 static func posicion_medidor(kind: String) -> Vector2:
-	return OBJETOS.get(kind, {}).get("posicion_medidor", Vector2(0, -150))
+	return _datos(kind).get("posicion_medidor", Vector2(0, -150))
 
 # Forma de colision de cada "kind". Si trae "poligono_colision" a medida (ej.
 # la PC, calcada de su sprite) se usa esa. Si no, el default ya NO es un
@@ -225,7 +246,7 @@ static func posicion_medidor(kind: String) -> Vector2:
 # que las baldosas del piso — para que un objeto sin ajuste especial siga
 # combinando con el estilo isometrico en vez de verse como una caja plana.
 static func poligono_colision(kind: String) -> PackedVector2Array:
-	var puntos: Array = OBJETOS.get(kind, {}).get("poligono_colision", [])
+	var puntos: Array = _datos(kind).get("poligono_colision", [])
 	if puntos.is_empty():
 		return _rombo_baldosa()
 	return PackedVector2Array(puntos)

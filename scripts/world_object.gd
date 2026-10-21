@@ -71,6 +71,11 @@ var _sprite_pos_escena: Vector2
 # la de la escena.
 var posicion_sprite: Vector2 = Vector2.INF
 
+# Decoracion de piso (tapetes, lineas): se ordena como si estuviera muy al
+# fondo, asi Barry y los muebles siempre se dibujan encima (se pisa).
+var en_piso: bool = false
+const FONDO_PISO := 5000.0
+
 # Mueble girado (espejado de izquierda a derecha). En isometrico "girar" un
 # mueble es mostrar su otra cara, y con una sola imagen eso es espejarla:
 # se espejan juntos la imagen, la base solida y la zona de interaccion
@@ -109,6 +114,7 @@ const COLOR_SELECCION := Color(1, 1, 1, 1)
 const COLOR_RESALTADO := Color(1, 1, 1, 1)
 
 var _tween_seleccion: Tween
+const Z_SELECCIONADO := 50
 var _tween_resaltado: Tween
 var _resaltado: bool = false
 var _seleccionado: bool = false
@@ -152,6 +158,12 @@ func set_seleccionado(activo: bool) -> void:
 		_tween_seleccion.kill()
 
 	_seleccionado = activo
+	# Seleccionado en modo edicion (o recien comprado): se dibuja encima de
+	# todo, asi no queda tapado por otros muebles mientras se lo ubica. Al
+	# soltarlo vuelve al orden por profundidad (y_sort) normal. Va en el
+	# Sprite2D y no en este nodo: con el y_sort anidado (ver _ready) lo que
+	# la sala ordena es el sprite, y el z_index de aca no alcanzaba.
+	sprite.z_index = Z_SELECCIONADO if activo else 0
 	if activo:
 		_detener_resaltado()
 		sprite.material.set_shader_parameter("color_contorno", COLOR_SELECCION)
@@ -315,10 +327,10 @@ func _ubicar_sprite_en_base() -> void:
 	if Engine.is_editor_hint() or not is_instance_valid(base_solida):
 		return
 	var base := _centro_base()
-	sprite.position = base
+	sprite.position = base - Vector2(0, FONDO_PISO) if en_piso else base
 	# El centro de la imagen tambien se espeja; el offset se divide por la
 	# escala con signo para que, al multiplicarse por ella, caiga ahi.
-	sprite.offset = (_espejar(_sprite_pos_escena) - base) / _escala_visual()
+	sprite.offset = (_espejar(_sprite_pos_escena) - sprite.position) / _escala_visual()
 
 func _centro_base() -> Vector2:
 	var centro := Vector2.ZERO

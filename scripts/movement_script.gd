@@ -91,6 +91,8 @@ var en_reciclaje: bool = false
 var en_guacal: Area2D = null
 # Junto al equipo de sonido: tocarlo abre el panel de la musica.
 var en_radio: bool = false
+# Junto a un objeto que se toca (luz, bandera...), o null.
+var en_accion: Area2D = null
 var _iconos_mascota: Dictionary = {}
 
 # Boton de accion de la UI (CanvasLayer/UI en room.tscn) y el icono que se
@@ -154,6 +156,11 @@ func conectar_objeto(objeto: Area2D) -> void:
 		var key: String = objeto.get_meta("pieza_gratis")
 		objeto.body_entered.connect(_on_pieza_gratis_entered.bind(key))
 		objeto.body_exited.connect(_on_pieza_gratis_exited.bind(key))
+	elif objeto.has_meta("accion"):
+		# Objetos que se tocan: luces, banderas... (ver room.gd
+		# interactuar_objeto).
+		objeto.body_entered.connect(_on_accion_entered.bind(objeto))
+		objeto.body_exited.connect(_on_accion_exited.bind(objeto))
 	elif objeto.has_meta("radio"):
 		objeto.body_entered.connect(_on_radio_entered)
 		objeto.body_exited.connect(_on_radio_exited)
@@ -325,6 +332,9 @@ func _icono_contextual() -> Texture2D:
 		return ICONO_AGARRAR
 	if en_radio and not tiene_item:
 		return ICONO_RADIO
+	if is_instance_valid(en_accion) and not tiene_item:
+		# El propio objeto como icono (la lampara, la bandera...).
+		return en_accion.get("textura")
 	if is_instance_valid(en_guacal) and not tiene_item:
 		return _icono_mascota(str(en_guacal.get_meta("mascota_id", PetCatalog.POR_DEFECTO)))
 	if en_reciclaje and not tiene_item and Supabase.basura_llena():
@@ -360,6 +370,10 @@ func interactuar() -> void:
 
 	if en_radio and not tiene_item:
 		get_parent().call("abrir_radio")
+		return
+
+	if is_instance_valid(en_accion) and not tiene_item:
+		get_parent().call("interactuar_objeto", en_accion)
 		return
 
 	if en_reciclaje and not tiene_item and Supabase.basura_llena():
@@ -453,3 +467,11 @@ func _on_radio_entered(body: Node2D) -> void:
 func _on_radio_exited(body: Node2D) -> void:
 	if body == self:
 		en_radio = false
+
+func _on_accion_entered(body: Node2D, objeto: Area2D) -> void:
+	if body == self:
+		en_accion = objeto
+
+func _on_accion_exited(body: Node2D, objeto: Area2D) -> void:
+	if body == self and en_accion == objeto:
+		en_accion = null

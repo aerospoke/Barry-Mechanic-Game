@@ -1,0 +1,286 @@
+extends RefCounted
+
+# GENERADO por herramientas_dev/dibujar_objetos.py: no editar a mano.
+# Objetos de ambientacion del taller. RoomObjectCatalog los busca aca
+# cuando un kind no esta en su propio catalogo.
+
+const OBJETOS := {
+	"sofa_rojo": {
+		"textura": preload("res://objetos/ambiente/sofa_rojo.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"sofa_azul": {
+		"textura": preload("res://objetos/ambiente/sofa_azul.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"sillon_cuero": {
+		"textura": preload("res://objetos/ambiente/sillon_cuero.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"mesa_centro": {
+		"textura": preload("res://objetos/ambiente/mesa_centro.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"banco_madera": {
+		"textura": preload("res://objetos/ambiente/banco_madera.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"taburete": {
+		"textura": preload("res://objetos/ambiente/taburete.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"nevera": {
+		"textura": preload("res://objetos/ambiente/nevera.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"maquina_cafe": {
+		"textura": preload("res://objetos/ambiente/maquina_cafe.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"dispensador": {
+		"textura": preload("res://objetos/ambiente/dispensador.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"maquina_snacks": {
+		"textura": preload("res://objetos/ambiente/maquina_snacks.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"arcade": {
+		"textura": preload("res://objetos/ambiente/arcade.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"tapete_rojo": {
+		"textura": preload("res://objetos/ambiente/tapete_rojo.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+		"piso": true,
+	},
+	"tapete_azul": {
+		"textura": preload("res://objetos/ambiente/tapete_azul.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+		"piso": true,
+	},
+	"tapete_cuadros": {
+		"textura": preload("res://objetos/ambiente/tapete_cuadros.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+		"piso": true,
+	},
+	"alfombra_taller": {
+		"textura": preload("res://objetos/ambiente/alfombra_taller.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+		"piso": true,
+	},
+	"lineas_parqueo": {
+		"textura": preload("res://objetos/ambiente/lineas_parqueo.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+		"piso": true,
+	},
+	"paso_cebra": {
+		"textura": preload("res://objetos/ambiente/paso_cebra.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+		"piso": true,
+	},
+	"mancha_aceite": {
+		"textura": preload("res://objetos/ambiente/mancha_aceite.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+		"piso": true,
+	},
+	"tope_parqueo": {
+		"textura": preload("res://objetos/ambiente/tope_parqueo.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"cono": {
+		"textura": preload("res://objetos/ambiente/cono.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"barrera": {
+		"textura": preload("res://objetos/ambiente/barrera.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"senal_pare": {
+		"textura": preload("res://objetos/ambiente/senal_pare.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"delineador": {
+		"textura": preload("res://objetos/ambiente/delineador.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"reja": {
+		"textura": preload("res://objetos/ambiente/reja.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"reja_malla": {
+		"textura": preload("res://objetos/ambiente/reja_malla.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"pallet": {
+		"textura": preload("res://objetos/ambiente/pallet.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"escalera": {
+		"textura": preload("res://objetos/ambiente/escalera.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"barril_azul": {
+		"textura": preload("res://objetos/ambiente/barril_azul.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"barril_rojo": {
+		"textura": preload("res://objetos/ambiente/barril_rojo.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"barril_verde": {
+		"textura": preload("res://objetos/ambiente/barril_verde.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"pila_llantas": {
+		"textura": preload("res://objetos/ambiente/pila_llantas.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"caja_herramientas": {
+		"textura": preload("res://objetos/ambiente/caja_herramientas.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"bidon": {
+		"textura": preload("res://objetos/ambiente/bidon.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"extintor": {
+		"textura": preload("res://objetos/ambiente/extintor.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"lampara_pie": {
+		"textura_on": preload("res://objetos/ambiente/lampara_pie_on.png"),
+		"textura": preload("res://objetos/ambiente/lampara_pie.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"foco_trabajo": {
+		"textura_on": preload("res://objetos/ambiente/foco_trabajo_on.png"),
+		"textura": preload("res://objetos/ambiente/foco_trabajo.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"poste_luz": {
+		"textura_on": preload("res://objetos/ambiente/poste_luz_on.png"),
+		"textura": preload("res://objetos/ambiente/poste_luz.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"neon_rayo": {
+		"textura_on": preload("res://objetos/ambiente/neon_rayo_on.png"),
+		"textura": preload("res://objetos/ambiente/neon_rayo.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"farol": {
+		"textura_on": preload("res://objetos/ambiente/farol_on.png"),
+		"textura": preload("res://objetos/ambiente/farol.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"trofeo_oro": {
+		"textura": preload("res://objetos/ambiente/trofeo_oro.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"trofeo_plata": {
+		"textura": preload("res://objetos/ambiente/trofeo_plata.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"trofeo_bronce": {
+		"textura": preload("res://objetos/ambiente/trofeo_bronce.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"copa_campeon": {
+		"textura": preload("res://objetos/ambiente/copa_campeon.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"placa_mes": {
+		"textura": preload("res://objetos/ambiente/placa_mes.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"vitrina_medallas": {
+		"textura": preload("res://objetos/ambiente/vitrina_medallas.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"bandera": {
+		"textura": preload("res://objetos/ambiente/bandera.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+		"balanceo": true,
+		"variantes": {
+			"colombia": {"nombre": "Colombia", "textura": preload("res://objetos/ambiente/bandera_colombia.png")},
+			"mexico": {"nombre": "Mexico", "textura": preload("res://objetos/ambiente/bandera_mexico.png")},
+			"argentina": {"nombre": "Argentina", "textura": preload("res://objetos/ambiente/bandera_argentina.png")},
+			"espana": {"nombre": "Espana", "textura": preload("res://objetos/ambiente/bandera_espana.png")},
+			"brasil": {"nombre": "Brasil", "textura": preload("res://objetos/ambiente/bandera_brasil.png")},
+			"peru": {"nombre": "Peru", "textura": preload("res://objetos/ambiente/bandera_peru.png")},
+			"chile": {"nombre": "Chile", "textura": preload("res://objetos/ambiente/bandera_chile.png")},
+			"venezuela": {"nombre": "Venezuela", "textura": preload("res://objetos/ambiente/bandera_venezuela.png")},
+			"ecuador": {"nombre": "Ecuador", "textura": preload("res://objetos/ambiente/bandera_ecuador.png")},
+			"usa": {"nombre": "Estados Unidos", "textura": preload("res://objetos/ambiente/bandera_usa.png")},
+			"carreras": {"nombre": "Carreras", "textura": preload("res://objetos/ambiente/bandera_carreras.png")},
+			"arcoiris": {"nombre": "Arcoiris", "textura": preload("res://objetos/ambiente/bandera_arcoiris.png")},
+			"pirata": {"nombre": "Pirata", "textura": preload("res://objetos/ambiente/bandera_pirata.png")},
+		},
+	},
+	"gato_hidraulico": {
+		"textura": preload("res://objetos/ambiente/gato_hidraulico.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"motor_soporte": {
+		"textura": preload("res://objetos/ambiente/motor_soporte.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 0),
+	},
+	"caja_registradora": {
+		"textura": preload("res://objetos/ambiente/caja_registradora.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+	"llanta_parada": {
+		"textura": preload("res://objetos/ambiente/llanta_parada.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 32),
+	},
+}

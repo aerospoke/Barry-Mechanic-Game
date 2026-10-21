@@ -26,6 +26,12 @@ const VentanaPared = preload("res://scripts/ventana_pared.gd")
 const RadioEquipo = preload("res://scripts/radio_equipo.gd")
 const RadioPanel = preload("res://scripts/radio_panel.gd")
 const Balanceo = preload("res://scripts/balanceo.gd")
+const SelectorVariante = preload("res://scripts/selector_variante.gd")
+
+# Objetos que se tocan con el boton de accion (ver interactuar_objeto):
+# "luz" se prende/apaga, "variante" abre el selector (ej. la bandera).
+const ACCION_LUZ := "luz"
+const ACCION_VARIANTE := "variante"
 const Efectos = preload("res://scripts/efectos.gd")
 
 # Capa de fisica de las mascotas: chocan con los limites (1) y los muebles
@@ -105,6 +111,8 @@ var _seleccionado: WorldObject = null
 
 # Guacal recien comprado que todavia no eligio mascota (ver _salir_edicion).
 var _guacal_pendiente: WorldObject = null
+# Objeto con variantes recien comprado: se elige cual al terminar de ubicarlo.
+var _variante_pendiente: WorldObject = null
 
 # Objetos de pared (ventanas). Van aparte de _objetos: no son WorldObject,
 # se arrastran a lo largo de las paredes y no se giran.
@@ -414,7 +422,7 @@ func _cargar_objetos() -> void:
 # el modo de edicion (que se activa solo al comprar, ver ahi el porque).
 func agregar_objeto_comprado(kind: String) -> void:
 	var room_id := str(Supabase.current_room.get("id", ""))
-	var pos := tile_a_mundo(ancho / 2, alto / 2 - 3) + Vector2(0, RoomStyles.TILE_H * 0.5)
+	var pos := _posicion_a_la_vista()
 	if RoomObjectCatalog.es_de_pared(kind):
 		# Al medio de la primera pared (x = t, y = pared).
 		pos = Vector2(0.5, 0)
@@ -440,9 +448,29 @@ func agregar_objeto_comprado(kind: String) -> void:
 	# ubicarlo (ver _salir_edicion).
 	if RoomObjectCatalog.es_mascota(kind):
 		_guacal_pendiente = _objetos.back()
+	if not RoomObjectCatalog.variantes(kind).is_empty():
+		_variante_pendiente = _objetos.back()
 	activar_edicion()
 	if RoomObjectCatalog.es_de_pared(kind) and not _ventanas.is_empty():
 		_marcar_ventana(_ventanas.back())
+	elif not _objetos.is_empty():
+		# Ya marcado: encima de todo, con contorno y rebote, listo para
+		# arrastrarlo a donde se quiera.
+		_marcar_seleccionado(_objetos.back())
+
+# Donde aparece algo recien comprado: en el centro de lo que se ve en
+# pantalla (un poco arriba, para no caerle encima a Barry), ajustado a la
+# baldosa mas cercana y sin salirse del piso. Antes aparecia siempre en el
+# centro de la sala y en salas grandes habia que ir a buscarlo.
+const ALTURA_SOBRE_BARRY := 110.0
+
+func _posicion_a_la_vista() -> Vector2:
+	var pantalla := get_viewport_rect().size / 2.0 - Vector2(0, ALTURA_SOBRE_BARRY)
+	var mundo := get_viewport().canvas_transform.affine_inverse() * pantalla
+	var tile := _mundo_a_tile(mundo)
+	var tx := clampi(int(round(tile.x)), 1, ancho - 1)
+	var ty := clampi(int(round(tile.y)), 1, alto - 1)
+	return tile_a_mundo(tx, ty) + Vector2(0, RoomStyles.TILE_H * 0.5)
 
 func _instanciar_objeto(fila: Dictionary) -> void:
 	var kind := str(fila.get("kind", ""))
@@ -460,6 +488,31 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	# null (columna sin correr su SQL) cuenta como no girado.
 	objeto.volteado = fila.get("volteado") == true
 	objeto.set_meta("room_object_id", str(fila.get("id", "")))
+	objeto.set_meta("kind", kind)
+	# Variante guardada (null si la columna esta vacia): que bandera es, si
+	# la luz quedo prendida...
+	var variante_guardada = fila.get("variant")
+	var variante_txt := str(variante_guardada) if variante_guardada != null else ""
+
+	# Decoracion de piso: debajo de todo y sin choque (Barry la pisa).
+	if RoomObjectCatalog.es_de_piso(kind):
+		objeto.en_piso = true
+		objeto.get_node("CuerpoSolido").collision_layer = 0
+
+	# Luces: la variante guarda si quedo prendida ("on").
+	if RoomObjectCatalog.textura_encendida(kind) != null:
+		objeto.set_meta("accion", ACCION_LUZ)
+		if variante_txt == "on":
+			objeto.textura = RoomObjectCatalog.textura_encendida(kind)
+		objeto.set_meta("encendida", variante_txt == "on")
+
+	# Objetos con varias versiones (banderas): la variante es cual se eligio.
+	var variantes := RoomObjectCatalog.variantes(kind)
+	if not variantes.is_empty():
+		objeto.set_meta("accion", ACCION_VARIANTE)
+		if variantes.has(variante_txt):
+			objeto.textura = variantes[variante_txt]["textura"]
+			objeto.set_meta("variante", variante_txt)
 
 	var pieza_gratis := RoomObjectCatalog.pieza_gratis(kind)
 	if pieza_gratis != "":
@@ -657,6 +710,37 @@ func _quitar_objeto(objeto: WorldObject) -> void:
 func abrir_radio() -> void:
 	RadioPanel.crear(self, _objeto_de_tipo("radio_pro") != null)
 
+# --- Objetos que se tocan (luces, banderas) ---------------------------------
+
+# Lo llama Barry al tocar un objeto con meta "accion".
+func interactuar_objeto(objeto: WorldObject) -> void:
+	if not is_instance_valid(objeto):
+		return
+	var kind := str(objeto.get_meta("kind", ""))
+	match objeto.get_meta("accion", ""):
+		ACCION_LUZ:
+			var encendida: bool = not objeto.get_meta("encendida", false)
+			objeto.set_meta("encendida", encendida)
+			objeto.textura = RoomObjectCatalog.textura_encendida(kind) if encendida else RoomObjectCatalog.textura(kind)
+			Sonido.efecto("click", 1.2 if encendida else 0.85)
+			_guardar_variante(objeto, "on" if encendida else "off")
+		ACCION_VARIANTE:
+			var variantes := RoomObjectCatalog.variantes(kind)
+			var menu = SelectorVariante.crear(self, "Elige cual mostrar", variantes, str(objeto.get_meta("variante", "")))
+			var elegida: String = await menu.elegido
+			if elegida == "" or not variantes.has(elegida) or not is_instance_valid(objeto):
+				return
+			objeto.set_meta("variante", elegida)
+			objeto.textura = variantes[elegida]["textura"]
+			Efectos.rebote(objeto, Vector2.ONE)
+			Sonido.efecto("acierto")
+			_guardar_variante(objeto, elegida)
+
+func _guardar_variante(objeto: WorldObject, variante: String) -> void:
+	var id := str(objeto.get_meta("room_object_id", ""))
+	if id != "":
+		Supabase.save_room_object_variant(id, variante)
+
 # --- Mascotas ---------------------------------------------------------------
 
 # Abre "Elige la mascota del taller" para un guacal. Lo llama Barry al tocar
@@ -772,6 +856,10 @@ func _salir_edicion() -> void:
 		var guacal := _guacal_pendiente
 		_guacal_pendiente = null
 		abrir_selector_mascota(guacal)
+	elif is_instance_valid(_variante_pendiente):
+		var objeto := _variante_pendiente
+		_variante_pendiente = null
+		interactuar_objeto(objeto)
 
 # Cambia cual objeto esta marcado (contorno + rebote), apagando el anterior.
 # Pasar null limpia la seleccion sin marcar ninguno nuevo.
