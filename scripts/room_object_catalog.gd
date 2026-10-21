@@ -75,9 +75,83 @@ const OBJETOS := {
 	# radio_equipo.gd). Se consigue gratis en la tienda.
 	"radio": {
 		"textura": preload("res://objetos/radio.png"),
-		"escala": Vector2(0.6, 0.6),
-		"posicion_sprite": Vector2(-12, 25),
+		# Dibujado en isometrico con herramientas_dev/dibujar_radio.py.
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 28),
 		"radio": true,
+	},
+	# Equipo profesional: misma radio, pero suena igual de fuerte en TODO el
+	# taller (sin distancia). Reemplaza al comun: nunca hay dos.
+	"radio_pro": {
+		"textura": preload("res://objetos/radio_pro.png"),
+		# Dibujado con herramientas_dev/dibujar_parlante_pro.py.
+		"escala": Vector2(0.45, 0.45),
+		"posicion_sprite": Vector2(-3, 8),
+		"radio": true,
+		"radio_pro": true,
+	},
+	# Plantas en maceta (dibujadas con herramientas_dev/dibujar_plantas.py).
+	# Mismo lienzo para todas, asi que comparten escala y posicion; se mecen
+	# solas con la brisa ("balanceo", ver scripts/balanceo.gd).
+	"planta_monstera": {
+		"textura": preload("res://objetos/plantas/monstera.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
+	},
+	"planta_cactus": {
+		"textura": preload("res://objetos/plantas/cactus.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
+	},
+	"planta_suculenta": {
+		"textura": preload("res://objetos/plantas/suculenta.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
+	},
+	"planta_palmera": {
+		"textura": preload("res://objetos/plantas/palmera.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
+	},
+	"planta_sansevieria": {
+		"textura": preload("res://objetos/plantas/sansevieria.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
+	},
+	"planta_helecho": {
+		"textura": preload("res://objetos/plantas/helecho.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
+	},
+	"planta_ficus": {
+		"textura": preload("res://objetos/plantas/ficus.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
+	},
+	"planta_bonsai": {
+		"textura": preload("res://objetos/plantas/bonsai.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
+	},
+	"planta_girasoles": {
+		"textura": preload("res://objetos/plantas/girasoles.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
+	},
+	"planta_bambu": {
+		"textura": preload("res://objetos/plantas/bambu.png"),
+		"escala": Vector2(0.5, 0.5),
+		"posicion_sprite": Vector2(-12, 13),
+		"balanceo": true,
 	},
 	# Ventana estilo Habbo: va colgada en la pared, no en el piso (ver
 	# scripts/ventana_pared.gd y room.gd _instanciar_ventana). La textura es
@@ -126,6 +200,12 @@ static func posicion_sprite(kind: String) -> Vector2:
 
 static func es_radio(kind: String) -> bool:
 	return OBJETOS.get(kind, {}).get("radio", false)
+
+static func es_radio_pro(kind: String) -> bool:
+	return OBJETOS.get(kind, {}).get("radio_pro", false)
+
+static func se_balancea(kind: String) -> bool:
+	return OBJETOS.get(kind, {}).get("balanceo", false)
 
 static func es_de_pared(kind: String) -> bool:
 	return OBJETOS.get(kind, {}).get("pared", false)

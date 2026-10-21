@@ -90,11 +90,14 @@ func _construir() -> void:
 
 	# Flechas en pantalla para tocar (ademas de las del teclado y el swipe).
 	var centro := Vector2(210, 700)
-	var flechas := {"▲": N, "▼": S, "◀": O, "▶": E}
-	var posiciones := {"▲": Vector2(0, -38), "▼": Vector2(0, 38), "◀": Vector2(-80, 0), "▶": Vector2(80, 0)}
-	for simbolo in flechas:
-		var boton := boton_grande(simbolo, centro + posiciones[simbolo], Vector2(70, 60))
-		boton.button_down.connect(_pedir.bind(flechas[simbolo]))
+	# Flechas dibujadas (Iconos): los simbolos de texto no se ven en iOS.
+	var flechas := {"arriba": N, "abajo": S, "izq": O, "der": E}
+	var posiciones := {"arriba": Vector2(0, -38), "abajo": Vector2(0, 38), "izq": Vector2(-80, 0), "der": Vector2(80, 0)}
+	for direccion in flechas:
+		var boton := boton_grande("", centro + posiciones[direccion], Vector2(70, 60))
+		boton.icon = Iconos.flecha(direccion, false, 30)
+		boton.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		boton.button_down.connect(_pedir.bind(flechas[direccion]))
 
 	_armar_nivel()
 

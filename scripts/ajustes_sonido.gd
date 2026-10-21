@@ -55,7 +55,7 @@ func _ready() -> void:
 	titulo.add_theme_font_size_override("font_size", 24)
 	caja.add_child(titulo)
 
-	caja.add_child(_control("🔔  Efectos", Sonido.volumen_efectos, Sonido.set_volumen_efectos, true))
+	caja.add_child(_control("Efectos", Sonido.volumen_efectos, Sonido.set_volumen_efectos, true))
 
 	# La musica del taller se maneja solo desde el equipo de sonido.
 	var nota := Label.new()

@@ -13,6 +13,7 @@ extends Control
 @onready var button_action: TouchScreenButton = $buttonAction
 
 const AjustesSonido = preload("res://scripts/ajustes_sonido.gd")
+const Vestidor = preload("res://scripts/vestidor.gd")
 
 @onready var http_profile = $HTTPRequestProfile
 @onready var http_active_work = $HTTPRequestActiveWork
@@ -53,6 +54,7 @@ func _ready() -> void:
 	btn_editar_sala.visible = _raiz_editable() != null
 	btn_logout.pressed.connect(_on_btn_logout_pressed)
 	$fondoOscuro/BtnSonido.pressed.connect(func(): AjustesSonido.crear(self))
+	$fondoOscuro/BtnVestidor.pressed.connect(_abrir_vestidor)
 
 	_escala_boton = button_action.scale
 	_posicion_boton = button_action.position
@@ -130,6 +132,13 @@ func _on_btn_editar_sala_pressed() -> void:
 	# Cierra el panel de perfil y despausa, igual que un segundo toque al
 	# boton de Barry: el modo edicion necesita el juego corriendo.
 	_on_button_profile_pressed()
+
+# Cierra el panel de perfil (que pausa la sala) y abre el vestidor: asi al
+# elegir traje Barry puede festejar con la sala andando.
+func _abrir_vestidor() -> void:
+	fondo_oscuro.visible = false
+	get_tree().paused = false
+	Vestidor.crear(self)
 
 func _on_btn_logout_pressed() -> void:
 	Supabase.clear_session()

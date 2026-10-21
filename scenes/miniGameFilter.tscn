@@ -1,5 +1,6 @@
 [gd_scene format=3 uid="uid://c4h8m3fxwta02"]
 
+[ext_resource type="Texture2D" path="res://objetos/herramientas/destornillador.png" id="99_destornillador"]
 [ext_resource type="Script" path="res://scenes/mini_game_filter.gd" id="1_script"]
 [ext_resource type="Script" path="res://scripts/draggable_2d.gd" id="2_drag"]
 [ext_resource type="Texture2D" uid="uid://csww2t4o2j7ml" path="res://enginesCars/engine1.png" id="3_engine"]
@@ -117,16 +118,10 @@ script = ExtResource("2_drag")
 radio_destino = 45.0
 radio_agarre = 75.0
 
-[node name="DestornilladorLabel" type="Label" parent="ContenedorJuego/Destornillador" unique_id=5000000022]
-offset_left = -36.0
-offset_top = -36.0
-offset_right = 36.0
-offset_bottom = 36.0
-theme_override_font_sizes/font_size = 54
-horizontal_alignment = 1
-vertical_alignment = 1
-mouse_filter = 2
-text = "🪛"
+[node name="DestornilladorSprite" type="Sprite2D" parent="ContenedorJuego/Destornillador" unique_id=5000000022]
+rotation = 0.6
+scale = Vector2(0.17, 0.17)
+texture = ExtResource("99_destornillador")
 
 [node name="FiltroNuevo" type="Sprite2D" parent="ContenedorJuego" unique_id=5000000016]
 position = Vector2(330, 650)
@@ -166,4 +161,4 @@ theme_override_font_sizes/font_size = 40
 horizontal_alignment = 1
 vertical_alignment = 1
 mouse_filter = 2
-text = "👇"
+text = ""

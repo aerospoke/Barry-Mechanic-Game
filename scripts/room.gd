@@ -25,6 +25,7 @@ const PetPicker = preload("res://scripts/pet_picker.gd")
 const VentanaPared = preload("res://scripts/ventana_pared.gd")
 const RadioEquipo = preload("res://scripts/radio_equipo.gd")
 const RadioPanel = preload("res://scripts/radio_panel.gd")
+const Balanceo = preload("res://scripts/balanceo.gd")
 const Efectos = preload("res://scripts/efectos.gd")
 
 # Capa de fisica de las mascotas: chocan con los limites (1) y los muebles
@@ -272,7 +273,7 @@ func _crear_banner_gold() -> void:
 	_banner_gold.add_child(premio)
 
 	var texto := Label.new()
-	texto.text = "¡DINERO GRATIS! 💵"
+	texto.text = "¡DINERO GRATIS!"
 	texto.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texto.offset_left = pantalla.offset_left
 	texto.offset_top = divisoria
@@ -400,6 +401,8 @@ func _cargar_objetos() -> void:
 				fila = creada
 		_instanciar_objeto(fila)
 
+	await _dejar_un_solo_equipo()
+
 	# El nivel de la caneca viene del perfil; normalmente ya esta cargado
 	# (load_profile no repite la peticion), pero al entrar directo a la sala
 	# puede no estarlo todavia.
@@ -415,12 +418,23 @@ func agregar_objeto_comprado(kind: String) -> void:
 	if RoomObjectCatalog.es_de_pared(kind):
 		# Al medio de la primera pared (x = t, y = pared).
 		pos = Vector2(0.5, 0)
+
+	# El equipo PRO reemplaza al comun: nunca hay dos. Aparece en el mismo
+	# lugar donde estaba el viejo, que se borra.
+	var reemplazado: WorldObject = null
+	if RoomObjectCatalog.es_radio_pro(kind):
+		reemplazado = _objeto_de_tipo("radio")
+		if reemplazado != null:
+			pos = reemplazado.position
+
 	var fila := {"id": "", "kind": kind, "x": pos.x, "y": pos.y}
 	if room_id != "":
 		var creada := await Supabase.create_room_object(room_id, kind, pos)
 		if not creada.is_empty():
 			fila = creada
 	_instanciar_objeto(fila)
+	if reemplazado != null:
+		await _quitar_objeto(reemplazado)
 	_actualizar_canecas()
 	# Un guacal recien comprado pide elegir mascota apenas se termina de
 	# ubicarlo (ver _salir_edicion).
@@ -454,15 +468,22 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 		objeto.set_meta("guacal", true)
 	if RoomObjectCatalog.es_radio(kind):
 		objeto.set_meta("radio", true)
+		if RoomObjectCatalog.es_radio_pro(kind):
+			objeto.set_meta("radio_pro", true)
 	if RoomObjectCatalog.es_reciclaje(kind):
 		objeto.set_meta("reciclaje", RoomObjectCatalog.posicion_medidor(kind))
 
 	interaction_zone.add_child(objeto)
 	_objetos.append(objeto)
 
-	# Solo suena un equipo por sala: si hay varios, los demas son adorno.
-	if objeto.has_meta("radio") and not _hay_radio_sonando():
-		objeto.add_child(RadioEquipo.new())
+	if RoomObjectCatalog.se_balancea(kind):
+		objeto.add_child(Balanceo.new())
+
+	if objeto.has_meta("radio"):
+		var equipo := RadioEquipo.new()
+		equipo.es_pro = objeto.has_meta("radio_pro")
+		objeto.add_child(equipo)
+		_elegir_radio_activa()
 
 	# Barry decide que conectar segun el nombre reservado (PC, auto) o la meta
 	# "pieza_gratis" (estantes); un objeto puramente decorativo no tiene
@@ -566,16 +587,75 @@ func _guardar_ventana(ventana: VentanaPared) -> void:
 
 # --- Equipo de sonido -------------------------------------------------------
 
-func _hay_radio_sonando() -> bool:
+# Solo suena un equipo por sala: el profesional si hay, si no el primero.
+func _elegir_radio_activa() -> void:
+	var equipos: Array = []
 	for objeto in _objetos:
+		if not is_instance_valid(objeto) or objeto.is_queued_for_deletion():
+			continue
 		for hijo in objeto.get_children():
 			if hijo is RadioEquipo:
-				return true
-	return false
+				equipos.append(hijo)
+	var elegido: RadioEquipo = null
+	for equipo in equipos:
+		if equipo.es_pro:
+			elegido = equipo
+			break
+	if elegido == null and not equipos.is_empty():
+		elegido = equipos[0]
+	for equipo in equipos:
+		equipo.activo = equipo == elegido
+
+# Primer objeto de la sala con esa meta (ej. "radio", "radio_pro"), o null.
+# Para "radio" no cuenta el PRO: es el equipo comun.
+func _objeto_de_tipo(meta: String) -> WorldObject:
+	for objeto in _objetos:
+		if not is_instance_valid(objeto) or not objeto.has_meta(meta):
+			continue
+		if meta == "radio" and objeto.has_meta("radio_pro"):
+			continue
+		return objeto
+	return null
+
+# La tienda pregunta (via call()) si ya hay un equipo de sonido, para no
+# vender uno de mas: "radio" = cualquiera de los dos, "radio_pro" = el PRO.
+func tiene_equipo(kind: String) -> bool:
+	if kind == "radio_pro":
+		return _objeto_de_tipo("radio_pro") != null
+	return _objeto_de_tipo("radio") != null or _objeto_de_tipo("radio_pro") != null
+
+# Una sala tiene un solo equipo de sonido. Salas que quedaron con mas de uno
+# (de antes de esta regla) se arreglan al cargar: se queda el PRO si hay, si
+# no el primero, y los demas se borran de la sala y de la base.
+func _dejar_un_solo_equipo() -> void:
+	var equipos: Array = []
+	for objeto in _objetos:
+		if is_instance_valid(objeto) and objeto.has_meta("radio"):
+			equipos.append(objeto)
+	if equipos.size() <= 1:
+		return
+	var queda: WorldObject = equipos[0]
+	for equipo in equipos:
+		if equipo.has_meta("radio_pro"):
+			queda = equipo
+			break
+	for equipo in equipos:
+		if equipo != queda:
+			await _quitar_objeto(equipo)
+
+# Borra un objeto de la sala y de la base sin preguntar (reemplazos).
+func _quitar_objeto(objeto: WorldObject) -> void:
+	var id := str(objeto.get_meta("room_object_id", ""))
+	if id != "":
+		await Supabase.delete_room_object(id)
+	_quitar_mascota(objeto)
+	_objetos.erase(objeto)
+	objeto.queue_free()
+	_elegir_radio_activa()
 
 # Lo llama Barry al tocar el equipo de sonido.
 func abrir_radio() -> void:
-	RadioPanel.crear(self)
+	RadioPanel.crear(self, _objeto_de_tipo("radio_pro") != null)
 
 # --- Mascotas ---------------------------------------------------------------
 
@@ -804,6 +884,8 @@ func _on_btn_borrar_objeto_pressed() -> void:
 	if _seleccionado == objeto:
 		_seleccionado = null
 	objeto.queue_free()
+	# Si se borro el equipo que sonaba, toma la posta otro (si hay).
+	_elegir_radio_activa()
 	btn_borrar_objeto.disabled = true
 
 func _borrar_ventana(ventana: VentanaPared) -> void:

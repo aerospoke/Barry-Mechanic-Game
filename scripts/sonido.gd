@@ -43,27 +43,43 @@ const BUS_MUSICA := "Musica"
 const BUS_EFECTOS := "Efectos"
 
 # Emisoras del equipo de sonido de la sala (ver radio_equipo.gd y
-# radio_panel.gd). Son las mismas canciones de los minijuegos.
+# radio_panel.gd), una por genero: que cada quien encuentre la suya. Varias
+# son tambien las canciones de los minijuegos.
 const EMISORAS := [
-	{"id": "musica_taller", "nombre": "Perreo del Taller"},
-	{"id": "musica_aceite", "nombre": "Funk Aceitoso"},
-	{"id": "musica_filtro", "nombre": "Rock de Garaje"},
-	{"id": "musica_cables", "nombre": "Electro Circuito"},
-	{"id": "musica_herramientas", "nombre": "Lo-fi del Banco"},
-	{"id": "musica_pintura", "nombre": "Jazz de Pintura"},
-	{"id": "musica_cerradura", "nombre": "Espias en el Garaje"},
-	{"id": "musica_reciclaje", "nombre": "Fabrica en Marcha"},
-	{"id": "musica_inflar", "nombre": "Concurso de Llantas"},
+	{"id": "musica_taller", "genero": "Reggaeton", "nombre": "Perreo del Taller"},
+	{"id": "musica_tropipop", "genero": "Tropipop", "nombre": "Tropical del Garaje"},
+	{"id": "musica_kpop", "genero": "K-pop", "nombre": "Seul Turbo"},
+	{"id": "musica_reggae", "genero": "Reggae", "nombre": "Good Vibes Mecanico"},
+	{"id": "musica_dancehall", "genero": "Dancehall", "nombre": "Riddim del Motor"},
+	{"id": "musica_cumbia", "genero": "Cumbia", "nombre": "Cumbia de la Llave"},
+	{"id": "musica_salsa", "genero": "Salsa", "nombre": "Salsa con Tuercas"},
+	{"id": "musica_bachata", "genero": "Bachata", "nombre": "Bachata Bajo el Capo"},
+	{"id": "musica_trap", "genero": "Trap", "nombre": "Trap del Turbo"},
+	{"id": "musica_afro", "genero": "Afrobeats", "nombre": "Afro Piston"},
+	{"id": "musica_aceite", "genero": "Funk", "nombre": "Funk Aceitoso"},
+	{"id": "musica_filtro", "genero": "Rock", "nombre": "Rock de Garaje"},
+	{"id": "musica_cables", "genero": "Electronica", "nombre": "Electro Circuito"},
+	{"id": "musica_herramientas", "genero": "Lo-fi", "nombre": "Lo-fi del Banco"},
+	{"id": "musica_pintura", "genero": "Jazz", "nombre": "Jazz de Pintura"},
 ]
 
 # Avisa al equipo de sonido que se prendio/apago o cambio de emisora.
 signal radio_cambio
 
 var radio_encendida: bool = true
+# Modo aleatorio: al terminar cada cancion el equipo salta a otro genero al
+# azar (ver radio_equipo.gd).
+var radio_aleatorio: bool = false
 var emisora: int = 0
 
 var volumen_musica: float = 0.45
-var volumen_efectos: float = 0.8
+# Por defecto los efectos van bajitos (20%): la musica manda. Si el jugador
+# los cambia, se respeta lo que eligio (ver _efectos_elegidos).
+var volumen_efectos: float = 0.2
+# true cuando el jugador movio el volumen de efectos alguna vez. Hasta
+# entonces siempre se usa el valor por defecto, aunque haya ajustes viejos
+# guardados (antes se guardaba 0.8 aunque nunca lo hubiera tocado).
+var _efectos_elegidos: bool = false
 
 var _canales: Array[AudioStreamPlayer] = []
 var _siguiente_canal: int = 0
@@ -185,6 +201,25 @@ func radio_alternar() -> void:
 	_guardar_ajustes()
 	radio_cambio.emit()
 
+func radio_alternar_aleatorio() -> void:
+	radio_aleatorio = not radio_aleatorio
+	_guardar_ajustes()
+	radio_cambio.emit()
+
+# Otra emisora al azar (nunca la misma que esta sonando).
+func radio_al_azar() -> void:
+	var otra := randi() % (EMISORAS.size() - 1)
+	if otra >= emisora:
+		otra += 1
+	radio_elegir(otra)
+
+# Salta directo a una emisora (botones de genero del panel).
+func radio_elegir(indice: int) -> void:
+	emisora = clampi(indice, 0, EMISORAS.size() - 1)
+	radio_encendida = true
+	_guardar_ajustes()
+	radio_cambio.emit()
+
 func radio_cambiar(paso: int) -> void:
 	emisora = posmod(emisora + paso, EMISORAS.size())
 	radio_encendida = true
@@ -216,6 +251,7 @@ func set_volumen_musica(valor: float) -> void:
 
 func set_volumen_efectos(valor: float) -> void:
 	volumen_efectos = clampf(valor, 0.0, 1.0)
+	_efectos_elegidos = true
 	_aplicar_volumen(BUS_EFECTOS, volumen_efectos)
 	_guardar_ajustes()
 
@@ -228,8 +264,11 @@ func _cargar_ajustes() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(ARCHIVO_AJUSTES) == OK:
 		volumen_musica = float(cfg.get_value("sonido", "musica", volumen_musica))
-		volumen_efectos = float(cfg.get_value("sonido", "efectos", volumen_efectos))
+		_efectos_elegidos = bool(cfg.get_value("sonido", "efectos_elegidos", false))
+		if _efectos_elegidos:
+			volumen_efectos = float(cfg.get_value("sonido", "efectos", volumen_efectos))
 		radio_encendida = bool(cfg.get_value("radio", "encendida", radio_encendida))
+		radio_aleatorio = bool(cfg.get_value("radio", "aleatorio", radio_aleatorio))
 		emisora = clampi(int(cfg.get_value("radio", "emisora", emisora)), 0, EMISORAS.size() - 1)
 	_aplicar_volumen(BUS_MUSICA, volumen_musica)
 	_aplicar_volumen(BUS_EFECTOS, volumen_efectos)
@@ -239,6 +278,8 @@ func _guardar_ajustes() -> void:
 	cfg.load(ARCHIVO_AJUSTES)
 	cfg.set_value("sonido", "musica", volumen_musica)
 	cfg.set_value("sonido", "efectos", volumen_efectos)
+	cfg.set_value("sonido", "efectos_elegidos", _efectos_elegidos)
 	cfg.set_value("radio", "encendida", radio_encendida)
+	cfg.set_value("radio", "aleatorio", radio_aleatorio)
 	cfg.set_value("radio", "emisora", emisora)
 	cfg.save(ARCHIVO_AJUSTES)

@@ -328,8 +328,9 @@ def metal(vol=0.12):
              + 0.4 * math.sin(2 * math.pi * f * 5.4 * i / SR)) * math.exp(-i / SR / 0.12) * vol for i in range(n)]
 
 class Cancion:
-    """Loop de `compases` compases de 4/4 a `bpm`. Se ubica todo en
-    semicorcheas (16 por compas); se aceptan pasos con decimales (swing)."""
+    """Cancion de `compases` compases de 4/4 a `bpm`, en loop: se ubica todo
+    en semicorcheas (16 por compas, se aceptan decimales para el swing) y
+    las colas que pasan del final se mezclan al principio."""
 
     def __init__(self, bpm, compases):
         self.semi = 60 / bpm / 4
@@ -345,34 +346,97 @@ class Cancion:
     def dur(self, semis):
         return semis * self.semi
 
-    def bateria(self, patron, swing=0.0, vol=1.0, cepillo=False):
-        """Patron de 16 pasos por compas: k bombo, s caja, h platillo,
-        o platillo abierto, c palmas, m metal, '.' nada."""
-        for compas in range(self.compases):
-            for i, g in enumerate(patron):
-                paso = compas * 16 + i + (swing if i % 2 else 0)
-                if g == "k": self.poner(paso, bombo(), vol)
-                elif g == "s": self.poner(paso, caja(cepillo=cepillo), vol)
-                elif g == "h": self.poner(paso, platillo(), vol)
-                elif g == "o": self.poner(paso, platillo(True), vol)
-                elif g == "c": self.poner(paso, palmas(), vol)
-                elif g == "m": self.poner(paso, metal(0.2), vol)
+    def bateria(self, compas, patron, swing=0.0, vol=1.0, cepillo=False):
+        """Un compas de bateria. Patron de 16 pasos: k bombo, s caja,
+        h platillo, o platillo abierto, c palmas, r aro, m metal, '.' nada."""
+        for i, g in enumerate(patron):
+            paso = compas * 16 + i + (swing if i % 2 else 0)
+            if g == "k": self.poner(paso, bombo(), vol)
+            elif g == "s": self.poner(paso, caja(cepillo=cepillo), vol)
+            elif g == "h": self.poner(paso, platillo(), vol)
+            elif g == "o": self.poner(paso, platillo(True), vol)
+            elif g == "c": self.poner(paso, palmas(), vol)
+            elif g == "r": self.poner(paso, aro(), vol)
+            elif g == "m": self.poner(paso, metal(0.2), vol)
 
-    def doble(self):
-        """Repite el loop dos veces y cierra la segunda con un redoble de
-        caja que crece: la cancion dura el doble y no se siente tan corta."""
-        largo = self.n
-        self.buf = self.buf + self.buf
-        self.n = largo * 2
-        ultimo = self.compases * 2 * 16 - 8
+    def redoble(self, compas, golpe=None):
+        """Redoble que crece en la segunda mitad del compas: avisa que viene
+        otra parte de la cancion."""
         for k in range(8):
-            self.poner(ultimo + k, caja(), 0.35 + k * 0.08)
-        return self.buf
+            self.poner(compas * 16 + 8 + k, golpe() if golpe else caja(), 0.3 + k * 0.08)
 
-    def ambiente_taller(self, golpes=6, vol=1.0):
-        # Llaves y herramientas que suenan de fondo, al azar.
-        for _ in range(golpes):
-            self.poner(random.uniform(0, self.compases * 16), metal(), vol)
+# --- Estructura ----------------------------------------------------------------
+# Todas las canciones duran ~1 minuto y tienen partes, para no cansar:
+#   intro -> A -> B -> puente (sin bombo) -> A -> B ... -> vuelta al inicio.
+# Las melodias de cada parte se componen a partir de los acordes con una
+# semilla por cancion y parte: siempre salen iguales, pero A y B son distintas.
+
+def plan(total):
+    partes = [("intro", 2), ("A", 8), ("B", 8), ("puente", 4)]
+    resto = total - 22
+    if resto >= 12:
+        partes += [("A", 8), ("B", resto - 8)]
+    else:
+        partes.append(("A", max(resto, 2)))
+    compases = []
+    for nombre, largo in partes:
+        for i in range(largo):
+            compases.append((nombre, i, i == largo - 1))
+    return compases
+
+RITMOS = [
+    [0, 3, 6, 8, 11, 14],
+    [0, 2, 4, 7, 10, 12],
+    [0, 4, 6, 10, 12, 14],
+    [0, 3, 4, 7, 8, 12],
+    [2, 4, 6, 10, 14],
+    [0, 6, 8, 10, 12],
+]
+
+def subir(nota, octavas):
+    return nota[:-1] + str(int(nota[-1]) + octavas)
+
+class Melodista:
+    """Inventa la melodia de cada parte: un ritmo y una secuencia de grados
+    del acorde, que se adapta solo a cada acorde del compas."""
+
+    def __init__(self, cancion):
+        self.cancion = cancion
+        self.partes = {}
+
+    def compas(self, parte, i, notas_acorde):
+        if parte not in self.partes:
+            rnd = random.Random(self.cancion + "-" + parte)
+            ritmo = rnd.choice(RITMOS)
+            grados = [rnd.choice([0, 1, 2, 2, 1, 3]) for _ in range(len(ritmo) * 2)]
+            self.partes[parte] = (ritmo, grados)
+        ritmo, grados = self.partes[parte]
+        escala = notas_acorde + [subir(n, 1) for n in notas_acorde]
+        salida = []
+        for k, paso in enumerate(ritmo):
+            # Compases pares e impares usan mitades distintas de la secuencia.
+            g = grados[k + (i % 2) * len(ritmo)]
+            siguiente = ritmo[k + 1] if k + 1 < len(ritmo) else 16
+            # Cada 4 compases la ultima nota se estira: respira la frase.
+            largo = siguiente - paso if not (i % 4 == 3 and k == len(ritmo) - 1) else 4
+            salida.append((paso, escala[min(g, len(escala) - 1)], largo))
+        return salida
+
+def componer(nombre, bpm, progresion, capas):
+    """`progresion`: lista de acordes, uno por compas (se repite).
+    Cada acorde: (raiz con octava para el bajo, [notas del acorde]).
+    `capas`: funciones f(c, compas, parte, i, acorde, melodista)."""
+    total = max(16, round(bpm / 4))
+    c = Cancion(bpm, total)
+    melodista = Melodista(nombre)
+    random.seed(nombre)
+    for compas, (parte, i, ultimo) in enumerate(plan(total)):
+        acorde = progresion[compas % len(progresion)]
+        for capa in capas:
+            capa(c, compas, parte, i, acorde, melodista)
+        if ultimo and parte != "intro":
+            c.redoble(compas)
+    return c.buf
 
 def bajo_808(nota, dur, vol=0.7):
     """808 de reggaeton: seno grave con golpe de tono al inicio y un poco
@@ -394,170 +458,715 @@ def aro(vol=0.35):
     return [(v * 0.6 + 0.5 * math.sin(2 * math.pi * 1700 * i / SR)) * math.exp(-i / SR / 0.012) * vol
             for i, v in enumerate(r)]
 
+
+# --- Instrumentos de los generos de la radio -----------------------------------
+
+def cuerda(nota, dur, vol=0.3, brillo=0.5, apagar=0.996):
+    """Cuerda pulsada real (algoritmo Karplus-Strong): guitarra acustica,
+    requinto. `brillo` alto = mas metalica."""
+    f = freq(nota)
+    largo = max(2, int(SR / f))
+    buf = [random.uniform(-1, 1) for _ in range(largo)]
+    out, idx = [], 0
+    for _ in range(int(dur * SR)):
+        v = buf[idx]
+        sig = buf[(idx + 1) % largo]
+        buf[idx] = apagar * (brillo * v + (1 - brillo) * 0.5 * (v + sig))
+        out.append(v * vol)
+        idx = (idx + 1) % largo
+    return out
+
+def rasgueo(notas, dur, vol=0.18, hacia_arriba=False, brillo=0.5):
+    """Acorde rasgueado: cada cuerda entra unos milisegundos despues."""
+    orden = list(reversed(notas)) if hacia_arriba else notas
+    pistas = [en(k * 0.012, cuerda(n, dur, vol, brillo)) for k, n in enumerate(orden)]
+    return mezclar(*pistas)
+
+def acordeon(notas, dur, vol=0.07):
+    n = int(dur * SR)
+    m = [0.0] * n
+    for nota in notas:
+        for k, v in enumerate(osc("saw", freq(nota), dur, detune=0.007)):
+            m[k] += v
+    m = pasa_bajos(m, 0.18)
+    ataque = int(0.025 * SR)
+    return [v * vol * min(1, k / ataque) * min(1, (n - k) / ataque) * (0.85 + 0.15 * math.sin(2 * math.pi * 5.5 * k / SR))
+            for k, v in enumerate(m)]
+
+def raspado(vol=0.25, dur=0.07, brillo=0.35):
+    """Guacharaca / guira: ruido agudo que crece y se corta (rascar)."""
+    n = int(dur * SR)
+    r = pasa_altos([random.uniform(-1, 1) for _ in range(n)], brillo)
+    return [v * (k / n) ** 0.7 * vol for k, v in enumerate(r)]
+
+def cencerro(vol=0.18):
+    n = int(0.12 * SR)
+    return [((1 if (k * 562 / SR) % 1 < 0.5 else -1) + (1 if (k * 845 / SR) % 1 < 0.5 else -1))
+            * math.exp(-k / SR / 0.04) * vol * 0.5 for k in range(n)]
+
+def conga(f=210, vol=0.4, golpe=False):
+    n = int(0.25 * SR)
+    fase, out = 0.0, []
+    for k in range(n):
+        t = k / SR
+        fase += f * (1 + 0.3 * math.exp(-t / 0.01)) / SR
+        out.append(math.sin(2 * math.pi * fase) * math.exp(-t / (0.06 if golpe else 0.14)) * vol)
+    if golpe:
+        out = mezclar(out, [random.uniform(-1, 1) * math.exp(-k / SR / 0.008) * vol * 0.6 for k in range(n)])
+    return out
+
+def maracas(vol=0.12):
+    n = int(0.05 * SR)
+    r = pasa_altos([random.uniform(-1, 1) for _ in range(n)], 0.5)
+    return [v * math.sin(math.pi * k / n) * vol for k, v in enumerate(r)]
+
+def metales(notas, dur, vol=0.09):
+    """Seccion de metales (trompetas): sierras con filtro que se abre."""
+    n = int(dur * SR)
+    m = [0.0] * n
+    for nota in notas:
+        for k, v in enumerate(osc("saw", freq(nota), dur, detune=0.005)):
+            m[k] += v
+    out, y = [], 0.0
+    for k, x in enumerate(m):
+        corte = 0.04 + 0.25 * min(1, k / (0.05 * SR))
+        y += corte * (x - y)
+        out.append(y * vol * min(1, (n - k) / 300))
+    return out
+
+def campana(nota, dur=0.8, vol=0.18):
+    f = freq(nota)
+    n = int(dur * SR)
+    return [(math.sin(2 * math.pi * f * k / SR) + 0.4 * math.sin(2 * math.pi * f * 2.76 * k / SR) * math.exp(-k / SR / 0.1))
+            * math.exp(-k / SR / (dur * 0.4)) * vol for k in range(n)]
+
+def log_drum(nota, dur=0.35, vol=0.45):
+    """Log drum del amapiano/afrobeats: grave con caida de tono y saturado."""
+    f = freq(nota)
+    n = int(dur * SR)
+    fase, out = 0.0, []
+    for k in range(n):
+        t = k / SR
+        fase += f * (1 + 0.6 * math.exp(-t / 0.02)) / SR
+        out.append(math.tanh(1.8 * math.sin(2 * math.pi * fase)) * math.exp(-t / (dur * 0.5)) * vol)
+    return out
+
+# --- Canciones -------------------------------------------------------------------
+
 def taller():
-    # Reggaeton de taller, en La menor, 94 BPM: dembow, 808, gancho de
-    # sintetizador y golpes de herramientas metidos como percusion.
-    c = Cancion(94, 8)
-    progresion = [("A", ["A3", "C4", "E4"]), ("F", ["F3", "A3", "C4"]),
-                  ("C", ["C4", "E4", "G4"]), ("G", ["G3", "B3", "D4"])]
-    gancho = [  # (paso dentro del compas, nota)
-        [(0, "E5"), (3, "C5"), (6, "E5"), (8, "D5"), (11, "C5"), (14, "A4")],
-        [(0, "C5"), (3, "A4"), (6, "C5"), (8, "C5"), (11, "D5"), (14, "C5")],
-        [(0, "E5"), (3, "G5"), (6, "E5"), (8, "D5"), (11, "C5"), (14, "D5")],
-        [(0, "B4"), (3, "D5"), (6, "B4"), (8, "G4"), (12, "A4"), (14, "B4")],
-    ]
-    for compas in range(8):
-        raiz, acorde = progresion[compas % 4]
-        base = compas * 16
-        # 808 con el ritmo "pum... pum-pum".
-        for paso, largo in ((0, 6), (6, 4), (10, 6)):
-            c.poner(base + paso, bajo_808(raiz + "1", c.dur(largo)))
-        # Acorde de fondo suave y gancho de sinte (la primera vuelta solo
-        # acordes, la segunda entra el gancho).
-        c.poner(base, piano_e(acorde, c.dur(16), vol=0.05, caida=1.2))
-        if compas >= 4:
-            for paso, nota in gancho[compas % 4]:
-                c.poner(base + paso, sinte(nota, c.dur(2), vol=0.13, brillo=0.2))
-        else:
-            for paso in (0, 3, 6, 8, 11, 14):
-                c.poner(base + paso, marimba(acorde[(paso // 3) % 3][:-1] + "5", c.dur(2), vol=0.12))
-        # Llave que golpea metal en el contratiempo cada dos compases.
-        if compas % 2 == 1:
-            c.poner(base + 14, metal(0.18))
-    # Dembow: bombo en cada negra, aro en el "chick" (3, 6, 11, 14).
-    c.bateria("k...k...k...k...")
-    for compas in range(8):
-        for paso in (3, 6, 11, 14):
-            c.poner(compas * 16 + paso, aro())
-    c.bateria("h.h.h.h.h.h.h.h.", vol=0.7)
-    c.bateria("..o...o...o...o.", vol=0.35)
-    # Redoble para volver a empezar.
-    for k in range(8):
-        c.poner(8 * 16 - 8 + k, aro(), 0.4 + k * 0.08)
-    return c.buf
+    # Reggaeton de taller, La menor, 94 BPM: dembow, 808, marimba/sinte y
+    # golpes de herramientas.
+    prog = [("A1", ["A3", "C4", "E4"]), ("F1", ["F3", "A3", "C4"]),
+            ("C2", ["C4", "E4", "G4"]), ("G1", ["G3", "B3", "D4"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        figura = ((0, 6), (6, 4), (10, 6)) if parte != "puente" else ((0, 16),)
+        for paso, largo in figura:
+            c.poner(compas * 16 + paso, bajo_808(acorde[0], c.dur(largo)))
+
+    def armonia(c, compas, parte, i, acorde, m):
+        c.poner(compas * 16, piano_e(acorde[1], c.dur(16), vol=0.05, caida=1.2))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        notas = [subir(n, 1) for n in acorde[1]]
+        for paso, nota, largo in m.compas(parte, i, notas):
+            if parte == "A":
+                c.poner(compas * 16 + paso, marimba(nota, c.dur(largo + 1), vol=0.14))
+            elif parte == "B":
+                c.poner(compas * 16 + paso, sinte(nota, c.dur(largo), vol=0.12, brillo=0.2))
+            elif parte == "puente" and paso % 4 == 0:
+                c.poner(compas * 16 + paso, piano_e([nota], c.dur(4), vol=0.08))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            c.bateria(compas, "h.h.h.h.h.h.h.h.", vol=0.5)
+            return
+        if parte != "puente":
+            c.bateria(compas, "k...k...k...k...")
+        c.bateria(compas, "...r..r....r..r.")
+        c.bateria(compas, "h.h.h.h.h.h.h.h." if parte != "B" else "hhh.hhh.hhh.hhh.", vol=0.6)
+        if parte == "B":
+            c.bateria(compas, "..o...o...o...o.", vol=0.35)
+        if i % 2 == 1:
+            c.poner(compas * 16 + 14, metal(0.18))
+
+    return componer("taller", 94, prog, [bajo, armonia, melodia, bateria])
 
 def aceite():
-    # Funk lento y "aceitoso" en Mi menor, 100 BPM: bajo slap y piano electrico.
-    c = Cancion(100, 4)
-    patron = [(0, "E2"), (3, "E2"), (6, "G2"), (7, "A2"), (10, "E2"), (12, "D3"), (14, "B2")]
-    for compas in range(4):
-        for paso, nota in patron:
+    # Funk aceitoso, Mi menor, 100 BPM: bajo slap, piano electrico, guitarra
+    # rascada.
+    prog = [("E2", ["E3", "G3", "B3", "D4"]), ("A2", ["A3", "C4", "E4", "G4"]),
+            ("E2", ["E3", "G3", "B3", "D4"]), ("B2", ["B3", "D4", "F#4", "A4"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        r = acorde[0]
+        figura = [(0, r), (3, r), (6, subir(r, 1)), (7, r), (10, r), (12, subir(r, 1)), (14, r)]
+        if parte == "puente":
+            figura = [(0, r), (10, r)]
+        for paso, nota in figura:
             c.poner(compas * 16 + paso, bajo_slap(nota, c.dur(2)))
-        acorde = [["E3", "G3", "B3", "D4"], ["A3", "C4", "E4", "G4"]][compas % 2]
-        for paso in (2, 9):
-            c.poner(compas * 16 + paso, piano_e(acorde, c.dur(3), vol=0.09, caida=0.15))
-        for paso in range(0, 16, 2):
-            c.poner(compas * 16 + paso + 1, guitarra(["E4"], c.dur(1), apagada=True, vol=0.06, brillo=0.5))
-    c.bateria("k..k..s...k...s.")
-    c.bateria("hhhhhhhohhhhhhho", vol=0.6)
-    return c.doble()
+
+    def armonia(c, compas, parte, i, acorde, m):
+        for paso in ((2, 9) if parte != "puente" else (0,)):
+            c.poner(compas * 16 + paso, piano_e(acorde[1], c.dur(3 if parte != "puente" else 14), vol=0.08, caida=0.2 if parte != "puente" else 1.0))
+        if parte in ("A", "B"):
+            for paso in range(1, 16, 2):
+                c.poner(compas * 16 + paso, guitarra([subir(acorde[1][0], 1)], c.dur(1), apagada=True, vol=0.05, brillo=0.5))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte not in ("B", "puente"):
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1][:3]]):
+            c.poner(compas * 16 + paso, piano_e([nota], c.dur(largo), vol=0.09, caida=0.3))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            c.bateria(compas, "hhhhhhhohhhhhhho", vol=0.5)
+        elif parte == "puente":
+            c.bateria(compas, "....s.......s...", vol=0.6)
+            c.bateria(compas, "h.h.h.h.h.h.h.h.", vol=0.4)
+        else:
+            c.bateria(compas, "k..k..s...k...s.")
+            c.bateria(compas, "hhhhhhhohhhhhhho", vol=0.6)
+
+    return componer("aceite", 100, prog, [bajo, armonia, melodia, bateria])
 
 def cerradura():
-    # Espias / robo, en La menor, 112 BPM: bajo que camina, guitarra con
-    # tremolo y platillo que hace tic-tac.
-    c = Cancion(112, 4)
-    camino = ["A2", "A2", "C3", "A2", "D#3", "E3", "C3", "B2"]
-    for compas in range(4):
-        for k, nota in enumerate(camino):
-            c.poner(compas * 16 + k * 2, bajo_electrico(nota, c.dur(2), brillo=0.08))
-    melodia = [(0, "A4", 4), (4, "C5", 2), (6, "B4", 2), (8, "E4", 6), (16, "F4", 4), (20, "E4", 2), (22, "D#4", 2), (24, "E4", 8),
-               (32, "A4", 4), (36, "C5", 2), (38, "E5", 2), (40, "D5", 6), (48, "C5", 2), (50, "B4", 2), (52, "G#4", 4), (56, "A4", 8)]
-    for paso, nota, largo in melodia:
-        c.poner(paso, guitarra([nota], c.dur(largo), distorsion=2.0, vol=0.14, brillo=0.3, tremolo=9))
-    c.bateria("k.......k.k.....")
-    c.bateria("..s.....s.....s.", vol=0.4)
-    c.bateria("h.h.h.h.h.h.h.h.", vol=0.6)
-    return c.doble()
+    # Espias / robo, La menor, 112 BPM: bajo que camina, guitarra con tremolo.
+    prog = [("A2", ["A3", "C4", "E4"]), ("A2", ["A3", "C4", "E4"]),
+            ("D3", ["D4", "F4", "A4"]), ("E2", ["E3", "G#3", "B3"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        r = acorde[0]
+        notas = {"A2": ["A2", "A2", "C3", "A2", "D#3", "E3", "C3", "B2"],
+                 "D3": ["D3", "D3", "F3", "D3", "G#3", "A3", "F3", "E3"],
+                 "E2": ["E2", "E2", "G#2", "E2", "A#2", "B2", "G#2", "F#2"]}[r]
+        if parte == "intro":
+            for k, n in enumerate(notas[::2]):
+                c.poner(compas * 16 + k * 4, bajo_electrico(n, c.dur(4), brillo=0.08))
+            return
+        for k, n in enumerate(notas):
+            c.poner(compas * 16 + k * 2, bajo_electrico(n, c.dur(2), brillo=0.08))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        trem = 9 if parte != "puente" else 5
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1]]):
+            c.poner(compas * 16 + paso, guitarra([nota], c.dur(largo), distorsion=2.0, vol=0.12, brillo=0.3, tremolo=trem))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        c.bateria(compas, "h.h.h.h.h.h.h.h.", vol=0.6)
+        if parte in ("A", "B"):
+            c.bateria(compas, "k.......k.k.....")
+            c.bateria(compas, "..s.....s.....s." if parte == "A" else "....s.......s.s.", vol=0.4)
+
+    return componer("cerradura", 112, prog, [bajo, melodia, bateria])
 
 def filtro():
-    # Rock de garaje alegre, en La, 128 BPM: guitarras en corcheas apagadas.
-    c = Cancion(128, 4)
-    for compas, (r, q) in enumerate([("A2", "E3"), ("E2", "B2"), ("F#2", "C#3"), ("D2", "A2")]):
+    # Rock de garaje alegre, La, 128 BPM.
+    prog = [("A2", ["A3", "E4"]), ("E2", ["E3", "B3"]), ("F#2", ["F#3", "C#4"]), ("D2", ["D3", "A3"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for k in range(8 if parte != "puente" else 2):
+            c.poner(compas * 16 + k * (2 if parte != "puente" else 8), bajo_electrico(acorde[0], c.dur(2 if parte != "puente" else 8), brillo=0.1))
+
+    def guitarras(c, compas, parte, i, acorde, m):
+        if parte == "puente":
+            c.poner(compas * 16, guitarra(acorde[1], c.dur(16), vol=0.15))
+            return
         for k in range(8):
-            c.poner(compas * 16 + k * 2, bajo_electrico(r, c.dur(2), brillo=0.1))
-            c.poner(compas * 16 + k * 2, guitarra([r[:-1] + "3", q[:-1] + "3"], c.dur(2), apagada=k % 4 != 0, vol=0.22))
-    c.bateria("k.h.s.h.k.k.s.h.")
-    return c.doble()
+            c.poner(compas * 16 + k * 2, guitarra(acorde[1], c.dur(2), apagada=(k % 4 != 0) and parte != "B", vol=0.2))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte != "B":
+            return
+        notas = [subir(acorde[1][0], 1), subir(acorde[1][1], 1), subir(acorde[1][0], 2)]
+        for paso, nota, largo in m.compas(parte, i, notas):
+            c.poner(compas * 16 + paso, guitarra([nota], c.dur(largo), distorsion=5, vol=0.1, brillo=0.35))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            c.bateria(compas, "k...k...k...k...")
+        elif parte == "puente":
+            c.bateria(compas, "o.......o.......", vol=0.5)
+        else:
+            c.bateria(compas, "k.h.s.h.k.k.s.h." if parte == "A" else "k.o.s.o.k.k.s.o.")
+
+    return componer("filtro", 128, prog, [bajo, guitarras, melodia, bateria])
 
 def cables():
-    # Electronica tipo hackeo, en Re menor, 124 BPM: arpegio de sintetizador,
-    # bombo a negras y platillo a contratiempo.
-    c = Cancion(124, 4)
-    acordes = [["D3", "F3", "A3", "D4"], ["Bb2", "D3", "F3", "Bb3"], ["C3", "E3", "G3", "C4"], ["A2", "C#3", "E3", "A3"]]
-    for compas, acorde in enumerate(acordes):
+    # Electronica de hackeo, Re menor, 124 BPM.
+    prog = [("D2", ["D3", "F3", "A3", "D4"]), ("Bb1", ["Bb2", "D3", "F3", "Bb3"]),
+            ("C2", ["C3", "E3", "G3", "C4"]), ("A1", ["A2", "C#3", "E3", "A3"])]
+
+    def arpegio(c, compas, parte, i, acorde, m):
+        notas = [subir(n, 1) for n in acorde[1]]
+        orden = [0, 1, 2, 3] if parte != "B" else [0, 2, 1, 3, 2, 3, 1, 2]
         for k in range(16):
-            nota = acorde[k % 4]
-            nota = nota[:-1] + str(int(nota[-1]) + 1)
-            c.poner(compas * 16 + k, sinte(nota, c.dur(1), vol=0.12, brillo=0.1 + 0.15 * (k / 16)))
-        c.poner(compas * 16, bajo_electrico(acorde[0][:-1] + "2", c.dur(16), brillo=0.03, vol=0.45))
-    c.bateria("k...k...k...k...")
-    c.bateria("..o...o...o...o.", vol=0.8)
-    c.bateria("....c.......c...", vol=0.8)
-    return c.doble()
+            brillo = 0.08 + 0.2 * (k / 16) if parte != "puente" else 0.05
+            c.poner(compas * 16 + k, sinte(notas[orden[k % len(orden)]], c.dur(1), vol=0.1, brillo=brillo))
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        c.poner(compas * 16, bajo_electrico(acorde[0], c.dur(16), brillo=0.03, vol=0.45))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte != "B":
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 2) for n in acorde[1][:3]]):
+            c.poner(compas * 16 + paso, sinte(nota, c.dur(largo), vol=0.09, brillo=0.25))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            c.bateria(compas, "..o...o...o...o.", vol=0.6)
+        elif parte == "puente":
+            c.bateria(compas, "....c.......c...", vol=0.6)
+        else:
+            c.bateria(compas, "k...k...k...k...")
+            c.bateria(compas, "..o...o...o...o.", vol=0.8)
+            c.bateria(compas, "....c.......c...", vol=0.8)
+            if parte == "B":
+                c.bateria(compas, "hhhhhhhhhhhhhhhh", vol=0.3)
+
+    return componer("cables", 124, prog, [arpegio, bajo, melodia, bateria])
 
 def herramientas():
-    # Lo-fi tranquilo para pensar, en Fa, 85 BPM: piano electrico con
-    # acordes de septima y marimba.
-    c = Cancion(85, 4)
-    acordes = [["F3", "A3", "C4", "E4"], ["D3", "F3", "A3", "C4"], ["G3", "Bb3", "D4", "F4"], ["C3", "E3", "G3", "Bb3"]]
-    melodia = ["C5", "A4", "F4", "G4", "A4", "-", "D5", "C5", "Bb4", "-", "A4", "G4", "E4", "-", "G4", "-"]
-    for compas, acorde in enumerate(acordes):
-        c.poner(compas * 16, piano_e(acorde, c.dur(14), vol=0.08))
-        c.poner(compas * 16 + 10, piano_e(acorde[1:], c.dur(5), vol=0.05))
-        c.poner(compas * 16, bajo_electrico(acorde[0][:-1] + "2", c.dur(8), brillo=0.03, vol=0.4))
-        for k in range(4):
-            nota = melodia[(compas * 4 + k) % len(melodia)]
-            if nota != "-":
-                c.poner(compas * 16 + k * 4 + (2 if k % 2 else 0), marimba(nota, c.dur(4), vol=0.2))
-    c.bateria("k.....k...s.....", swing=0.4, vol=0.8)
-    c.bateria("h.h.h.h.h.h.h.h.", swing=0.4, vol=0.4)
+    # Lo-fi para pensar, Fa, 85 BPM.
+    prog = [("F2", ["F3", "A3", "C4", "E4"]), ("D2", ["D3", "F3", "A3", "C4"]),
+            ("G2", ["G3", "Bb3", "D4", "F4"]), ("C2", ["C3", "E3", "G3", "Bb3"])]
+
+    def armonia(c, compas, parte, i, acorde, m):
+        c.poner(compas * 16, piano_e(acorde[1], c.dur(14), vol=0.08))
+        c.poner(compas * 16 + 10, piano_e(acorde[1][1:], c.dur(5), vol=0.05))
+        if parte != "intro":
+            c.poner(compas * 16, bajo_electrico(acorde[0], c.dur(8), brillo=0.03, vol=0.4))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1][:3]]):
+            c.poner(compas * 16 + paso, marimba(nota, c.dur(largo + 2), vol=0.16 if parte != "puente" else 0.1))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        if parte in ("A", "B"):
+            c.bateria(compas, "k.....k...s....." if parte == "A" else "k.....k.k.s.....", swing=0.4, vol=0.8)
+        c.bateria(compas, "h.h.h.h.h.h.h.h.", swing=0.4, vol=0.35)
+
+    buf = componer("herramientas", 85, prog, [armonia, melodia, bateria])
     # Ruidito de disco viejo.
-    for i in range(0, c.n, 40):
+    for i in range(0, len(buf), 40):
         if random.random() < 0.02:
-            c.buf[i] += random.uniform(-0.05, 0.05)
-    return c.doble()
+            buf[i] += random.uniform(-0.05, 0.05)
+    return buf
 
 def inflar():
-    # Concurso con tension, en Do, 118 BPM: piano en staccato que sube y
-    # palmas.
-    c = Cancion(118, 4)
-    for compas, (r, acorde) in enumerate([("C2", ["C4", "E4", "G4"]), ("D2", ["D4", "F#4", "A4"]),
-                                          ("E2", ["E4", "G#4", "B4"]), ("G2", ["G4", "B4", "D5"])]):
-        for k in range(8):
-            c.poner(compas * 16 + k * 2, bajo_electrico(r if k % 2 == 0 else r[:-1] + "3", c.dur(2), brillo=0.08, vol=0.45))
-        for paso in (0, 3, 6, 10, 12):
-            c.poner(compas * 16 + paso, piano_e(acorde, c.dur(1), vol=0.08, caida=0.06))
-    c.bateria("k.k...c.k.k...c.")
-    c.bateria("hhhhhhhhhhhhhhhh", vol=0.5)
-    return c.doble()
+    # Concurso con tension, Do, 118 BPM.
+    prog = [("C2", ["C4", "E4", "G4"]), ("D2", ["D4", "F#4", "A4"]),
+            ("E2", ["E4", "G#4", "B4"]), ("G2", ["G4", "B4", "D5"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        r = acorde[0]
+        for k in range(8 if parte != "puente" else 4):
+            paso = k * (2 if parte != "puente" else 4)
+            c.poner(compas * 16 + paso, bajo_electrico(r if k % 2 == 0 else subir(r, 1), c.dur(2), brillo=0.08, vol=0.45))
+
+    def piano(c, compas, parte, i, acorde, m):
+        golpes = (0, 3, 6, 10, 12) if parte != "B" else (0, 2, 4, 6, 8, 10, 12, 14)
+        for paso in golpes:
+            c.poner(compas * 16 + paso, piano_e(acorde[1], c.dur(1), vol=0.07, caida=0.06))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte not in ("B", "puente"):
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1]]):
+            c.poner(compas * 16 + paso, marimba(nota, c.dur(largo), vol=0.14))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            c.bateria(compas, "hhhhhhhhhhhhhhhh", vol=0.4)
+            return
+        if parte != "puente":
+            c.bateria(compas, "k.k...c.k.k...c.")
+        else:
+            c.bateria(compas, "......c.......c.")
+        c.bateria(compas, "hhhhhhhhhhhhhhhh", vol=0.45)
+
+    return componer("inflar", 118, prog, [bajo, piano, melodia, bateria])
 
 def pintura():
-    # Jazz suave, ii-V-I en Si bemol, 96 BPM: contrabajo caminando, piano y
-    # escobillas.
-    c = Cancion(96, 4)
-    caminata = [["C3", "D3", "Eb3", "E3"], ["F2", "A2", "C3", "A2"], ["Bb2", "D3", "F3", "D3"], ["Bb2", "C3", "D3", "E3"]]
-    acordes = [["C4", "Eb4", "G4", "Bb4"], ["F3", "A3", "Eb4", "G4"], ["Bb3", "D4", "F4", "A4"], ["Bb3", "D4", "F4", "A4"]]
-    for compas in range(4):
-        for k, nota in enumerate(caminata[compas]):
-            c.poner(compas * 16 + k * 4, bajo_electrico(nota, c.dur(4), brillo=0.025, vol=0.5))
-        c.poner(compas * 16 + 2.66, piano_e(acordes[compas], c.dur(4), vol=0.07))
-        c.poner(compas * 16 + 10.66, piano_e(acordes[compas], c.dur(3), vol=0.06))
-    c.bateria("....s.......s...", cepillo=True)
-    c.bateria("h...h.h.h...h.h.", swing=0.66, vol=0.6)
-    return c.doble()
+    # Jazz suave, ii-V-I en Si bemol, 96 BPM.
+    prog = [("C3", ["C4", "Eb4", "G4", "Bb4"]), ("F2", ["F3", "A3", "Eb4", "G4"]),
+            ("Bb2", ["Bb3", "D4", "F4", "A4"]), ("G2", ["G3", "Bb3", "D4", "F4"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        notas = {"C3": ["C3", "D3", "Eb3", "E3"], "F2": ["F2", "A2", "C3", "A2"],
+                 "Bb2": ["Bb2", "D3", "F3", "D3"], "G2": ["G2", "A2", "Bb2", "B2"]}[acorde[0]]
+        for k, nota in enumerate(notas if parte != "intro" else notas[:1]):
+            c.poner(compas * 16 + k * 4, bajo_electrico(nota, c.dur(4 if parte != "intro" else 16), brillo=0.025, vol=0.5))
+
+    def piano(c, compas, parte, i, acorde, m):
+        c.poner(compas * 16 + 2.66, piano_e(acorde[1], c.dur(4), vol=0.07))
+        c.poner(compas * 16 + 10.66, piano_e(acorde[1], c.dur(3), vol=0.06))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte in ("intro", "puente"):
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1]]):
+            c.poner(compas * 16 + paso + (0.66 if paso % 2 else 0), piano_e([nota], c.dur(largo), vol=0.07, caida=0.4))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        c.bateria(compas, "h...h.h.h...h.h.", swing=0.66, vol=0.55)
+        if parte != "intro":
+            c.bateria(compas, "....s.......s...", cepillo=True)
+
+    return componer("pintura", 96, prog, [bajo, piano, melodia, bateria])
 
 def reciclaje():
-    # Fabrica en marcha, en Sol menor, 120 BPM: bajo sintetizado, bombo
-    # constante y golpes metalicos como percusion (la cinta transportadora).
-    c = Cancion(120, 4)
-    for compas, r in enumerate(["G2", "G2", "Eb2", "F2"]):
-        for k, paso in enumerate((0, 3, 6, 8, 11, 14)):
-            c.poner(compas * 16 + paso, bajo_slap(r if k != 4 else r[:-1] + "3", c.dur(2), vol=0.45))
-    c.bateria("k...k...k...k...")
-    c.bateria("..m...m...m..m.m", vol=0.7)
-    c.bateria("....s.......s...", vol=0.8)
-    c.bateria("hhohhhohhhohhhoh", vol=0.4)
-    return c.doble()
+    # Fabrica en marcha, Sol menor, 120 BPM: bajo slap, golpes metalicos.
+    prog = [("G2", ["G3", "Bb3", "D4"]), ("G2", ["G3", "Bb3", "D4"]),
+            ("Eb2", ["Eb3", "G3", "Bb3"]), ("F2", ["F3", "A3", "C4"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        r = acorde[0]
+        for k, paso in enumerate((0, 3, 6, 8, 11, 14) if parte != "puente" else (0, 8)):
+            c.poner(compas * 16 + paso, bajo_slap(r if k != 4 else subir(r, 1), c.dur(2), vol=0.45))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte not in ("B", "puente"):
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1]]):
+            c.poner(compas * 16 + paso, sinte(nota, c.dur(largo), vol=0.1, brillo=0.18))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        c.bateria(compas, "..m...m...m..m.m", vol=0.6)
+        if parte == "intro":
+            return
+        if parte != "puente":
+            c.bateria(compas, "k...k...k...k...")
+            c.bateria(compas, "....s.......s...", vol=0.8)
+        c.bateria(compas, "hhohhhohhhohhhoh", vol=0.4)
+
+    return componer("reciclaje", 120, prog, [bajo, melodia, bateria])
+
+# --- Generos de la radio ---------------------------------------------------------
+
+def tropipop():
+    # Tropipop colombiano, Sol, 104 BPM: guitarra rasgueada, acordeon,
+    # guacharaca y bateria pop.
+    prog = [("G2", ["G3", "B3", "D4", "G4"]), ("D2", ["D3", "A3", "D4", "F#4"]),
+            ("E2", ["E3", "B3", "E4", "G4"]), ("C2", ["C3", "G3", "C4", "E4"])]
+
+    def guitarra_ac(c, compas, parte, i, acorde, m):
+        for paso, arriba in ((0, False), (3, True), (6, False), (8, False), (10, True), (12, False), (14, True)):
+            c.poner(compas * 16 + paso, rasgueo(acorde[1], c.dur(3), vol=0.12, hacia_arriba=arriba))
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for paso, oct in ((0, 0), (6, 0), (8, 1), (12, 0)):
+            c.poner(compas * 16 + paso, bajo_electrico(subir(acorde[0], oct), c.dur(3), brillo=0.06, vol=0.45))
+
+    def acordeon_mel(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1][1:]]):
+            c.poner(compas * 16 + paso, acordeon([nota], c.dur(largo), vol=0.09 if parte != "puente" else 0.05))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        for paso in range(0, 16, 2):
+            c.poner(compas * 16 + paso + 1, raspado(0.18))
+        if parte in ("A", "B"):
+            c.bateria(compas, "k.....k.k...s..." if parte == "A" else "k...s.k.k...s...")
+            c.bateria(compas, "....s.......s...", vol=0.7)
+
+    return componer("tropipop", 104, prog, [guitarra_ac, bajo, acordeon_mel, bateria])
+
+def kpop():
+    # K-pop brillante, 124 BPM: bombo a negras, palmas, bajo en octavas y
+    # gancho de sinte con campanitas.
+    prog = [("C2", ["C4", "E4", "G4", "B4"]), ("G1", ["G3", "B3", "D4", "F#4"]),
+            ("A1", ["A3", "C4", "E4", "G4"]), ("B1", ["B3", "D#4", "F#4", "A4"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for k in range(8):
+            c.poner(compas * 16 + k * 2, sinte(subir(acorde[0], k % 2), c.dur(2), vol=0.16, brillo=0.12))
+
+    def acordes(c, compas, parte, i, acorde, m):
+        golpes = (0, 3, 6, 10, 12) if parte != "puente" else (0,)
+        largo = c.dur(2 if parte != "puente" else 16)
+        for paso in golpes:
+            for nota in acorde[1]:
+                c.poner(compas * 16 + paso, sinte(nota, largo, vol=0.05, brillo=0.3))
+
+    def gancho(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1][:3]]):
+            c.poner(compas * 16 + paso, sinte(nota, c.dur(largo), vol=0.1, brillo=0.35))
+            c.poner(compas * 16 + paso, campana(nota, 0.3, vol=0.05))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        if parte == "puente":
+            c.bateria(compas, "....c.......c...", vol=0.7)
+            return
+        c.bateria(compas, "k...k...k...k...")
+        c.bateria(compas, "....c.......c...")
+        c.bateria(compas, "..h...h...h...h." if parte != "B" else "hhhhhhhhhhhhhhhh", vol=0.5)
+
+    return componer("kpop", 124, prog, [bajo, acordes, gancho, bateria])
+
+def reggae():
+    # Reggae one-drop, La menor, 76 BPM: "skank" de guitarra en el
+    # contratiempo, organo "burbuja", bajo profundo y bombo+caja en el 3.
+    prog = [("A1", ["A3", "C4", "E4"]), ("A1", ["A3", "C4", "E4"]),
+            ("D2", ["D3", "F3", "A3"]), ("E1", ["E3", "G#3", "B3"])]
+
+    def skank(c, compas, parte, i, acorde, m):
+        for paso in (4, 12):
+            c.poner(compas * 16 + paso, guitarra(acorde[1], c.dur(1), distorsion=1.2, apagada=True, vol=0.14, brillo=0.5))
+        for paso in (2, 6, 10, 14):
+            c.poner(compas * 16 + paso, organo(acorde[1], c.dur(1), vol=0.04))
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        r = acorde[0]
+        for paso, nota, largo in ((0, r, 3), (4, subir(r, 1), 2), (7, r, 2), (10, subir(r, 1), 3), (14, r, 2)):
+            c.poner(compas * 16 + paso, bajo_electrico(nota, c.dur(largo), brillo=0.02, vol=0.6))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte != "B":
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1]]):
+            c.poner(compas * 16 + paso, piano_e([nota], c.dur(largo), vol=0.08, caida=0.5))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        c.bateria(compas, "h.h.h.h.h.h.h.h.", swing=0.3, vol=0.45)
+        if parte != "intro":
+            c.bateria(compas, "........k.......")
+            c.bateria(compas, "........r.......")
+
+    return componer("reggae", 76, prog, [skank, bajo, melodia, bateria])
+
+def dancehall():
+    # Dancehall, Sol menor, 100 BPM: riddim con bombo sincopado, aro,
+    # sub bajo y golpes de sinte.
+    prog = [("G1", ["G3", "Bb3", "D4"]), ("Eb2", ["Eb3", "G3", "Bb3"]),
+            ("Bb1", ["Bb3", "D4", "F4"]), ("F1", ["F3", "A3", "C4"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for paso, largo in ((0, 3), (3, 3), (8, 2), (11, 5)):
+            c.poner(compas * 16 + paso, bajo_808(acorde[0], c.dur(largo), vol=0.6))
+
+    def golpes(c, compas, parte, i, acorde, m):
+        for paso in ((2, 6, 10, 14) if parte != "puente" else (0,)):
+            for nota in acorde[1]:
+                c.poner(compas * 16 + paso, sinte(subir(nota, 1), c.dur(1 if parte != "puente" else 12), vol=0.05, brillo=0.25))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte not in ("B", "puente"):
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1]]):
+            c.poner(compas * 16 + paso, marimba(nota, c.dur(largo), vol=0.12))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        if parte not in ("intro", "puente"):
+            c.bateria(compas, "k..k..k...k..k..")
+        c.bateria(compas, "....r.......r..r")
+        c.bateria(compas, "hhh.hhh.hhh.hhh.", vol=0.45)
+
+    return componer("dancehall", 100, prog, [bajo, golpes, melodia, bateria])
+
+def cumbia():
+    # Cumbia, La menor, 96 BPM: guacharaca, bajo "uno-cinco", acordeon,
+    # cencerro y congas.
+    prog = [("A2", ["A3", "C4", "E4"]), ("D2", ["D3", "F3", "A3"]),
+            ("G2", ["G3", "B3", "D4"]), ("E2", ["E3", "G#3", "B3"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        quinta = {"A2": "E2", "D2": "A2", "G2": "D2", "E2": "B1"}[acorde[0]]
+        for paso, nota in ((0, acorde[0]), (6, quinta), (8, acorde[0]), (14, quinta)):
+            c.poner(compas * 16 + paso, bajo_electrico(nota, c.dur(2), brillo=0.05, vol=0.5))
+
+    def guitarra_c(c, compas, parte, i, acorde, m):
+        for paso in (2, 6, 10, 14):
+            c.poner(compas * 16 + paso, rasgueo(acorde[1], c.dur(1), vol=0.08, brillo=0.6))
+
+    def acordeon_mel(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1]]):
+            c.poner(compas * 16 + paso, acordeon([nota], c.dur(largo), vol=0.1))
+
+    def percusion(c, compas, parte, i, acorde, m):
+        for paso in range(0, 16, 2):
+            c.poner(compas * 16 + paso, raspado(0.12 if paso % 4 else 0.2, 0.06))
+        if parte != "puente":
+            for paso in (4, 12):
+                c.poner(compas * 16 + paso, cencerro())
+            c.bateria(compas, "k.......k.......")
+            for paso in (6, 14):
+                c.poner(compas * 16 + paso, conga(230, 0.3, golpe=True))
+
+    return componer("cumbia", 96, prog, [bajo, guitarra_c, acordeon_mel, percusion])
+
+def salsa():
+    # Salsa, Do menor: piano montuno, metales, congas, clave y cencerro.
+    # 96 BPM en semicorcheas = salsa a 192 en corcheas.
+    prog = [("C2", ["C4", "Eb4", "G4"]), ("F2", ["F3", "Ab3", "C4"]),
+            ("G2", ["G3", "B3", "D4", "F4"]), ("C2", ["C4", "Eb4", "G4"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        # Tumbao: el bajo anticipa el acorde (cae "antes").
+        if parte == "intro":
+            return
+        quinta = {"C2": "G2", "F2": "C3", "G2": "D3"}[acorde[0]]
+        for paso in (3, 6, 11, 14):
+            c.poner(compas * 16 + paso, bajo_electrico(acorde[0] if paso in (6, 14) else quinta, c.dur(3), brillo=0.04, vol=0.5))
+
+    def montuno(c, compas, parte, i, acorde, m):
+        notas = [subir(n, 1) for n in acorde[1][:3]]
+        for k, paso in enumerate((0, 2, 3, 5, 6, 8, 10, 11, 13, 14)):
+            c.poner(compas * 16 + paso, piano_e([notas[k % 3], notas[(k + 1) % 3]], c.dur(1), vol=0.06, caida=0.12))
+
+    def metales_mel(c, compas, parte, i, acorde, m):
+        if parte not in ("B", "A") or (parte == "A" and i % 2 == 0):
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1][:3]]):
+            c.poner(compas * 16 + paso, metales([nota, subir(nota, -1)], c.dur(min(largo, 3)), vol=0.06))
+
+    def percusion(c, compas, parte, i, acorde, m):
+        for paso in (0, 3, 6, 10, 12):  # clave
+            c.poner(compas * 16 + paso, aro(0.25))
+        if parte == "intro":
+            return
+        for paso in (0, 4, 8, 12):
+            c.poner(compas * 16 + paso, cencerro(0.12))
+        for paso, f, golpe in ((6, 230, True), (7, 190, False), (14, 230, True), (15, 190, False)):
+            c.poner(compas * 16 + paso, conga(f, 0.32, golpe))
+        if parte != "puente":
+            c.bateria(compas, "...k.......k....", vol=0.6)
+
+    return componer("salsa", 96, prog, [bajo, montuno, metales_mel, percusion])
+
+def bachata():
+    # Bachata, La menor, 124 BPM: requinto (guitarra aguda) en arpegios,
+    # guira constante, bongo y bajo sincopado.
+    prog = [("A2", ["A3", "C4", "E4"]), ("D2", ["D3", "F3", "A3"]),
+            ("E2", ["E3", "G#3", "B3"]), ("A2", ["A3", "C4", "E4"])]
+
+    def requinto(c, compas, parte, i, acorde, m):
+        notas = [subir(n, 1) for n in acorde[1]]
+        if parte in ("B", "puente"):
+            for paso, nota, largo in m.compas(parte, i, notas):
+                c.poner(compas * 16 + paso, cuerda(nota, c.dur(largo + 1), vol=0.22, brillo=0.6))
+        else:
+            for k in range(8):
+                c.poner(compas * 16 + k * 2, cuerda(notas[(0, 1, 2, 1)[k % 4]], c.dur(2), vol=0.18, brillo=0.6))
+
+    def ritmica(c, compas, parte, i, acorde, m):
+        for paso in (0, 4, 8, 12):
+            c.poner(compas * 16 + paso, rasgueo(acorde[1], c.dur(2), vol=0.07))
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for paso, oct in ((0, 0), (6, 0), (8, 1), (14, 0)):
+            c.poner(compas * 16 + paso, bajo_electrico(subir(acorde[0], oct), c.dur(2), brillo=0.04, vol=0.5))
+
+    def percusion(c, compas, parte, i, acorde, m):
+        for paso in range(16):
+            c.poner(compas * 16 + paso, raspado(0.1 if paso % 2 else 0.16, 0.05, brillo=0.5))
+        if parte != "intro":
+            for paso, f in ((0, 420), (4, 520), (6, 420), (8, 420), (12, 520), (14, 420)):
+                c.poner(compas * 16 + paso, conga(f, 0.2, golpe=f > 500))
+            c.bateria(compas, "k.......k.......", vol=0.5)
+
+    return componer("bachata", 124, prog, [requinto, ritmica, bajo, percusion])
+
+def trap():
+    # Trap, Do menor, 140 BPM (a medio tiempo): 808 largo, hi-hats con
+    # redobles, palmas en el 3 y campana oscura.
+    prog = [("C1", ["C4", "Eb4", "G4"]), ("Ab1", ["Ab3", "C4", "Eb4"]),
+            ("Eb1", ["Eb4", "G4", "Bb4"]), ("G1", ["G3", "B3", "D4"])]
+
+    def bajo(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for paso, largo in ((0, 7), (7, 3), (10, 6)):
+            c.poner(compas * 16 + paso, bajo_808(acorde[0], c.dur(largo), vol=0.7))
+
+    def campanas(c, compas, parte, i, acorde, m):
+        for paso, nota, largo in m.compas("A" if parte == "intro" else parte, i, acorde[1]):
+            c.poner(compas * 16 + paso, campana(subir(nota, 1), 0.7, vol=0.1))
+
+    def bateria(c, compas, parte, i, acorde, m):
+        if parte == "puente":
+            c.bateria(compas, "h...h...h...h...", vol=0.4)
+            return
+        c.bateria(compas, "h.h.h.h.h.h.h.h.", vol=0.4)
+        # Redoble de hi-hat en fusas al final de compases impares.
+        if i % 2 == 1:
+            for k in range(8):
+                c.poner(compas * 16 + 12 + k * 0.5, platillo(vol=0.08))
+        if parte != "intro":
+            c.bateria(compas, "k.........k.....")
+            c.bateria(compas, "........c.......")
+
+    return componer("trap", 140, prog, [bajo, campanas, bateria])
+
+def afro():
+    # Afrobeats / amapiano, La menor, 108 BPM: log drum, maracas, palmas
+    # sincopadas y piano electrico.
+    prog = [("A1", ["A3", "C4", "E4", "G4"]), ("F1", ["F3", "A3", "C4", "E4"]),
+            ("C2", ["C4", "E4", "G4", "B4"]), ("G1", ["G3", "B3", "D4", "F4"])]
+
+    def logdrum(c, compas, parte, i, acorde, m):
+        if parte == "intro":
+            return
+        for paso, oct in ((0, 1), (3, 1), (7, 2), (10, 1), (13, 2)):
+            c.poner(compas * 16 + paso, log_drum(subir(acorde[0], oct)))
+
+    def piano(c, compas, parte, i, acorde, m):
+        for paso in ((0, 6, 12) if parte != "puente" else (0,)):
+            c.poner(compas * 16 + paso, piano_e(acorde[1], c.dur(4 if parte != "puente" else 16), vol=0.07, caida=0.5))
+
+    def melodia(c, compas, parte, i, acorde, m):
+        if parte not in ("B", "puente"):
+            return
+        for paso, nota, largo in m.compas(parte, i, [subir(n, 1) for n in acorde[1][:3]]):
+            c.poner(compas * 16 + paso, marimba(nota, c.dur(largo), vol=0.12))
+
+    def percusion(c, compas, parte, i, acorde, m):
+        for paso in range(16):
+            c.poner(compas * 16 + paso, maracas(0.12 if paso % 2 else 0.06))
+        if parte != "intro":
+            c.bateria(compas, "k......k..k.....", vol=0.8)
+            c.bateria(compas, "....c..c....c...", vol=0.6)
+            for paso in (3, 11):
+                c.poner(compas * 16 + paso, conga(260, 0.22, golpe=True))
+
+    return componer("afro", 108, prog, [logdrum, piano, melodia, percusion])
 
 CANCIONES = {
     "musica_taller": taller,
@@ -569,6 +1178,16 @@ CANCIONES = {
     "musica_inflar": inflar,
     "musica_pintura": pintura,
     "musica_reciclaje": reciclaje,
+    # Generos de la radio.
+    "musica_tropipop": tropipop,
+    "musica_kpop": kpop,
+    "musica_reggae": reggae,
+    "musica_dancehall": dancehall,
+    "musica_cumbia": cumbia,
+    "musica_salsa": salsa,
+    "musica_bachata": bachata,
+    "musica_trap": trap,
+    "musica_afro": afro,
 }
 
 if __name__ == "__main__":
@@ -579,6 +1198,9 @@ if __name__ == "__main__":
         print("Efectos:")
         efectos()
     print("Musica:")
+    solo = next((a.split("=")[1].split(",") for a in sys.argv if a.startswith("--solo=")), None)
     for nombre, cancion in CANCIONES.items():
+        if solo and nombre not in solo:
+            continue
         random.seed(nombre)
         guardar(nombre, cancion(), vol=0.75)

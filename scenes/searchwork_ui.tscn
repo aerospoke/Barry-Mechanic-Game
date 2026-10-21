@@ -134,7 +134,7 @@ offset_left = 20.0
 offset_top = 662.0
 offset_right = 400.0
 offset_bottom = 702.0
-text = "★ Comprar Membresia Gold"
+text = "Comprar Membresia Gold"
 
 [node name="BtnVolverTienda" type="Button" parent="ShopPanel" unique_id=916109155]
 layout_mode = 0
@@ -168,7 +168,7 @@ offset_left = 20.0
 offset_top = 20.0
 offset_right = 390.0
 offset_bottom = 60.0
-text = "★ MEMBRESIA GOLD"
+text = "MEMBRESIA GOLD"
 horizontal_alignment = 1
 
 [node name="LabelPrecioGold" type="Label" parent="GoldPanel" unique_id=916109160]
@@ -313,7 +313,7 @@ offset_top = 60.0
 offset_right = 390.0
 offset_bottom = 85.0
 alignment = 0
-text = "▸ Mis salas"
+text = "Mis salas"
 
 [node name="RoomListScroll" type="ScrollContainer" parent="RoomCreatePanel" unique_id=600113011]
 visible = false

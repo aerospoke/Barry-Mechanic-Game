@@ -12,3 +12,6 @@
 
 # Source/design files
 *.psd
+
+# Python
+__pycache__/

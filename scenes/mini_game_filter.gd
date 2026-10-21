@@ -157,6 +157,12 @@ func _ready() -> void:
 	_destornillador_casa = destornillador.global_position
 
 	mano_ayuda.visible = false
+	# Flecha dibujada en vez del emoji 👇 (iOS no lo mostraba).
+	var flecha := TextureRect.new()
+	flecha.texture = Iconos.flecha("abajo", false, 44, Color(1.0, 0.85, 0.3))
+	flecha.size = Vector2(44, 44)
+	flecha.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mano_ayuda.add_child(flecha)
 
 	_configurar_estado_inicial()
 

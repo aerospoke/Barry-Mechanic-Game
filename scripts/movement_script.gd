@@ -18,6 +18,7 @@ const MINIGAMES = {
 }
 
 const TutorialModal = preload("res://scripts/tutorial_modal.gd")
+const Efectos = preload("res://scripts/efectos.gd")
 # Icono del boton de accion cerca de un estante: agarrar la pieza.
 const ICONO_AGARRAR := preload("res://objetos/mano.png")
 # Icono del boton de accion cerca de la PC: usar la computadora.
@@ -109,7 +110,21 @@ var _en_tutorial: bool = false
 # la PC desde interactuar().
 var searchwork_ui: Node = null
 
+# Respiracion en reposo: escala y posicion originales del sprite, y un reloj.
+var _escala_sprite: Vector2
+var _posicion_sprite: Vector2
+var _respiro: float = 0.0
+var _festejando: bool = false
+# Mitad del alto de un cuadro de la hoja de sprites (256 px).
+const MEDIO_CUADRO := 128.0
+
 func _ready() -> void:
+	_escala_sprite = animation.scale
+	_posicion_sprite = animation.position
+	aplicar_traje()
+	Supabase.traje_cambio.connect(aplicar_traje)
+	_festejar_si_toca()
+
 	var padre := get_parent()
 	if padre.has_node("CanvasLayer/SearchWorkUI"):
 		searchwork_ui = padre.get_node("CanvasLayer/SearchWorkUI")
@@ -207,7 +222,72 @@ func _physics_process(_delta: float) -> void:
 		item_hand.position = Vector2(5, -59)
 		_mano_delante(true)
 
+	if dir.length() > 0:
+		_respiro = 0.0
+		if not _festejando:
+			animation.scale = _escala_sprite
+			animation.position = _posicion_sprite
+	elif not _festejando:
+		_respirar(_delta)
+
 	move_and_slide()
+
+# Quieto, Barry respira: el pecho sube y baja apenas. Se estira desde los
+# pies (se corrige la posicion) para que no "flote".
+func _respirar(delta: float) -> void:
+	_respiro += delta
+	var k := sin(_respiro * 2.4) * 0.5 + 0.5
+	var escala := _escala_sprite * Vector2(1.0 - 0.008 * k, 1.0 + 0.018 * k)
+	animation.scale = escala
+	animation.position.y = _posicion_sprite.y - MEDIO_CUADRO * (escala.y - _escala_sprite.y)
+
+# --- Trajes y festejos -------------------------------------------------------
+
+# Pone el traje elegido (ver Vestuario). Tambien se llama cuando se cambia
+# desde el vestidor.
+func aplicar_traje() -> void:
+	animation.material = Vestuario.material(Supabase.profile_outfit)
+
+# Al volver de un trabajo: salto, confeti y lo que cobro. Si con los puntos
+# nuevos se desbloqueo un traje, tambien lo anuncia.
+func _festejar_si_toca() -> void:
+	if Supabase.festejo_pendiente.is_empty():
+		return
+	var festejo: Dictionary = Supabase.festejo_pendiente
+	Supabase.festejo_pendiente = {}
+	# Que la sala termine de aparecer antes de festejar.
+	await get_tree().create_timer(0.7).timeout
+	festejar("+$%d   +%d pts" % [festejo["pago"], festejo["puntos"]])
+
+	var puntos_antes: int = festejo["puntos_antes"]
+	for id in Vestuario.nuevos_entre(puntos_antes, puntos_antes + int(festejo["puntos"])):
+		await get_tree().create_timer(1.3).timeout
+		Sonido.efecto("acierto")
+		Efectos.texto_flotante(get_parent(), "¡Nuevo traje: %s!" % Vestuario.nombre(id), global_position + Vector2(0, -190), Color(1.0, 0.85, 0.3), 22)
+
+# Barry salta dos veces con confeti y un texto arriba de la cabeza.
+func festejar(texto: String = "") -> void:
+	_festejando = true
+	animation.scale = _escala_sprite
+	animation.position = _posicion_sprite
+	Sonido.efecto("victoria")
+	Efectos.confeti(get_parent(), global_position + Vector2(0, -110), 30)
+	if texto != "":
+		Efectos.texto_flotante(get_parent(), texto, global_position + Vector2(0, -170), Color(0.45, 1.0, 0.55), 24)
+
+	var arriba := _posicion_sprite + Vector2(0, -34)
+	var tween := create_tween()
+	for salto in 2:
+		tween.set_trans(Tween.TRANS_QUAD)
+		tween.set_ease(Tween.EASE_OUT)
+		tween.tween_property(animation, "position", arriba, 0.16)
+		tween.parallel().tween_property(animation, "scale", _escala_sprite * Vector2(0.92, 1.08), 0.16)
+		tween.set_ease(Tween.EASE_IN)
+		tween.tween_property(animation, "position", _posicion_sprite, 0.14)
+		tween.parallel().tween_property(animation, "scale", _escala_sprite * Vector2(1.12, 0.88), 0.14)
+		tween.tween_property(animation, "scale", _escala_sprite, 0.08)
+	await tween.finished
+	_festejando = false
 
 # Pone la pieza en la mano delante o detras del sprite de Barry cambiando el
 # orden de los hijos, no su z_index: con la sala ordenada por profundidad

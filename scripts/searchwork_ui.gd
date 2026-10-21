@@ -72,6 +72,7 @@ func _ready() -> void:
 	btn_volver_tienda.pressed.connect(_on_volver_tienda_pressed)
 	_construir_carrusel()
 	btn_membresia_gold.pressed.connect(_on_membresia_gold_pressed)
+	btn_membresia_gold.icon = Iconos.estrella()
 	btn_comprar_gold.pressed.connect(_on_comprar_gold_pressed)
 	btn_volver_gold.pressed.connect(_on_volver_gold_pressed)
 	http_worklist.request_completed.connect(_on_worklist_request_completed)
@@ -212,9 +213,9 @@ func _construir_carrusel() -> void:
 	_carrusel_imagen.gui_input.connect(_on_carrusel_input)
 	shop_panel.add_child(_carrusel_imagen)
 
-	_btn_anterior = _boton_flecha("◀", Vector2(4, 241))
+	_btn_anterior = _boton_flecha("<", Vector2(4, 241))
 	_btn_anterior.pressed.connect(func(): _mostrar_articulo(_indice_articulo - 1, -1))
-	_btn_siguiente = _boton_flecha("▶", Vector2(368, 241))
+	_btn_siguiente = _boton_flecha(">", Vector2(368, 241))
 	_btn_siguiente.pressed.connect(func(): _mostrar_articulo(_indice_articulo + 1, 1))
 
 	_carrusel_puntos = HBoxContainer.new()
@@ -238,11 +239,12 @@ func _construir_carrusel() -> void:
 	shop_panel.add_child(_btn_comprar_articulo)
 
 func _boton_flecha(texto: String, pos: Vector2) -> Button:
+	# Flecha dibujada (Iconos), no el simbolo de texto: en iOS no se veia.
 	var boton := Button.new()
-	boton.text = texto
+	boton.icon = Iconos.flecha("izq" if texto == "<" else "der", false, 28)
+	boton.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	boton.position = pos
 	boton.size = Vector2(48, 64)
-	boton.add_theme_font_size_override("font_size", 24)
 	shop_panel.add_child(boton)
 	return boton
 
@@ -293,15 +295,28 @@ func _mostrar_articulo(indice: int, direccion: int) -> void:
 	# Una decoracion no ocupa la mano de Barry, asi que esa restriccion solo
 	# aplica a las piezas de trabajo.
 	var ya_tiene_item: bool = not es_decoracion and is_instance_valid(_barry) and bool(_barry.tiene_item)
+	# Equipos de sonido: solo uno por taller. El comun es el de arranque y el
+	# PRO lo reemplaza (ver room.gd agregar_objeto_comprado).
+	var ya_tiene_equipo := false
+	var sala = get_parent().get_parent()
+	var sala_valida: bool = is_instance_valid(sala) and sala.has_method("tiene_equipo")
+	if RoomObjectCatalog.es_radio(key) and sala_valida:
+		ya_tiene_equipo = sala.tiene_equipo(key)
+	var reemplaza: bool = RoomObjectCatalog.es_radio_pro(key) and not ya_tiene_equipo \
+		and sala_valida and sala.tiene_equipo("radio")
 	if ya_tiene_item:
 		_btn_comprar_articulo.text = "Manos ocupadas"
+	elif ya_tiene_equipo:
+		_btn_comprar_articulo.text = "Ya tienes un equipo" if key == "radio" else "Ya lo tienes"
+	elif reemplaza and precio <= Supabase.profile_balance:
+		_btn_comprar_articulo.text = "Mejorar tu equipo $%d" % precio
 	elif precio > Supabase.profile_balance:
 		_btn_comprar_articulo.text = "Saldo insuficiente"
 	elif precio == 0:
 		_btn_comprar_articulo.text = "Llevar gratis"
 	else:
 		_btn_comprar_articulo.text = "Comprar $%d" % precio
-	_btn_comprar_articulo.disabled = ya_tiene_item or precio > Supabase.profile_balance
+	_btn_comprar_articulo.disabled = ya_tiene_item or ya_tiene_equipo or precio > Supabase.profile_balance
 
 	_animar_carrusel(_recortar_visible(textura), direccion)
 
@@ -462,7 +477,8 @@ func _on_crear_sala_pressed() -> void:
 func _on_btn_mis_salas_pressed() -> void:
 	_lista_salas_colapsada = not _lista_salas_colapsada
 	room_list_scroll.visible = not _lista_salas_colapsada
-	btn_mis_salas.text = ("▸ " if _lista_salas_colapsada else "▾ ") + "Mis salas"
+	btn_mis_salas.text = "Mis salas"
+	btn_mis_salas.icon = Iconos.flecha("der" if _lista_salas_colapsada else "abajo", false, 16)
 
 	var delta := -ALTURA_LISTA_SALAS if _lista_salas_colapsada else ALTURA_LISTA_SALAS
 	for nodo: Control in [label_nombre_sala, room_nombre_edit, label_estilo_sala, room_style_container, room_status]:

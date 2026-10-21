@@ -12,7 +12,24 @@ extends Node2D
 
 const COLORES_NOTAS := [Color(1.0, 0.82, 0.3), Color(0.5, 0.85, 1.0), Color(1.0, 0.5, 0.7), Color(0.55, 1.0, 0.6)]
 
-var reproductor: AudioStreamPlayer2D
+# AudioStreamPlayer2D (equipo comun: suena mas fuerte cerca) o
+# AudioStreamPlayer (profesional: igual de fuerte en todo el taller). Sin
+# tipo porque puede ser cualquiera de los dos.
+var reproductor
+
+# Equipo profesional (ver "radio_pro" en RoomObjectCatalog).
+var es_pro: bool = false
+
+# Solo suena el equipo activo de la sala (lo elige room.gd
+# _elegir_radio_activa).
+var activo: bool = false:
+	set(valor):
+		activo = valor
+		if is_node_ready():
+			aplicar()
+
+# En modo aleatorio, cuenta cuanto falta para cambiar de cancion.
+var _cambio_aleatorio: Timer
 var _objeto: Node2D
 var _tiempo: float = 0.0
 var _proxima_nota: float = 0.0
@@ -27,25 +44,45 @@ const PULSO := 1.55
 
 func _ready() -> void:
 	_objeto = get_parent()
-	reproductor = AudioStreamPlayer2D.new()
+	if es_pro:
+		var global := AudioStreamPlayer.new()
+		global.volume_db = VOLUMEN_EQUIPO_DB + 2.0
+		reproductor = global
+	else:
+		var posicional := AudioStreamPlayer2D.new()
+		posicional.max_distance = 1600.0
+		posicional.attenuation = 1.3
+		posicional.volume_db = VOLUMEN_EQUIPO_DB
+		reproductor = posicional
 	reproductor.bus = "Musica"
-	reproductor.max_distance = 1600.0
-	reproductor.attenuation = 1.3
-	reproductor.volume_db = VOLUMEN_EQUIPO_DB
 	add_child(reproductor)
+
+	_cambio_aleatorio = Timer.new()
+	_cambio_aleatorio.one_shot = true
+	_cambio_aleatorio.timeout.connect(Sonido.radio_al_azar)
+	add_child(_cambio_aleatorio)
 
 	Sonido.radio_cambio.connect(aplicar)
 	aplicar()
 
 func aplicar() -> void:
-	if not Sonido.radio_encendida:
+	if not activo or not Sonido.radio_encendida:
 		reproductor.stop()
+		_cambio_aleatorio.stop()
 		_objeto.scale = Vector2.ONE
 		return
 	var stream := Sonido.stream_musica(Sonido.emisora_actual()["id"])
-	if reproductor.stream != stream or not reproductor.playing:
+	var cambio: bool = reproductor.stream != stream or not reproductor.playing
+	if cambio:
 		reproductor.stream = stream
 		reproductor.play()
+
+	# Aleatorio: cuando termina la vuelta completa de la cancion, otra al
+	# azar. Si se cambio a mano, la cuenta arranca de nuevo.
+	if not Sonido.radio_aleatorio:
+		_cambio_aleatorio.stop()
+	elif cambio or _cambio_aleatorio.is_stopped():
+		_cambio_aleatorio.start(maxf(stream.get_length() - reproductor.get_playback_position(), 5.0))
 
 func _process(delta: float) -> void:
 	if not reproductor.playing:
@@ -58,11 +95,13 @@ func _process(delta: float) -> void:
 
 	_tiempo += delta
 	var golpe := absf(sin(_tiempo * PI * PULSO))
-	_objeto.scale = Vector2(1.0 + 0.03 * (1.0 - golpe), 1.0 + 0.05 * golpe)
+	# El profesional "late" mas fuerte y suelta mas notas.
+	var fuerza := 1.8 if es_pro else 1.0
+	_objeto.scale = Vector2(1.0 + 0.03 * fuerza * (1.0 - golpe), 1.0 + 0.05 * fuerza * golpe)
 
 	_proxima_nota -= delta
 	if _proxima_nota <= 0.0:
-		_proxima_nota = randf_range(0.5, 0.9)
+		_proxima_nota = randf_range(0.25, 0.5) if es_pro else randf_range(0.5, 0.9)
 		_soltar_nota()
 
 # Notita musical dibujada (cabeza + plica + bandera) que sube flotando y se
@@ -85,7 +124,7 @@ func _soltar_nota() -> void:
 	nota.add_child(plica)
 
 	nota.z_index = 30
-	nota.position = Vector2(randf_range(-40, 20), -60)
+	nota.position = Vector2(randf_range(-40, 20), -130 if es_pro else -60)
 	add_child(nota)
 
 	var destino := nota.position + Vector2(randf_range(-30, 30), -70)

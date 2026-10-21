@@ -19,6 +19,14 @@ var profile_trash: int = 0
 
 const CAPACIDAD_BASURA := 5
 
+# Traje que lleva Barry (ver Vestuario y sql/profiles_outfit.sql).
+var profile_outfit: String = "clasico"
+signal traje_cambio
+
+# Festejo pendiente de Barry al volver a la sala despues de un trabajo:
+# {"pago", "puntos", "puntos_antes"}. Vacio = nada que festejar.
+var festejo_pendiente: Dictionary = {}
+
 # Pago unico (ver sql/profiles_gold.sql): no hay suscripcion ni vencimiento,
 # solo un flag que se prende para siempre en profiles.is_gold.
 const PRECIO_MEMBRESIA_GOLD := 100000
@@ -150,6 +158,8 @@ func load_profile(recargar: bool = false) -> bool:
 	profile_points = int(profile.get("points", 0))
 	profile_is_gold = bool(profile.get("is_gold", false))
 	profile_trash = int(profile.get("trash_level", 0))
+	var traje = profile.get("outfit")
+	profile_outfit = str(traje) if traje != null and str(traje) != "" else "clasico"
 
 	profile_loaded = true
 	return true
@@ -208,6 +218,7 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 		return false
 
 	# Mismo clamp que se mandó al servidor, si no la copia local se desincroniza.
+	festejo_pendiente = {"pago": payment, "puntos": points, "puntos_antes": profile_points}
 	profile_balance = max(0, profile_balance + payment)
 	profile_points = max(0, profile_points + points)
 	profile_trash = min(profile_trash + 1, CAPACIDAD_BASURA)
@@ -218,6 +229,22 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 	active_work_points = 0
 
 	work_completed.emit(true, payment, points)
+	return true
+
+# Cambia el traje de Barry y lo guarda en el perfil.
+func guardar_traje(id: String) -> bool:
+	if not is_logged_in():
+		return false
+	var res = await _request_sync(
+		"/rest/v1/profiles?id=eq." + user_id,
+		HTTPClient.METHOD_PATCH,
+		{"outfit": id},
+		["Prefer: return=representation"]
+	)
+	if not _update_ok(res, "No se pudo guardar el traje"):
+		return false
+	profile_outfit = id
+	traje_cambio.emit()
 	return true
 
 func basura_llena() -> bool:
