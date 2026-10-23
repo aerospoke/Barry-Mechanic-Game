@@ -213,7 +213,7 @@ func _pagina_resultado(ok: bool, payment: int, points: int, resultado: Dictionar
 	if resultado["bono_pago"] != 0 or resultado["bono_puntos"] != 0:
 		texto += "\n\nPrecision: +$%d  |  +%d pts" % [resultado["bono_pago"], resultado["bono_puntos"]]
 
-	return {"titulo": resultado["titulo"], "texto": texto, "boton": "Continuar"}
+	return {"titulo": resultado["titulo"], "texto": texto + Supabase.texto_bonos(), "boton": "Continuar"}
 
 # --- Ayudas para los desafios ---
 

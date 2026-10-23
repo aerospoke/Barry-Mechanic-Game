@@ -729,6 +729,9 @@ def main():
         entrada.append('\t\t"posicion_sprite": Vector2(%d, %d),' % (px, py))
         if op.get("piso"):
             entrada.append('\t\t"piso": true,')
+        else:
+            # Todos los objetos de ambientacion ocupan una baldosa.
+            entrada.append('\t\t"huella": Vector2(1, 1),')
         if op.get("balanceo"):
             entrada.append('\t\t"balanceo": true,')
         if op.get("variantes"):

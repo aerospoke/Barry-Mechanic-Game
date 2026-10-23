@@ -70,6 +70,7 @@ const OBJETOS := {
 		# base del objeto en vez de flotar a la altura de un estante.
 		"posicion_sprite": Vector2(-12, 25),
 		"mascota": true,
+		"huella": Vector2(1, 1),
 	},
 	# Equipo de sonido: la musica de la sala sale de aca (ver
 	# radio_equipo.gd). Se consigue gratis en la tienda.
@@ -79,6 +80,7 @@ const OBJETOS := {
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 28),
 		"radio": true,
+		"huella": Vector2(1, 1),
 	},
 	# Equipo profesional: misma radio, pero suena igual de fuerte en TODO el
 	# taller (sin distancia). Reemplaza al comun: nunca hay dos.
@@ -88,6 +90,7 @@ const OBJETOS := {
 		"escala": Vector2(0.45, 0.45),
 		"posicion_sprite": Vector2(-3, 8),
 		"radio": true,
+		"huella": Vector2(1, 1),
 		"radio_pro": true,
 	},
 	# Plantas en maceta (dibujadas con herramientas_dev/dibujar_plantas.py).
@@ -98,60 +101,70 @@ const OBJETOS := {
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	"planta_cactus": {
 		"textura": preload("res://objetos/plantas/cactus.png"),
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	"planta_suculenta": {
 		"textura": preload("res://objetos/plantas/suculenta.png"),
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	"planta_palmera": {
 		"textura": preload("res://objetos/plantas/palmera.png"),
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	"planta_sansevieria": {
 		"textura": preload("res://objetos/plantas/sansevieria.png"),
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	"planta_helecho": {
 		"textura": preload("res://objetos/plantas/helecho.png"),
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	"planta_ficus": {
 		"textura": preload("res://objetos/plantas/ficus.png"),
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	"planta_bonsai": {
 		"textura": preload("res://objetos/plantas/bonsai.png"),
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	"planta_girasoles": {
 		"textura": preload("res://objetos/plantas/girasoles.png"),
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	"planta_bambu": {
 		"textura": preload("res://objetos/plantas/bambu.png"),
 		"escala": Vector2(0.5, 0.5),
 		"posicion_sprite": Vector2(-12, 13),
 		"balanceo": true,
+		"huella": Vector2(1, 1),
 	},
 	# Ventana estilo Habbo: va colgada en la pared, no en el piso (ver
 	# scripts/ventana_pared.gd y room.gd _instanciar_ventana). La textura es
@@ -203,6 +216,10 @@ static func categoria(kind: String) -> String:
 	if datos.get("pieza_gratis", "") != "":
 		return "Estantes"
 	return "Especiales"
+
+# Baldosas que ocupa (largo x fondo). ZERO = base grande de la escena.
+static func huella(kind: String) -> Vector2:
+	return _datos(kind).get("huella", Vector2.ZERO)
 
 # Se pisa (tapetes, lineas): se dibuja debajo de todo y no choca.
 static func es_de_piso(kind: String) -> bool:

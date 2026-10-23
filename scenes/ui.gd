@@ -202,8 +202,17 @@ func _on_button_profile_pressed() -> void:
 func _show_cached_profile() -> void:
 	label_nick.text = str(Supabase.profile_name)
 	label_money.text = str(Supabase.profile_balance)
-	label_points.text = str(Supabase.profile_points)
+	label_points.text = _texto_puntos()
 	_show_active_work()
+
+# "120 pts · Nivel 4 Tecnico (faltan 20)": los puntos con lo que significan.
+func _texto_puntos() -> String:
+	var puntos := Supabase.profile_points
+	var nivel := Economia.nivel(puntos)
+	var texto := "%d pts · Nivel %d %s" % [puntos, nivel, Economia.nombre_nivel(nivel)]
+	if not Economia.es_nivel_maximo(nivel):
+		texto += " (faltan %d)" % (Economia.rango_nivel(puntos).y - puntos)
+	return texto
 
 func _show_active_work() -> void:
 	if Supabase.active_work_name != "":
@@ -296,6 +305,7 @@ func _on_active_work_request_completed(_result: int, response_code: int, _header
 		Supabase.active_work_key = str(work.get("key", ""))
 		Supabase.active_work_payment = int(work.get("payment", 0))
 		Supabase.active_work_points = int(work.get("points", 0))
+		Supabase.active_work_nivel = int(work.get("nivel_minimo", 1) if work.get("nivel_minimo") != null else 1)
 		_show_active_work()
 	else:
 		var work_id = int(data[0].get("work", 0))
@@ -304,5 +314,7 @@ func _on_active_work_request_completed(_result: int, response_code: int, _header
 			return
 		Supabase.active_work_id = str(work_id)
 		_fetching_work_details = true
-		var endpoint = "/rest/v1/WorkList?id=eq." + str(work_id) + "&select=name,payment,points,key"
+		# select=*: trae tambien nivel_minimo (ver sql/economia.sql) sin romper
+		# si la columna todavia no existe.
+		var endpoint = "/rest/v1/WorkList?id=eq." + str(work_id) + "&select=*"
 		Supabase.make_auth_request(http_active_work, endpoint, HTTPClient.METHOD_GET)

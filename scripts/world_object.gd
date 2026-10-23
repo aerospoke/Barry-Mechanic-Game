@@ -74,6 +74,16 @@ var posicion_sprite: Vector2 = Vector2.INF
 # Decoracion de piso (tapetes, lineas): se ordena como si estuviera muy al
 # fondo, asi Barry y los muebles siempre se dibujan encima (se pisa).
 var en_piso: bool = false
+
+# Huella del objeto en baldosas (largo x fondo, ej. Vector2(1, 1) para una
+# maceta). ZERO = usar la base grande de la escena (escritorio, estantes).
+# Ver "huella" en RoomObjectCatalog.
+var huella: Vector2 = Vector2.ZERO
+# Centro de la base de los dibujos de objetos chicos (donde "pisa" el sprite).
+const CENTRO_HUELLA := Vector2(-12, 72)
+# Vectores de una baldosa a lo largo de cada eje isometrico.
+const BALDOSA_LARGO := Vector2(64, -32)
+const BALDOSA_FONDO := Vector2(-64, -32)
 const FONDO_PISO := 5000.0
 
 # Mueble girado (espejado de izquierda a derecha). En isometrico "girar" un
@@ -121,6 +131,8 @@ var _seleccionado: bool = false
 
 func _ready() -> void:
 	_sprite_pos_escena = sprite.position if posicion_sprite == Vector2.INF else posicion_sprite
+	if huella != Vector2.ZERO and not Engine.is_editor_hint():
+		_aplicar_huella()
 	_base_poligono_original = base_solida.polygon
 	_zona_pos_original = zona_interaccion.position
 	_zona_rot_original = zona_interaccion.rotation
@@ -138,6 +150,32 @@ func _ready() -> void:
 		material.shader = ShaderContorno
 		material.set_shader_parameter("ancho", _grosor_contorno())
 		sprite.material = material
+
+# Base solida y zona de interaccion a la medida del objeto: un rombo de
+# huella.x por huella.y baldosas (la base) y uno una baldosa mas grande por
+# lado (la zona, para que alcance con pararse al lado).
+func _aplicar_huella() -> void:
+	# La escena trae la base escalada a mano para los muebles grandes; aca se
+	# usa el poligono en pixeles reales.
+	base_solida.get_parent().scale = Vector2.ONE
+	base_solida.scale = Vector2.ONE
+	base_solida.polygon = _rombo(huella)
+
+	var zona := ConvexPolygonShape2D.new()
+	zona.points = _rombo(huella + Vector2(1.2, 1.2))
+	zona_interaccion.shape = zona
+	zona_interaccion.position = Vector2.ZERO
+	zona_interaccion.rotation = 0.0
+
+func _rombo(tam: Vector2) -> PackedVector2Array:
+	var mitad_l := BALDOSA_LARGO * tam.x * 0.5
+	var mitad_f := BALDOSA_FONDO * tam.y * 0.5
+	return PackedVector2Array([
+		CENTRO_HUELLA - mitad_l - mitad_f,
+		CENTRO_HUELLA + mitad_l - mitad_f,
+		CENTRO_HUELLA + mitad_l + mitad_f,
+		CENTRO_HUELLA - mitad_l + mitad_f,
+	])
 
 # Un objeto chico (ver escala_sprite, normalmente 0.3-0.5) necesita mas
 # texeles de textura fuente para el mismo grosor visible en pantalla que uno

@@ -16,6 +16,12 @@ var profile_loaded: bool = false
 # trabajo completado hasta CAPACIDAD_BASURA, y el minijuego de reciclaje lo
 # vuelve a 0.
 var profile_trash: int = 0
+# Economia (ver Economia y sql/economia.sql): dias seguidos trabajando y el
+# ultimo dia en que se cobro un trabajo ("AAAA-MM-DD"), para el bono diario.
+var profile_racha: int = 0
+var profile_ultimo_dia: String = ""
+# Bonos aplicados en el ultimo pago (textos), para mostrarlos en el resultado.
+var ultimos_bonos: Array = []
 
 const CAPACIDAD_BASURA := 5
 
@@ -52,6 +58,9 @@ var active_work_key: String = "":
 		active_work_changed.emit()
 var active_work_points: int = 0
 var active_work_payment: int = 0
+# Nivel que pide el trabajo activo (WorkList.nivel_minimo): para el bono de
+# experiencia.
+var active_work_nivel: int = 1
 
 signal work_completed(success: bool, payment: int, points: int)
 signal active_work_changed
@@ -158,6 +167,9 @@ func load_profile(recargar: bool = false) -> bool:
 	profile_points = int(profile.get("points", 0))
 	profile_is_gold = bool(profile.get("is_gold", false))
 	profile_trash = int(profile.get("trash_level", 0))
+	profile_racha = int(profile.get("racha_dias", 0) if profile.get("racha_dias") != null else 0)
+	var ultimo = profile.get("ultimo_dia_trabajo")
+	profile_ultimo_dia = str(ultimo) if ultimo != null else ""
 	var traje = profile.get("outfit")
 	profile_outfit = str(traje) if traje != null and str(traje) != "" else "clasico"
 
@@ -183,12 +195,29 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 		work_completed.emit(false, 0, 0)
 		return false
 
-	var payment := active_work_payment + bono_pago
-	var points := active_work_points + bono_puntos
-
-	if not await load_profile():
+	# Recarga forzada: la racha y el ultimo dia trabajado tienen que estar al
+	# dia para calcular bien el bono diario.
+	if not await load_profile(true):
 		work_completed.emit(false, 0, 0)
 		return false
+
+	# Bonos de la economia: primer trabajo del dia, racha de dias seguidos y
+	# experiencia (ver Economia.calcular_pago). La precision del minijuego
+	# (bono_pago / bono_puntos) se suma antes de multiplicar.
+	var hoy := _fecha_local(0)
+	var primer_del_dia := profile_ultimo_dia != hoy
+	var racha := profile_racha
+	if profile_ultimo_dia == _fecha_local(-1):
+		racha += 1
+	elif profile_ultimo_dia != hoy:
+		racha = 1
+	racha = maxi(racha, 1)
+	var calculo := Economia.calcular_pago(
+		active_work_payment + bono_pago, active_work_points + bono_puntos,
+		Economia.nivel(profile_points), active_work_nivel, primer_del_dia, racha)
+	var payment: int = calculo["pago"]
+	var points: int = calculo["puntos"]
+	ultimos_bonos = calculo["bonos"]
 
 	# Igual que al guardar la posición: se pide la fila de vuelta para poder
 	# distinguir un update real de uno que RLS filtró (ambos responden 204).
@@ -210,6 +239,8 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 			"points": max(0, profile_points + points),
 			# Cada trabajo deja basura en el taller.
 			"trash_level": min(profile_trash + 1, CAPACIDAD_BASURA),
+			"racha_dias": racha,
+			"ultimo_dia_trabajo": hoy,
 		},
 		["Prefer: return=representation"]
 	)
@@ -218,7 +249,9 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 		return false
 
 	# Mismo clamp que se mandó al servidor, si no la copia local se desincroniza.
-	festejo_pendiente = {"pago": payment, "puntos": points, "puntos_antes": profile_points}
+	festejo_pendiente = {"pago": payment, "puntos": points, "puntos_antes": profile_points, "bonos": ultimos_bonos}
+	profile_racha = racha
+	profile_ultimo_dia = hoy
 	profile_balance = max(0, profile_balance + payment)
 	profile_points = max(0, profile_points + points)
 	profile_trash = min(profile_trash + 1, CAPACIDAD_BASURA)
@@ -227,6 +260,7 @@ func complete_active_work(bono_pago: int = 0, bono_puntos: int = 0) -> bool:
 	active_work_key = ""
 	active_work_payment = 0
 	active_work_points = 0
+	active_work_nivel = 1
 
 	work_completed.emit(true, payment, points)
 	return true
@@ -246,6 +280,20 @@ func guardar_traje(id: String) -> bool:
 	profile_outfit = id
 	traje_cambio.emit()
 	return true
+
+# Fecha local "AAAA-MM-DD" de hoy (0), ayer (-1)... El bono diario se cuenta
+# por dia del jugador, no por UTC.
+func _fecha_local(dias: int) -> String:
+	var desfase: int = int(Time.get_time_zone_from_system().get("bias", 0)) * 60
+	return Time.get_date_string_from_unix_time(int(Time.get_unix_time_from_system()) + desfase + dias * 86400)
+
+# Texto con los bonos del ultimo pago para las pantallas de resultado ("" si
+# no hubo).
+func texto_bonos() -> String:
+	if ultimos_bonos.is_empty():
+		return ""
+	var total: int = festejo_pendiente.get("pago", 0)
+	return "\n\nBonos:\n" + "\n".join(ultimos_bonos) + "\nTotal cobrado: $%d" % total
 
 func basura_llena() -> bool:
 	return profile_trash >= CAPACIDAD_BASURA

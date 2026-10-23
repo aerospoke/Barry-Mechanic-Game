@@ -322,8 +322,16 @@ func _mostrar_articulo(indice: int, direccion: int) -> void:
 		ya_tiene_equipo = sala.tiene_equipo(key)
 	var reemplaza: bool = RoomObjectCatalog.es_radio_pro(key) and not ya_tiene_equipo \
 		and sala_valida and sala.tiene_equipo("radio")
+	# Nivel: algunos articulos se desbloquean subiendo de nivel. Gold no
+	# tiene esa restriccion (es uno de sus beneficios).
+	var nivel_pedido := _nivel_de(item)
+	var falta_nivel: bool = not Supabase.profile_is_gold and Economia.nivel(Supabase.profile_points) < nivel_pedido
+	if nivel_pedido > 1:
+		_carrusel_precio.text += "  ·  Nivel %d" % nivel_pedido
 	if ya_tiene_item:
 		_btn_comprar_articulo.text = "Manos ocupadas"
+	elif falta_nivel:
+		_btn_comprar_articulo.text = "Desbloquea en nivel %d" % nivel_pedido
 	elif ya_tiene_equipo:
 		_btn_comprar_articulo.text = "Ya tienes un equipo" if key == "radio" else "Ya lo tienes"
 	elif reemplaza and precio <= Supabase.profile_balance:
@@ -334,7 +342,7 @@ func _mostrar_articulo(indice: int, direccion: int) -> void:
 		_btn_comprar_articulo.text = "Llevar gratis"
 	else:
 		_btn_comprar_articulo.text = "Comprar $%d" % precio
-	_btn_comprar_articulo.disabled = ya_tiene_item or ya_tiene_equipo or precio > Supabase.profile_balance
+	_btn_comprar_articulo.disabled = ya_tiene_item or ya_tiene_equipo or falta_nivel or precio > Supabase.profile_balance
 
 	_animar_carrusel(_recortar_visible(textura), direccion)
 
@@ -663,7 +671,8 @@ func _fetch_work_list_for_select() -> void:
 	for child in work_item_container.get_children():
 		child.queue_free()
 
-	var endpoint = "/rest/v1/WorkList?select=id,name,price,payment,points,key"
+	# select=*: trae tambien nivel_minimo (ver sql/economia.sql).
+	var endpoint = "/rest/v1/WorkList?select=*"
 	Supabase.make_auth_request(http_worklist, endpoint, HTTPClient.METHOD_GET)
 
 func _on_worklist_request_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
@@ -681,20 +690,33 @@ func _on_worklist_request_completed(_result: int, response_code: int, _headers: 
 		status_label.text = "Sin trabajos disponibles"
 		return
 
+	# Del mas facil al mas dificil: los bloqueados quedan abajo, a la vista.
+	data.sort_custom(func(a, b): return _nivel_de(a) < _nivel_de(b) or (_nivel_de(a) == _nivel_de(b) and int(a.get("payment", 0)) < int(b.get("payment", 0))))
 	for item in data:
 		_add_selectable_work_row(
 			str(item.get("id", "")),
 			str(item.get("name", "")),
 			str(item.get("payment", "")),
 			str(item.get("points", "")),
-			str(item.get("key", ""))
+			str(item.get("key", "")),
+			_nivel_de(item)
 		)
+
+# Nivel que pide un trabajo o articulo (1 si la columna no existe todavia).
+func _nivel_de(item: Dictionary) -> int:
+	var n = item.get("nivel_minimo")
+	return int(n) if n != null else 1
 
 # Tarjeta de trabajo: icono de la pieza que pide, nombre y recompensas en
 # chips (plata en verde, puntos en dorado). Tocarla acepta el trabajo.
-func _add_selectable_work_row(work_id: String, name: String, payment: String, points: String, key: String) -> void:
+func _add_selectable_work_row(work_id: String, name: String, payment: String, points: String, key: String, nivel: int = 1) -> void:
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(0, 84)
+	# Trabajo de un nivel que todavia no tenes: se ve con su requisito, para
+	# dar ganas, pero no se puede aceptar.
+	var bloqueado := Economia.nivel(Supabase.profile_points) < nivel
+	btn.disabled = bloqueado
+	btn.set_meta("work_nivel", nivel)
 
 	var fila := HBoxContainer.new()
 	fila.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -728,7 +750,11 @@ func _add_selectable_work_row(work_id: String, name: String, payment: String, po
 	premios.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	premios.add_child(EstiloUI.chip("+$%s" % payment, EstiloUI.VERDE, 14))
 	premios.add_child(EstiloUI.chip("+%s pts" % points, EstiloUI.DORADO, 14))
+	if bloqueado:
+		premios.add_child(EstiloUI.chip("Nivel %d · %s" % [nivel, Economia.nombre_nivel(nivel)], EstiloUI.ROJO, 13))
 	textos.add_child(premios)
+	if bloqueado:
+		fila.modulate = Color(1, 1, 1, 0.55)
 
 	var flecha := TextureRect.new()
 	flecha.texture = Iconos.flecha("der", false, 20, EstiloUI.TEXTO_SUAVE)
@@ -751,6 +777,7 @@ func _on_work_selected(btn: Button) -> void:
 		"work_payment": btn.get_meta("work_payment"),
 		"work_points": btn.get_meta("work_points"),
 		"work_key": btn.get_meta("work_key"),
+		"work_nivel": btn.get_meta("work_nivel", 1),
 	}
 
 	status_label.text = "Aceptando trabajo..."
@@ -771,6 +798,7 @@ func _on_accept_work_completed(_result: int, response_code: int, _headers: Packe
 		Supabase.active_work_key = str(_pending_work["work_key"])
 		Supabase.active_work_payment = int(_pending_work["work_payment"])
 		Supabase.active_work_points = int(_pending_work["work_points"])
+		Supabase.active_work_nivel = int(_pending_work.get("work_nivel", 1))
 
 		status_label.text = "Trabajo asignado!"
 		print("Trabajo activo: %s ($%d, %d pts)" % [Supabase.active_work_name, Supabase.active_work_payment, Supabase.active_work_points])
@@ -1002,7 +1030,7 @@ func _actualizar_cabecera() -> void:
 	if _chip_saldo == null:
 		return
 	_chip_saldo.text = "  $%d  " % Supabase.profile_balance
-	_chip_puntos.text = "  %d pts  " % Supabase.profile_points
+	_chip_puntos.text = "  %s  " % Economia.texto_nivel(Supabase.profile_points)
 	var trabajo := Supabase.active_work_name
 	_chip_trabajo.text = ("Trabajo activo: %s" % trabajo) if trabajo != "" else "Sin trabajo activo: elige uno en Trabajos"
 

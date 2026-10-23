@@ -485,6 +485,7 @@ func _instanciar_objeto(fila: Dictionary) -> void:
 	objeto.poligono_colision = RoomObjectCatalog.poligono_colision(kind)
 	objeto.position = Vector2(float(fila.get("x", 0.0)), float(fila.get("y", 0.0)))
 	objeto.posicion_sprite = RoomObjectCatalog.posicion_sprite(kind)
+	objeto.huella = RoomObjectCatalog.huella(kind)
 	# null (columna sin correr su SQL) cuenta como no girado.
 	objeto.volteado = fila.get("volteado") == true
 	objeto.set_meta("room_object_id", str(fila.get("id", "")))

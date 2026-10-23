@@ -267,6 +267,21 @@ func _festejar_si_toca() -> void:
 	festejar("+$%d   +%d pts" % [festejo["pago"], festejo["puntos"]])
 
 	var puntos_antes: int = festejo["puntos_antes"]
+	var puntos_despues: int = puntos_antes + int(festejo["puntos"])
+
+	# El bono del dia se anuncia aparte: es el gancho para volver manana.
+	for bono in festejo.get("bonos", []):
+		if str(bono).begins_with("¡Primer"):
+			await get_tree().create_timer(0.9).timeout
+			Efectos.texto_flotante(get_parent(), str(bono), global_position + Vector2(0, -210), Color(0.5, 0.9, 1.0), 20)
+
+	# Subio de nivel: el festejo grande.
+	var nivel_antes := Economia.nivel(puntos_antes)
+	var nivel_ahora := Economia.nivel(puntos_despues)
+	if nivel_ahora > nivel_antes:
+		await get_tree().create_timer(1.2).timeout
+		festejar("¡Nivel %d: %s!" % [nivel_ahora, Economia.nombre_nivel(nivel_ahora)])
+		Efectos.confeti(get_parent(), global_position + Vector2(0, -140), 50)
 	for id in Vestuario.nuevos_entre(puntos_antes, puntos_antes + int(festejo["puntos"])):
 		await get_tree().create_timer(1.3).timeout
 		Sonido.efecto("acierto")

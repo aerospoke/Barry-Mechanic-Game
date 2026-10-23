@@ -530,6 +530,6 @@ func _pagina_resultado(ok: bool, payment: int, points: int, resultado: Dictionar
 
 	return {
 		"titulo": resultado["titulo"],
-		"texto": texto,
+		"texto": texto + Supabase.texto_bonos(),
 		"boton": "Continuar",
 	}
